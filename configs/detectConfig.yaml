@@ -1,0 +1,36 @@
+modelPath: "/home/delphine/rm/tensorrt10_detect/models/yolo26.engine"
+armorModelPath: "/home/delphine/rm/tensorrt10_detect/models/newarmor.engine"
+classifyModelPath: "/home/delphine/rm/tensorrt10_detect/models/repvgg_rm_final.engine"
+classNames:
+  0: "car"
+  1: "armor"
+  2: "1"   # 对应 raw_id 0
+  3: "2"   # 对应 raw_id 1
+  4: "3"   # 对应 raw_id 2
+  5: "4"   # 对应 raw_id 3
+  6: "s"   # 对应 raw_id 4
+showFlag: true
+mapPath: "/home/delphine/rm/tensorrt10_detect/configs/map.png"
+requirePointsNum: 4
+cameraMatrix: [5033.780199, 0.000000, 2829.234535,0.000000, 5036.139955, 1929.489557,0.000000, 0.000000, 1.000000]
+distCoeffs: [-0.061883, 0.104794, 0.000434, -0.000036, 0.000000]
+isflip: true
+maxMissCount: 5
+maxhistory: 15
+distheshold: 55.0
+
+#worldPoints:
+#  - [20620.0, 3750.0, 0.0]
+#  - [22620.0, 3750.0, 0.0]
+#  - [22620.0, 4750.0, 0.0]
+#  - [20620.0, 4750.0, 0.0]  #blue
+worldPoints:
+  - [7380.0, 11250.0, 0.0]  
+  - [5380.0, 11250.0, 0.0] 
+  - [5380.0, 10250.0, 0.0]  
+  - [7380.0, 10250.0, 0.0]  #red
+MapPoints:
+  - [725.0,969.0]
+  - [724.0,8.00]
+  - [205.0,9.00]
+  - [254.0,968.0]

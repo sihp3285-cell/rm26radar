@@ -1,0 +1,16 @@
+# 忽略编译产生的文件
+build/
+*.o
+*.out
+
+# 忽略大型模型文件（Git 不适合传大型二进制文件）
+*.engine
+*.onnx
+
+# 忽略 IDE 和编辑器生成的配置
+.idea/
+.vscode/
+CMakeCache.txt
+
+# 忽略系统产生的文件
+.DS_Store
