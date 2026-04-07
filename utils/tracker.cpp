@@ -35,6 +35,7 @@ void Tracker::update(const std::vector<Mappoint>& detections)
             {
                 bestMatch->classhistory.pop_front();
             }
+            bestMatch->color = d.armorColor;
         }
         else
         {
