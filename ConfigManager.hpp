@@ -53,16 +53,14 @@ struct Config
 
             YAML::Node camNode = config["cameraMatrix"];
             if (camNode && camNode.IsSequence() && camNode.size() == 9) {
-                cameraMatrix = cv::Mat::zeros(3, 3, CV_64F); // 先创建一个干净的 3x3 矩阵
+                cameraMatrix = cv::Mat::zeros(3, 3, CV_64F); 
                 for (int i = 0; i < 9; ++i) {
-                    // as<double>() 会自动兼容整数和浮点数
                     cameraMatrix.at<double>(i / 3, i % 3) = camNode[i].as<double>(); 
                 }
             } else {
                 throw std::runtime_error("YAML 中 cameraMatrix 格式错误或缺失！必须是 9 个数字。");
             }
 
-            // 4. 绝对安全的畸变系数解析 (distCoeffs 1x5)
             YAML::Node distNode = config["distCoeffs"];
             if (distNode && distNode.IsSequence()) {
                 int distSize = distNode.size();
@@ -98,7 +96,7 @@ struct Config
             if (config["isflip"]) {
                 isflip = config["isflip"].as<bool>();
             } else {
-                isflip = false; // 默认值
+                isflip = false;
             }
             std::cout << "配置成功" << std::endl;
 
