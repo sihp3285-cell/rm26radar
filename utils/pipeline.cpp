@@ -32,7 +32,16 @@ std::vector<Result> DetectPipeline::runArmorDetect(const cv::Mat& frame,
         if (!armorDetector_.Detect(frame(roi)))
             continue;
 
-        for (auto armor : armorDetector_.detectResults) {
+        // 只保留装甲板检测结果中置信度最高的一个
+        if (!armorDetector_.detectResults.empty()) {
+            // 找出置信度最高的装甲板
+            auto maxArmor = std::max_element(armorDetector_.detectResults.begin(), 
+                                            armorDetector_.detectResults.end(),
+                [](const Result& a, const Result& b) {
+                    return a.confidence < b.confidence;
+                });
+            
+            Result armor = *maxArmor;
             int raw_id = armor.idx;
 
             armor.box.x += roi.x;
@@ -86,5 +95,3 @@ std::vector<Result> DetectPipeline::process(const cv::Mat& frame) {
     all.insert(all.end(), detections.begin(), detections.end());
     return all;
 }
-
-
