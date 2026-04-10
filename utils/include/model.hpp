@@ -46,7 +46,7 @@ private:
 public:
     std::vector<Result> detectResults;
 
-    Model(const std::string modelPath, const int &inputSize, const float &scoreThreshol, const float &nmsThreshold, const bool isNMS = true);
+    Model(const std::string modelPath, const int &inputSize, const float &scoreThreshold, const float &nmsThreshold, const bool isNMS = true);
     ~Model();
     int predictClass(const cv::Mat &roi);
     cv::Rect roi;

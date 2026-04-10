@@ -25,6 +25,21 @@ struct Config
     int maxMissCount;
     int maxhistory;
     float distheshold;
+    int minRoiSize;
+    float padRatio; 
+    int classIdxBase;
+    int imgSize1;
+    float iouThreshold1;
+    float scoreThreshold1;
+    int imgSize2;
+    float iouThreshold2;
+    float scoreThreshold2;
+    int imgSize3;
+    float iouThreshold3;
+    float scoreThreshold3;
+    bool isNMS1;
+    bool isNMS2;
+    bool isNMS3;
 
     Config(const std::string &configPath)
     {
@@ -40,6 +55,24 @@ struct Config
             maxMissCount = config["maxMissCount"].as<int>();
             maxhistory = config["maxhistory"].as<int>();
             distheshold = config["distheshold"].as<float>();
+            minRoiSize = config["minRoiSize"].as<int>();
+            padRatio = config["padRatio"].as<float>();
+            classIdxBase = config["classIdxBase"].as<int>();
+
+            imgSize1 = config["imgSize1"].as<int>();
+            iouThreshold1 = config["iouThreshold1"].as<float>();
+            scoreThreshold1 = config["scoreThreshold1"].as<float>();
+            isNMS1 = config["isNMS1"].as<bool>();
+
+            imgSize2 = config["imgSize2"].as<int>();
+            iouThreshold2 = config["iouThreshold2"].as<float>();
+            scoreThreshold2 = config["scoreThreshold2"].as<float>();
+            isNMS2 = config["isNMS2"].as<bool>();
+
+            imgSize3 = config["imgSize3"].as<int>();
+            iouThreshold3 = config["iouThreshold3"].as<float>();
+            scoreThreshold3 = config["scoreThreshold3"].as<float>();
+            isNMS3 = config["isNMS3"].as<bool>();
 
 
             classNames.clear();

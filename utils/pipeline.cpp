@@ -1,14 +1,15 @@
 #include "include/pipeline.hpp"
+#include "../../ConfigManager.hpp"
 
-DetectPipeline::DetectPipeline(const std::string& detectPath,
-                                const std::string& armorPath,
-                                const std::string& classifyPath,
-                                const PipelineConfig& cfg)
-    : detectModel_ (detectPath,   1280, 0.15f, 0.4f,true)
-    , armorDetector_(armorPath,   192, 0.5f, 0.3f,false)
-    , classifyModel_(classifyPath, 64, 0.7f, 0.3f,false)
-    , cfg_(cfg)
+
+DetectPipeline::DetectPipeline(Config& cfg)
+    : detectModel_(cfg.modelPath, cfg.imgSize1, cfg.scoreThreshold1, cfg.iouThreshold1, cfg.isNMS1),
+      armorDetector_(cfg.armorModelPath, cfg.imgSize2, cfg.scoreThreshold2, cfg.iouThreshold2, cfg.isNMS2),
+      classifyModel_(cfg.classifyModelPath, cfg.imgSize3, cfg.scoreThreshold3, cfg.iouThreshold3, cfg.isNMS3),
+      cfg_(cfg)
 {}
+
+
 
 std::vector<Result> DetectPipeline::runDetect(const cv::Mat& frame) {
     detectModel_.Detect(frame);

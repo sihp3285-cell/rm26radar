@@ -19,7 +19,7 @@ int main(int argc, char const *argv[])
         return -1;
     }
 
-    DetectPipeline pipeline(cfg.modelPath, cfg.armorModelPath, cfg.classifyModelPath);
+    DetectPipeline pipeline(cfg);
     PoseSolver poseSolver(cfg.cameraMatrix, cfg.distCoeffs);
 
     cv::Mat calibrateFrame; 
