@@ -1,140 +1,107 @@
 #pragma once
+
 #include <string>
 #include <vector>
-#include <iostream>
-#include <yaml-cpp/yaml.h>
+#include <stdexcept>
 #include <opencv2/opencv.hpp>
 
-struct Config
-{
+struct InferModelConfig {
+    std::string modelPath;
+    int imgSize = 0;
+    float iouThreshold = 0.0f;
+    float scoreThreshold = 0.0f;
+    bool isNMS = false;
+};
 
-    std::string modelPath;              
-    std::string armorModelPath;            
-    std::string classifyModelPath;         
-    std::vector<std::string> classNames;   
-    bool showFlag;                        
-    bool isflip;                          
+struct PipelineConfig {
+    int minRoiSize = 0;
+    float padRatio = 0.0f;
+    int classIdxBase = 0;
+    std::vector<std::string> classNames;
+};
 
-    cv::Mat cameraMatrix;
-    cv::Mat distCoeffs;
-    std::vector<cv::Point3f> worldPoints; 
-    std::vector<cv::Point2f> worldPoints2D; 
+struct ModelConfig {
+    std::string modelPath;
+    int imgSize1 = 0;
+    float iouThreshold1 = 0.0f;
+    float scoreThreshold1 = 0.0f;
+    bool isNMS1 = false;
+
+    std::string armorModelPath;
+    int imgSize2 = 0;
+    float iouThreshold2 = 0.0f;
+    float scoreThreshold2 = 0.0f;
+    bool isNMS2 = false;
+
+    std::string classifyModelPath;
+    int imgSize3 = 0;
+    float iouThreshold3 = 0.0f;
+    float scoreThreshold3 = 0.0f;
+    bool isNMS3 = false;
+
+    int minRoiSize = 0;
+    float padRatio = 0.0f;
+    int classIdxBase = 0;
+
+    std::vector<std::string> classNames;
+};
+
+struct CameraConfig {
+    cv::Mat cameraMatrix;                  // 3x3, CV_64F
+    cv::Mat distCoeffs;                    // 1xN, CV_64F
+    int requirePointsNum = 0;
+    std::vector<cv::Point3f> worldPoints;  // PnP 3D 点
+};
+
+struct MapConfig {
     std::string mapPath;
-    std::vector<cv::Point2f> MapPoints;
-    int requirePointsNum;
-    int maxMissCount;
-    int maxhistory;
-    float distheshold;
-    int minRoiSize;
-    float padRatio; 
-    int classIdxBase;
-    int imgSize1;
-    float iouThreshold1;
-    float scoreThreshold1;
-    int imgSize2;
-    float iouThreshold2;
-    float scoreThreshold2;
-    int imgSize3;
-    float iouThreshold3;
-    float scoreThreshold3;
-    bool isNMS1;
-    bool isNMS2;
-    bool isNMS3;
+    std::vector<cv::Point2f> mapPoints;
+    std::vector<cv::Point2f> world_points_2d;
+    bool isFlip = false;
+};
 
-    Config(const std::string &configPath)
-    {
-        try {
-            YAML::Node config = YAML::LoadFile(configPath);
+struct TrackerConfig {
+    int maxMissCount = 0;
+    int maxHistory = 0;
+    float distThreshold = 0.0f;
+};
 
-            modelPath = config["modelPath"].as<std::string>();
-            armorModelPath = config["armorModelPath"].as<std::string>();
-            classifyModelPath = config["classifyModelPath"].as<std::string>();
-            showFlag = config["showFlag"].as<bool>();
-            mapPath = config["mapPath"].as<std::string>("/home/delphine/rm/map.png"); 
-            requirePointsNum = config["requirePointsNum"].as<int>();
-            maxMissCount = config["maxMissCount"].as<int>();
-            maxhistory = config["maxhistory"].as<int>();
-            distheshold = config["distheshold"].as<float>();
-            minRoiSize = config["minRoiSize"].as<int>();
-            padRatio = config["padRatio"].as<float>();
-            classIdxBase = config["classIdxBase"].as<int>();
+struct RuntimeConfig {
+    bool showFlag = true;
+};
 
-            imgSize1 = config["imgSize1"].as<int>();
-            iouThreshold1 = config["iouThreshold1"].as<float>();
-            scoreThreshold1 = config["scoreThreshold1"].as<float>();
-            isNMS1 = config["isNMS1"].as<bool>();
+class Config {
+public:
+    // 传配置目录，例如: "/home/delphine/rm/tensorrt10_detect/configs"
+    explicit Config(const std::string& configDir);
 
-            imgSize2 = config["imgSize2"].as<int>();
-            iouThreshold2 = config["iouThreshold2"].as<float>();
-            scoreThreshold2 = config["scoreThreshold2"].as<float>();
-            isNMS2 = config["isNMS2"].as<bool>();
+    // 或者直接传五个/六个文件路径
+    Config(const std::string& modelYaml,
+           const std::string& cameraYaml,
+           const std::string& mapYaml,
+           const std::string& trackerYaml,
+           const std::string& runtimeYaml);
 
-            imgSize3 = config["imgSize3"].as<int>();
-            iouThreshold3 = config["iouThreshold3"].as<float>();
-            scoreThreshold3 = config["scoreThreshold3"].as<float>();
-            isNMS3 = config["isNMS3"].as<bool>();
+    ModelConfig model;
+    CameraConfig camera;
+    MapConfig map;
+    TrackerConfig tracker;
+    RuntimeConfig runtime;
 
+private:
+    void loadModelConfig(const std::string& path);
+    void loadCameraConfig(const std::string& path);
+    void loadMapConfig(const std::string& path);
+    void loadTrackerConfig(const std::string& path);
+    void loadRuntimeConfig(const std::string& path);
 
-            classNames.clear();
-            if (config["classNames"].IsSequence()) {
-                for (const auto &item : config["classNames"])
-                    classNames.emplace_back(item.as<std::string>());
-            } else {
-                for (const auto &item : config["classNames"])
-                    classNames.emplace_back(item.second.as<std::string>());
-            }
+    static cv::Mat parseMat3x3(const std::vector<double>& data);
+    static cv::Mat parseRowMat(const std::vector<double>& data);
+    static std::vector<cv::Point3f> parsePoint3fList(const std::vector<std::vector<float>>& data);
+    static std::vector<cv::Point2f> parsePoint2fList(const std::vector<std::vector<float>>& data);
 
-            YAML::Node camNode = config["cameraMatrix"];
-            if (camNode && camNode.IsSequence() && camNode.size() == 9) {
-                cameraMatrix = cv::Mat::zeros(3, 3, CV_64F); 
-                for (int i = 0; i < 9; ++i) {
-                    cameraMatrix.at<double>(i / 3, i % 3) = camNode[i].as<double>(); 
-                }
-            } else {
-                throw std::runtime_error("YAML 中 cameraMatrix 格式错误或缺失！必须是 9 个数字。");
-            }
-
-            YAML::Node distNode = config["distCoeffs"];
-            if (distNode && distNode.IsSequence()) {
-                int distSize = distNode.size();
-                distCoeffs = cv::Mat::zeros(1, distSize, CV_64F);
-                for (int i = 0; i < distSize; ++i) {
-                    distCoeffs.at<double>(0, i) = distNode[i].as<double>();
-                }
-            } else {
-                throw std::runtime_error("YAML 中 distCoeffs 格式错误或缺失！");
-            }
-
-            worldPoints.clear();
-            worldPoints2D.clear();
-            YAML::Node wpNode = config["worldPoints"];
-            if (wpNode && wpNode.IsSequence()) {
-                for (const auto &item : wpNode) {
-                    float x = item[0].as<float>();
-                    float y = item[1].as<float>();
-                    float z = item[2].as<float>();
-                    worldPoints.emplace_back(cv::Point3f(x, y, z));
-                    worldPoints2D.emplace_back(cv::Point2f(x, y));
-                }
-            }
-            YAML::Node mpNode = config["MapPoints"];
-            if (mpNode && mpNode.IsSequence()) {
-                for (const auto &item : mpNode) {
-                    float x = item[0].as<float>();
-                    float y = item[1].as<float>();
-                    MapPoints.emplace_back(cv::Point2f(x, y));
-                }
-            }
-            showFlag = config["showFlag"].as<bool>();
-            if (config["isflip"]) {
-                isflip = config["isflip"].as<bool>();
-            } else {
-                isflip = false;
-            }
-            std::cout << "配置成功" << std::endl;
-
-        } catch (const std::exception &e) {
-            std::cerr << "配置失败" << e.what() << std::endl;
-        }
-    }
+    static void validateModelConfig(const ModelConfig& cfg);
+    static void validateCameraConfig(const CameraConfig& cfg);
+    static void validateMapConfig(const MapConfig& cfg);
+    static void validateTrackerConfig(const TrackerConfig& cfg);
 };

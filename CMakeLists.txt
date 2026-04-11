@@ -34,6 +34,7 @@ add_executable(standard# 定义一个名为 standard 的可执行文件，包含
     utils/pipeline.cpp
     utils/ui.cpp
     utils/tracker.cpp
+    ConfigManager.cpp
 )
 
 

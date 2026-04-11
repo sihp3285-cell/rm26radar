@@ -20,12 +20,12 @@ int main(int argc, char const *argv[])
     }
 
     DetectPipeline pipeline(cfg);
-    PoseSolver poseSolver(cfg.cameraMatrix, cfg.distCoeffs);
+    PoseSolver poseSolver(cfg.camera.cameraMatrix, cfg.camera.distCoeffs);
 
     cv::Mat calibrateFrame; 
 
     {
-        int num = cfg.worldPoints.size();
+        int num = cfg.map.world_points_2d.size();
         cv::namedWindow("Video Preview", cv::WINDOW_NORMAL);
         cv::resizeWindow("Video Preview", 1280, 720);
 
@@ -56,7 +56,7 @@ int main(int argc, char const *argv[])
         std::vector<cv::Point2f> imagePoints = mouseBack.getPoints(calibrateFrame);
         
         if(imagePoints.size() == num) {
-            poseSolver.calibrate(cfg.worldPoints, imagePoints);
+            poseSolver.calibrate(cfg.camera.worldPoints, imagePoints);
             std::cout << "相机标定（PnP）成功！" << std::endl;
         } else {
             std::cout << "标定点数不足，程序退出。" << std::endl;
@@ -66,16 +66,16 @@ int main(int argc, char const *argv[])
         cap.set(cv::CAP_PROP_POS_FRAMES, 0);
     }
 
-    RadarMap radarMap(cfg.mapPath, cfg.isflip);
+    RadarMap radarMap(cfg.map.mapPath, cfg.map.isFlip);
     {
-        cv::Mat rawMap = cv::imread(cfg.mapPath);
+        cv::Mat rawMap = cv::imread(cfg.map.mapPath);
         int rawW = rawMap.cols; 
         int rawH = rawMap.rows; 
 
         std::vector<cv::Point2f> rotatedPoints;
-        for (auto& pt : cfg.MapPoints) {
+        for (auto& pt : cfg.map.mapPoints) {
             cv::Point2f rPt;
-            if(cfg.isflip)
+            if(cfg.map.isFlip)
             {
                 rPt.x = (float)rawH - pt.y; 
                 rPt.y = pt.x;
@@ -88,13 +88,13 @@ int main(int argc, char const *argv[])
             rotatedPoints.push_back(rPt);
         }
 
-        radarMap.calibrate2(rotatedPoints, cfg.worldPoints2D);
+        radarMap.calibrate2(rotatedPoints, cfg.map.world_points_2d);
     };
 
 
     UI ui("Video & Radar");
     bool isPaused = false;
-    Tracker tracker(cfg.maxMissCount, cfg.maxhistory, cfg.distheshold);
+    Tracker tracker(cfg.tracker.maxMissCount, cfg.tracker.maxHistory, cfg.tracker.distThreshold);
     while (true) 
     {
         cv::Mat frame;
@@ -115,8 +115,8 @@ int main(int argc, char const *argv[])
 
 
         
-        drawDetect(frame, allresults, cfg.classNames);
-        cv::Mat radarImg = radarMap.drawMap(smoothedPoints, cfg.classNames);
+        drawDetect(frame, allresults, cfg.model.classNames);
+        cv::Mat radarImg = radarMap.drawMap(smoothedPoints, cfg.model.classNames);
 
         int key = ui.update(frame, radarImg, isPaused);
 

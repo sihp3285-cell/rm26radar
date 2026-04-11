@@ -1,0 +1,30 @@
+modelPath: "/home/delphine/rm/tensorrt10_detect/models/yolo26.engine"
+imgSize1: 1280
+iouThreshold1: 0.3
+scoreThreshold1: 0.1
+isNMS1: true
+
+armorModelPath: "/home/delphine/rm/tensorrt10_detect/models/newarmor.engine"
+imgSize2: 192
+iouThreshold2: 0.3
+scoreThreshold2: 0.3
+isNMS2: false
+
+classifyModelPath: "/home/delphine/rm/tensorrt10_detect/models/repvgg_rm_final.engine"
+imgSize3: 64
+iouThreshold3: 0.5
+scoreThreshold3: 0.3
+isNMS3: false
+
+classNames:
+  0: "car"
+  1: "armor"
+  2: "1"   # 对应 raw_id 0
+  3: "2"   # 对应 raw_id 1
+  4: "3"   # 对应 raw_id 2
+  5: "4"   # 对应 raw_id 3
+  6: "s"   # 对应 raw_id 4
+
+minRoiSize: 30
+padRatio: 0.25
+classIdxBase: 2

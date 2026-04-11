@@ -3,9 +3,9 @@
 
 
 DetectPipeline::DetectPipeline(Config& cfg)
-    : detectModel_(cfg.modelPath, cfg.imgSize1, cfg.scoreThreshold1, cfg.iouThreshold1, cfg.isNMS1),
-      armorDetector_(cfg.armorModelPath, cfg.imgSize2, cfg.scoreThreshold2, cfg.iouThreshold2, cfg.isNMS2),
-      classifyModel_(cfg.classifyModelPath, cfg.imgSize3, cfg.scoreThreshold3, cfg.iouThreshold3, cfg.isNMS3),
+    : detectModel_(cfg.model.modelPath, cfg.model.imgSize1, cfg.model.scoreThreshold1, cfg.model.iouThreshold1, cfg.model.isNMS1),
+      armorDetector_(cfg.model.armorModelPath, cfg.model.imgSize2, cfg.model.scoreThreshold2, cfg.model.iouThreshold2, cfg.model.isNMS2),
+      classifyModel_(cfg.model.classifyModelPath, cfg.model.imgSize3, cfg.model.scoreThreshold3, cfg.model.iouThreshold3, cfg.model.isNMS3),
       cfg_(cfg)
 {}
 
@@ -27,7 +27,7 @@ std::vector<Result> DetectPipeline::runArmorDetect(const cv::Mat& frame,
 
     for (const auto& det : detections) {
         cv::Rect roi = det.box & imgBound;
-        if (roi.width < cfg_.minRoiSize || roi.height < cfg_.minRoiSize)
+        if (roi.width < cfg_.model.minRoiSize || roi.height < cfg_.model.minRoiSize)
             continue;
 
         if (!armorDetector_.Detect(frame(roi)))
