@@ -128,14 +128,15 @@ void Config::loadCameraConfig(const std::string& path) {
     camera.distCoeffs      = parseRowMat(cfg["distCoeffs"].as<std::vector<double>>());
     camera.requirePointsNum = cfg["requirePointsNum"].as<int>();
     camera.worldPoints     = parsePoint3fList(cfg["worldPoints"].as<std::vector<std::vector<float>>>());
+    camera.meshPath        = cfg["meshPath"] ? cfg["meshPath"].as<std::string>() : "";
 }
 
 void Config::loadMapConfig(const std::string& path) {
     YAML::Node cfg = YAML::LoadFile(path);
 
     map.mapPath         = cfg["mapPath"].as<std::string>();
-    map.mapPoints       = parsePoint2fList(cfg["MapPoints"].as<std::vector<std::vector<float>>>());
-    map.world_points_2d = parsePoint2fList(cfg["world_points_2d"].as<std::vector<std::vector<float>>>());
+    map.race_size       = cfg["race_size"].as<std::vector<float>>();
+    map.map_size        = cfg["map_size"].as<std::vector<int>>();
     map.isFlip          = cfg["isflip"].as<bool>();
 }
 
@@ -237,14 +238,17 @@ void Config::validateMapConfig(const MapConfig& cfg) {
     if (cfg.mapPath.empty()) {
         throw std::runtime_error("mapPath 不能为空");
     }
-    if (cfg.mapPoints.empty()) {
-        throw std::runtime_error("MapPoints 不能为空");
+    if (cfg.race_size.size() != 2) {
+        throw std::runtime_error("race_size 必须包含 2 个元素 [length, width]");
     }
-    if (cfg.world_points_2d.empty()) {
-        throw std::runtime_error("world_points_2d 不能为空");
+    if (cfg.map_size.size() != 2) {
+        throw std::runtime_error("map_size 必须包含 2 个元素 [width, height]");
     }
-    if (cfg.mapPoints.size() != cfg.world_points_2d.size()) {
-        throw std::runtime_error("MapPoints 与 world_points_2d 数量不一致");
+    if (cfg.race_size[0] <= 0 || cfg.race_size[1] <= 0) {
+        throw std::runtime_error("race_size 的元素必须大于 0");
+    }
+    if (cfg.map_size[0] <= 0 || cfg.map_size[1] <= 0) {
+        throw std::runtime_error("map_size 的元素必须大于 0");
     }
 }
 

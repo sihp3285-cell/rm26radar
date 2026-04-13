@@ -67,6 +67,7 @@ add_executable(standard
     utils/ui.cpp
     utils/tracker.cpp
     ConfigManager.cpp 
+    utils/raycaster.cpp
 )
 
 # 链接库

@@ -51,12 +51,13 @@ struct CameraConfig {
     cv::Mat distCoeffs;                    // 1xN, CV_64F
     int requirePointsNum = 0;
     std::vector<cv::Point3f> worldPoints;  // PnP 3D 点
+    std::string meshPath;
 };
 
 struct MapConfig {
     std::string mapPath;
-    std::vector<cv::Point2f> mapPoints;
-    std::vector<cv::Point2f> world_points_2d;
+    std::vector<float> race_size;  // [length, width] 场地物理尺寸，单位：米
+    std::vector<int> map_size;     // [width, height] 地图像素尺寸
     bool isFlip = false;
 };
 

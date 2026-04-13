@@ -22,10 +22,18 @@ int main(int argc, char const *argv[])
     DetectPipeline pipeline(cfg);
     PoseSolver poseSolver(cfg.camera.cameraMatrix, cfg.camera.distCoeffs);
 
+// 添加这两行来加载 3D 网格
+    std::cout << "配置的 mesh 路径: " << cfg.camera.meshPath << std::endl;
+    if (!poseSolver.getRaycaster().loadingMesh(cfg.camera.meshPath)) {  
+        std::cerr << "警告：无法加载 3D 网格文件，将使用平面地面回退方案" << std::endl;
+    }
+
+
+
     cv::Mat calibrateFrame; 
 
     {
-        int num = cfg.map.world_points_2d.size();
+        int num = cfg.camera.requirePointsNum;
         cv::namedWindow("Video Preview", cv::WINDOW_NORMAL);
         cv::resizeWindow("Video Preview", 1280, 720);
 
@@ -67,29 +75,13 @@ int main(int argc, char const *argv[])
     }
 
     RadarMap radarMap(cfg.map.mapPath, cfg.map.isFlip);
-    {
-        cv::Mat rawMap = cv::imread(cfg.map.mapPath);
-        int rawW = rawMap.cols; 
-        int rawH = rawMap.rows; 
-
-        std::vector<cv::Point2f> rotatedPoints;
-        for (auto& pt : cfg.map.mapPoints) {
-            cv::Point2f rPt;
-            if(cfg.map.isFlip)
-            {
-                rPt.x = (float)rawH - pt.y; 
-                rPt.y = pt.x;
-            }
-            else
-            {
-                rPt.x = pt.y; 
-                rPt.y = (float)rawW - pt.x;
-            }
-            rotatedPoints.push_back(rPt);
-        }
-
-        radarMap.calibrate2(rotatedPoints, cfg.map.world_points_2d);
-    };
+    
+    std::cout << "=== RadarMap 标定 ===" << std::endl;
+    std::cout << "场地尺寸: 长(Z)=" << cfg.map.race_size[0] << "米, 宽(X)=" << cfg.map.race_size[1] << "米" << std::endl;
+    std::cout << "地图尺寸: 宽=" << cfg.map.map_size[0] << ", 高=" << cfg.map.map_size[1] << std::endl;
+    
+    radarMap.calibrate2(cfg.map.race_size[0], cfg.map.race_size[1], 
+                       cfg.map.map_size[0], cfg.map.map_size[1]);
 
 
     UI ui("Video & Radar");
@@ -102,13 +94,16 @@ int main(int argc, char const *argv[])
 
         std::vector<Result> allresults = pipeline.process(frame);
         std::vector<Mappoint> mappoints;
+        
         for(const auto& result : allresults)
         {
             if (result.idx == 0 ) continue;   
+            
             cv::Point2f wp  = poseSolver.middletoworld(result.car_box);
             cv::Point2f mp  = radarMap.worldtomap(wp);
             mappoints.push_back({mp, "", result.idx, result.armorColor});
         }
+        
   
         tracker.update(mappoints);
         std::vector<Mappoint> smoothedPoints = tracker.getSmoothedPoints();

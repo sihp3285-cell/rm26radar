@@ -12,7 +12,7 @@ isNMS2: false
 
 classifyModelPath: "/home/delphine/rm/tensorrt10_detect/models/repvgg_rm_final.engine"
 imgSize3: 64
-iouThreshold3: 0.5
+iouThreshold3: 0.3
 scoreThreshold3: 0.3
 isNMS3: false
 
