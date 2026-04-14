@@ -76,10 +76,6 @@ int main(int argc, char const *argv[])
 
     RadarMap radarMap(cfg.map.mapPath, cfg.map.isFlip);
     
-    std::cout << "=== RadarMap 标定 ===" << std::endl;
-    std::cout << "场地尺寸: 长(Z)=" << cfg.map.race_size[0] << "米, 宽(X)=" << cfg.map.race_size[1] << "米" << std::endl;
-    std::cout << "地图尺寸: 宽=" << cfg.map.map_size[0] << ", 高=" << cfg.map.map_size[1] << std::endl;
-    
     radarMap.calibrate2(cfg.map.race_size[0], cfg.map.race_size[1], 
                        cfg.map.map_size[0], cfg.map.map_size[1]);
 

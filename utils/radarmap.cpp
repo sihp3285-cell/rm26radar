@@ -31,27 +31,14 @@ void RadarMap::calibrate2(float race_length, float race_width, int map_width, in
 
     m_isCalibrated = true;
     
-    std::cout << "线性变换标定完成:" << std::endl;
-    std::cout << "场地物理尺寸: 长(Z)=" << race_length << "米, 宽(X)=" << race_width << "米" << std::endl;
-    std::cout << "地图像素尺寸: 宽=" << actual_map_width << ", 高=" << actual_map_height << std::endl;
-    std::cout << "缩放因子: scale_x=" << scale_x << " (像素/米) [对应X轴], scale_y=" << scale_y << " (像素/米) [对应Z轴]" << std::endl;
-    std::cout << "中心偏移: offset_x=" << offset_x << ", offset_y=" << offset_y << std::endl;
+
 }
 
 cv::Point2f RadarMap::worldtomap(const cv::Point2f& worldPoint)const
 {
     cv::Point2f mapPoint;
-    
-    std::cout << "世界坐标: (" << worldPoint.x << ", " << worldPoint.y << ")" << std::endl;
-    std::cout << "缩放因子: scale_x=" << scale_x << ", scale_y=" << scale_y << std::endl;
-    std::cout << "中心偏移: offset_x=" << offset_x << ", offset_y=" << offset_y << std::endl;
-    
     mapPoint.x = worldPoint.x * scale_x + offset_x;
     mapPoint.y = worldPoint.y * scale_y + offset_y;
-    
-    std::cout << "地图坐标: (" << mapPoint.x << ", " << mapPoint.y << ")" << std::endl;
-    std::cout << "地图尺寸: 宽=" << map.cols << ", 高=" << map.rows << std::endl;
-    
     return mapPoint;
 }
 cv::Mat RadarMap::drawMap(const std::vector<Mappoint>& mappoints,const std::vector<std::string>& classNames)const
