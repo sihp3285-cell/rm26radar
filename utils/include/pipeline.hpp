@@ -7,6 +7,24 @@ class DetectPipeline {
 public:
 
     DetectPipeline(Config& cfg);
+    Model::ModelType modelType(const std::string& modelType)
+    {
+        if(modelType == "DETECT")
+        {
+            return Model::ModelType::DETECT;
+        }
+        else if(modelType == "CLASSIFY")
+        {
+            return Model::ModelType::CLASSIFY;
+        }
+        else
+        {
+            std::cerr << "错误：未知的类型" << std::endl;
+            return Model::ModelType::UNKNOWN;
+        }
+
+    }
+
 
     std::vector<Result> process(const cv::Mat& frame);
 

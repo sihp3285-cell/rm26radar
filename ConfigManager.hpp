@@ -26,18 +26,22 @@ struct ModelConfig {
     float iouThreshold1 = 0.0f;
     float scoreThreshold1 = 0.0f;
     bool isNMS1 = false;
+    std::string modelType1 = "";
+    
 
     std::string armorModelPath;
     int imgSize2 = 0;
     float iouThreshold2 = 0.0f;
     float scoreThreshold2 = 0.0f;
     bool isNMS2 = false;
+    std::string modelType2 = "";
 
     std::string classifyModelPath;
     int imgSize3 = 0;
     float iouThreshold3 = 0.0f;
     float scoreThreshold3 = 0.0f;
     bool isNMS3 = false;
+    std::string modelType3 = "";
 
     int minRoiSize = 0;
     float padRatio = 0.0f;

@@ -19,6 +19,9 @@ struct Result
     float fps = 0.0f;
 };
 
+
+
+
 class Model
 {
 private:
@@ -26,6 +29,7 @@ private:
     float scoreThreshold; 
     float nmsThreshold;   
     bool isNMS;
+
 
     nvinfer1::IRuntime *runtime = nullptr;
     nvinfer1::ICudaEngine *engine = nullptr;
@@ -44,9 +48,15 @@ private:
 
 
 public:
+    enum class ModelType
+    {
+    DETECT,
+    CLASSIFY,
+    UNKNOWN
+    };
     std::vector<Result> detectResults;
-
-    Model(const std::string modelPath, const int &inputSize, const float &scoreThreshold, const float &nmsThreshold, const bool isNMS = true);
+    ModelType modelType;
+    Model(const std::string modelPath, const int &inputSize, const float &scoreThreshold, const float &nmsThreshold, const bool isNMS = true,const ModelType modelType = ModelType::DETECT);
     ~Model();
     int predictClass(const cv::Mat &roi);
     cv::Rect roi;

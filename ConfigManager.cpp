@@ -101,18 +101,21 @@ void Config::loadModelConfig(const std::string& path) {
     model.iouThreshold1   = cfg["iouThreshold1"].as<float>();
     model.scoreThreshold1 = cfg["scoreThreshold1"].as<float>();
     model.isNMS1          = cfg["isNMS1"].as<bool>();
+    model.modelType1      = cfg["modelType1"].as<std::string>();
 
     model.armorModelPath       = cfg["armorModelPath"].as<std::string>();
     model.imgSize2             = cfg["imgSize2"].as<int>();
     model.iouThreshold2        = cfg["iouThreshold2"].as<float>();
     model.scoreThreshold2      = cfg["scoreThreshold2"].as<float>();
     model.isNMS2               = cfg["isNMS2"].as<bool>();
+    model.modelType2      = cfg["modelType2"].as<std::string>();
 
     model.classifyModelPath       = cfg["classifyModelPath"].as<std::string>();
     model.imgSize3                = cfg["imgSize3"].as<int>();
     model.iouThreshold3           = cfg["iouThreshold3"].as<float>();
     model.scoreThreshold3         = cfg["scoreThreshold3"].as<float>();
     model.isNMS3                  = cfg["isNMS3"].as<bool>();
+    model.modelType3      = cfg["modelType3"].as<std::string>();
 
     model.minRoiSize  = cfg["minRoiSize"] ? cfg["minRoiSize"].as<int>() : 0;
     model.padRatio    = cfg["padRatio"] ? cfg["padRatio"].as<float>() : 0.0f;

@@ -3,9 +3,9 @@
 
 
 DetectPipeline::DetectPipeline(Config& cfg)
-    : detectModel_(cfg.model.modelPath, cfg.model.imgSize1, cfg.model.scoreThreshold1, cfg.model.iouThreshold1, cfg.model.isNMS1),
-      armorDetector_(cfg.model.armorModelPath, cfg.model.imgSize2, cfg.model.scoreThreshold2, cfg.model.iouThreshold2, cfg.model.isNMS2),
-      classifyModel_(cfg.model.classifyModelPath, cfg.model.imgSize3, cfg.model.scoreThreshold3, cfg.model.iouThreshold3, cfg.model.isNMS3),
+    : detectModel_(cfg.model.modelPath, cfg.model.imgSize1, cfg.model.scoreThreshold1, cfg.model.iouThreshold1, cfg.model.isNMS1, modelType(cfg.model.modelType1)),
+      armorDetector_(cfg.model.armorModelPath, cfg.model.imgSize2, cfg.model.scoreThreshold2, cfg.model.iouThreshold2, cfg.model.isNMS2, modelType(cfg.model.modelType2)),
+      classifyModel_(cfg.model.classifyModelPath, cfg.model.imgSize3, cfg.model.scoreThreshold3, cfg.model.iouThreshold3, cfg.model.isNMS3, modelType(cfg.model.modelType3)),
       cfg_(cfg)
 {}
 

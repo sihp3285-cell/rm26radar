@@ -7,6 +7,7 @@
 #include "utils/include/pipeline.hpp"
 #include "utils/include/ui.hpp"
 #include "utils/include/tracker.hpp"
+#include <chrono>
 
 
 int main(int argc, char const *argv[])
@@ -22,7 +23,6 @@ int main(int argc, char const *argv[])
     DetectPipeline pipeline(cfg);
     PoseSolver poseSolver(cfg.camera.cameraMatrix, cfg.camera.distCoeffs);
 
-// 添加这两行来加载 3D 网格
     std::cout << "配置的 mesh 路径: " << cfg.camera.meshPath << std::endl;
     if (!poseSolver.getRaycaster().loadingMesh(cfg.camera.meshPath)) {  
         std::cerr << "警告：无法加载 3D 网格文件，将使用平面地面回退方案" << std::endl;
@@ -83,6 +83,10 @@ int main(int argc, char const *argv[])
     UI ui("Video & Radar");
     bool isPaused = false;
     Tracker tracker(cfg.tracker.maxMissCount, cfg.tracker.maxHistory, cfg.tracker.distThreshold);
+    using Clock = std::chrono::steady_clock;
+
+    auto last_time = Clock::now();
+    double fps = 0.0;
     while (true) 
     {
         cv::Mat frame;
@@ -108,8 +112,22 @@ int main(int argc, char const *argv[])
         
         drawDetect(frame, allresults, cfg.model.classNames);
         cv::Mat radarImg = radarMap.drawMap(smoothedPoints, cfg.model.classNames);
+        auto now = Clock::now();
+        double dt = std::chrono::duration<double>(now - last_time).count();
+        last_time = now;
 
+        double instant_fps = 1.0 / std::max(dt, 1e-6);
+        fps = 0.9 * fps + 0.1 * instant_fps;   
+        cv::putText(frame,
+                cv::format("FPS: %.1f", fps),
+                cv::Point(20,300),
+                cv::FONT_HERSHEY_SIMPLEX,
+                5.0,
+                cv::Scalar(0, 255, 0),
+                2);
         int key = ui.update(frame, radarImg, isPaused);
+
+
 
         if (key == 'q' || key == 27)  break;
         if (key == ' ')  isPaused = !isPaused;

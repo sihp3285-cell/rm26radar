@@ -14,12 +14,14 @@ class Logger : public nvinfer1::ILogger
     }
 } gLogger;
 
-Model::Model(const std::string modelPath, const int &inputSize, const float &scoreThreshold, const float &nmsThreshold, const bool isNMS)
+Model::Model(const std::string modelPath, const int &inputSize, const float &scoreThreshold, const float &nmsThreshold, const bool isNMS,const ModelType modelType)
 {
     this->inputSize = inputSize;
     this->scoreThreshold = scoreThreshold;
     this->nmsThreshold = nmsThreshold;
     this->isNMS = isNMS;
+    this->modelType = modelType;
+
 
     std::ifstream engineFile(modelPath, std::ios::binary);
     std::vector<char> engineData;
@@ -130,7 +132,7 @@ void Model::preprocessing(const cv::Mat &frame)
 
 void Model::postprocessing()
 {
-    if (this->output_h == 1 || this->output_w == 1) {
+    if (this->modelType == ModelType::CLASSIFY) {
         return;
     }
 

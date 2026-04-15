@@ -1,20 +1,24 @@
-modelPath: "/home/delphine/rm/tensorrt10_detect/models/robot_25.engine"
+modelPath: "/home/delphine/rm/tensorrt10_detect/models/robot_only.engine"
 imgSize1: 1280
 iouThreshold1: 0.3
 scoreThreshold1: 0.3
 isNMS1: false
+modelType1: "DETECT"
 
 armorModelPath: "/home/delphine/rm/tensorrt10_detect/models/newarmor.engine"
 imgSize2: 192
 iouThreshold2: 0.3
 scoreThreshold2: 0.3
 isNMS2: false
+modelType2: "DETECT"
 
 classifyModelPath: "/home/delphine/rm/tensorrt10_detect/models/classify_hku.engine"
 imgSize3: 64
 iouThreshold3: 0.3
 scoreThreshold3: 0.3
 isNMS3: false
+modelType3: "CLASSIFY"
+
 
 classNames:
   0: "car"
