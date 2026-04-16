@@ -65,12 +65,6 @@ struct MapConfig {
     bool isFlip = false;
 };
 
-struct TrackerConfig {
-    int maxMissCount = 0;
-    int maxHistory = 0;
-    float distThreshold = 0.0f;
-};
-
 struct RuntimeConfig {
     bool showFlag = true;
 };
@@ -84,20 +78,17 @@ public:
     Config(const std::string& modelYaml,
            const std::string& cameraYaml,
            const std::string& mapYaml,
-           const std::string& trackerYaml,
            const std::string& runtimeYaml);
 
     ModelConfig model;
     CameraConfig camera;
     MapConfig map;
-    TrackerConfig tracker;
     RuntimeConfig runtime;
 
 private:
     void loadModelConfig(const std::string& path);
     void loadCameraConfig(const std::string& path);
     void loadMapConfig(const std::string& path);
-    void loadTrackerConfig(const std::string& path);
     void loadRuntimeConfig(const std::string& path);
 
     static cv::Mat parseMat3x3(const std::vector<double>& data);
@@ -108,5 +99,5 @@ private:
     static void validateModelConfig(const ModelConfig& cfg);
     static void validateCameraConfig(const CameraConfig& cfg);
     static void validateMapConfig(const MapConfig& cfg);
-    static void validateTrackerConfig(const TrackerConfig& cfg);
+
 };

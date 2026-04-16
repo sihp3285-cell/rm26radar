@@ -6,7 +6,6 @@
 #include "utils/include/radarmap.hpp"
 #include "utils/include/pipeline.hpp"
 #include "utils/include/ui.hpp"
-#include "utils/include/tracker.hpp"
 #include <chrono>
 
 
@@ -82,7 +81,6 @@ int main(int argc, char const *argv[])
 
     UI ui("Video & Radar");
     bool isPaused = false;
-    Tracker tracker(cfg.tracker.maxMissCount, cfg.tracker.maxHistory, cfg.tracker.distThreshold);
     using Clock = std::chrono::steady_clock;
 
     auto last_time = Clock::now();
@@ -103,15 +101,11 @@ int main(int argc, char const *argv[])
             cv::Point2f mp  = radarMap.worldtomap(wp);
             mappoints.push_back({mp, "", result.idx, result.armorColor});
         }
-        
-  
-        tracker.update(mappoints);
-        std::vector<Mappoint> smoothedPoints = tracker.getSmoothedPoints();
-
+    
 
         
         drawDetect(frame, allresults, cfg.model.classNames);
-        cv::Mat radarImg = radarMap.drawMap(smoothedPoints, cfg.model.classNames);
+        cv::Mat radarImg = radarMap.drawMap(mappoints, cfg.model.classNames);
         auto now = Clock::now();
         double dt = std::chrono::duration<double>(now - last_time).count();
         last_time = now;

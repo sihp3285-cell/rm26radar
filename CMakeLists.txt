@@ -65,7 +65,6 @@ add_executable(standard
     utils/radarmap.cpp
     utils/pipeline.cpp
     utils/ui.cpp
-    utils/tracker.cpp
     ConfigManager.cpp 
     utils/raycaster.cpp
 )

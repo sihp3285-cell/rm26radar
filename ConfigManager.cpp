@@ -67,30 +67,26 @@ Config::Config(const std::string& configDir) {
     loadModelConfig(modelYaml);
     loadCameraConfig(cameraYaml);
     loadMapConfig(mapYaml);
-    loadTrackerConfig(trackerYaml);
+
     loadRuntimeConfig(runtimeYaml);
 
     validateModelConfig(model);
     validateCameraConfig(camera);
     validateMapConfig(map);
-    validateTrackerConfig(tracker);
 }
 
 Config::Config(const std::string& modelYaml,
                const std::string& cameraYaml,
                const std::string& mapYaml,
-               const std::string& trackerYaml,
                const std::string& runtimeYaml) {
     loadModelConfig(modelYaml);
     loadCameraConfig(cameraYaml);
     loadMapConfig(mapYaml);
-    loadTrackerConfig(trackerYaml);
     loadRuntimeConfig(runtimeYaml);
 
     validateModelConfig(model);
     validateCameraConfig(camera);
     validateMapConfig(map);
-    validateTrackerConfig(tracker);
 }
 
 void Config::loadModelConfig(const std::string& path) {
@@ -141,14 +137,6 @@ void Config::loadMapConfig(const std::string& path) {
     map.race_size       = cfg["race_size"].as<std::vector<float>>();
     map.map_size        = cfg["map_size"].as<std::vector<int>>();
     map.isFlip          = cfg["isflip"].as<bool>();
-}
-
-void Config::loadTrackerConfig(const std::string& path) {
-    YAML::Node cfg = YAML::LoadFile(path);
-
-    tracker.maxMissCount = cfg["maxMissCount"].as<int>();
-    tracker.maxHistory   = cfg["maxhistory"].as<int>();
-    tracker.distThreshold = cfg["distheshold"].as<float>();
 }
 
 void Config::loadRuntimeConfig(const std::string& path) {
@@ -252,17 +240,5 @@ void Config::validateMapConfig(const MapConfig& cfg) {
     }
     if (cfg.map_size[0] <= 0 || cfg.map_size[1] <= 0) {
         throw std::runtime_error("map_size 的元素必须大于 0");
-    }
-}
-
-void Config::validateTrackerConfig(const TrackerConfig& cfg) {
-    if (cfg.maxMissCount < 0) {
-        throw std::runtime_error("maxMissCount 不能小于 0");
-    }
-    if (cfg.maxHistory <= 0) {
-        throw std::runtime_error("maxHistory 必须大于 0");
-    }
-    if (cfg.distThreshold <= 0.0f) {
-        throw std::runtime_error("distThreshold 必须大于 0");
     }
 }
