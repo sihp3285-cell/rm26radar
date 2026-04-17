@@ -23,7 +23,7 @@ std::vector<cv::Point2f> MouseBack::getPoints(const cv::Mat& frame)
     {
         cv::Mat displayFrame = frame.clone();
         for (size_t i = 0; i < points.size(); ++i) {
-        cv::circle(displayFrame, points[i], 6, cv::Scalar(0, 0, 255), -1);
+        cv::circle(displayFrame, points[i], 10, cv::Scalar(0, 0, 255), -1);
         cv::putText(displayFrame, std::to_string(i+1), points[i] + cv::Point2f(10, 10), 
                     cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 2);
         }
@@ -37,6 +37,11 @@ std::vector<cv::Point2f> MouseBack::getPoints(const cv::Mat& frame)
         if (key == 'q') {
             std::cout << "标定取消！" << std::endl;
             break;
+        }
+        if (key == ' ') {
+            std::cout << "撤销上一点！" << std::endl;
+            points.pop_back();
+            continue;
         }
     }
     cv::destroyWindow(windowName);
