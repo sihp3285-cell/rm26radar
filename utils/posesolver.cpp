@@ -17,6 +17,12 @@ void PoseSolver::calibrate(const std::vector<cv::Point3f>& objectPoints, const s
     this->isPoseEstimated = true;
 }
 
+void PoseSolver::getExtrinsic(cv::Mat& R_out, cv::Mat& T_out) const
+{
+    R_out = this->R.clone();
+    T_out = this->T.clone();
+}
+
 cv::Point2f PoseSolver::middletoworld(const cv::Rect& box)
 {
     if (!isPoseEstimated) return cv::Point2f(0, 0);

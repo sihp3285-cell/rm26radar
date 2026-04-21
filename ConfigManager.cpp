@@ -63,12 +63,19 @@ Config::Config(const std::string& configDir) {
     const std::string mapYaml     = (dir / "map.yaml").string();
     const std::string trackerYaml = (dir / "tracker.yaml").string();
     const std::string runtimeYaml = (dir / "runtime.yaml").string();
+    const std::string calibYaml   = (dir / "calib_result.yaml").string();
 
     loadModelConfig(modelYaml);
     loadCameraConfig(cameraYaml);
     loadMapConfig(mapYaml);
-
     loadRuntimeConfig(runtimeYaml);
+    if (fs::exists(calibYaml)) {
+        try {
+            loadCalibConfig(calibYaml);
+        } catch (const std::exception& e) {
+            // calib_result.yaml 可选，加载失败不阻断
+        }
+    }
 
     validateModelConfig(model);
     validateCameraConfig(camera);
@@ -241,4 +248,26 @@ void Config::validateMapConfig(const MapConfig& cfg) {
     if (cfg.map_size[0] <= 0 || cfg.map_size[1] <= 0) {
         throw std::runtime_error("map_size 的元素必须大于 0");
     }
+}
+
+void Config::loadCalibConfig(const std::string& path) {
+    YAML::Node cfg = YAML::LoadFile(path);
+    calib.imagePoints = parsePoint2fList(cfg["image_points"].as<std::vector<std::vector<float>>>());
+    std::vector<double> r_data = cfg["r"].as<std::vector<double>>();
+    if (r_data.size() != 9) {
+        throw std::runtime_error("calib_result.yaml 中 r 必须包含 9 个元素");
+    }
+    calib.R = cv::Mat(3, 3, CV_64F);
+    for (int i = 0; i < 9; ++i) {
+        calib.R.at<double>(i / 3, i % 3) = r_data[i];
+    }
+    std::vector<double> t_data = cfg["t"].as<std::vector<double>>();
+    if (t_data.size() != 3) {
+        throw std::runtime_error("calib_result.yaml 中 t 必须包含 3 个元素");
+    }
+    calib.T = cv::Mat(3, 1, CV_64F);
+    for (int i = 0; i < 3; ++i) {
+        calib.T.at<double>(i, 0) = t_data[i];
+    }
+    calib.valid = true;
 }

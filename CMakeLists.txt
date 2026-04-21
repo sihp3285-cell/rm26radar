@@ -22,29 +22,6 @@ find_package(yaml-cpp REQUIRED)
 find_package(CUDAToolkit REQUIRED)
 find_package(Open3D REQUIRED)   # 现在应该能找到了
 
-# 如果 Eigen3 或 fmt 的 CMake 查找失败，可用以下手动方式
-find_package(Eigen3 QUIET)
-if(NOT EIGEN3_FOUND)
-    find_path(EIGEN3_INCLUDE_DIR "Eigen/Core" PATHS /usr/include/eigen3)
-    if(EIGEN3_INCLUDE_DIR)
-        add_library(Eigen3::Eigen INTERFACE IMPORTED)
-        set_target_properties(Eigen3::Eigen PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${EIGEN3_INCLUDE_DIR})
-    endif()
-endif()
-
-find_package(fmt QUIET)
-if(NOT fmt_FOUND)
-    find_library(FMT_LIBRARY fmt)
-    find_path(FMT_INCLUDE_DIR "fmt/format.h" PATHS /usr/include)
-    if(FMT_LIBRARY AND FMT_INCLUDE_DIR)
-        add_library(fmt::fmt UNKNOWN IMPORTED)
-        set_target_properties(fmt::fmt PROPERTIES
-            IMPORTED_LOCATION ${FMT_LIBRARY}
-            INTERFACE_INCLUDE_DIRECTORIES ${FMT_INCLUDE_DIR}
-        )
-    endif()
-endif()
-
 # --- TensorRT 部分保持不变 ---
 set(TRT_ROOT "/opt/TensorRT/TensorRT-10.2.0.19")
 add_library(tensorrt_interface INTERFACE)
@@ -81,8 +58,6 @@ target_link_libraries(standard
     curl
     tensorrt_interface
     Open3D::Open3D
-    Eigen3::Eigen
-    fmt::fmt
 )
 
 target_include_directories(standard PRIVATE 

@@ -7,6 +7,29 @@
 #include "utils/include/pipeline.hpp"
 #include "utils/include/ui.hpp"
 #include <chrono>
+#include <filesystem>
+#include <fstream>
+
+namespace YAML {
+    template<>
+    struct convert<cv::Point2f> {
+        static Node encode(const cv::Point2f& rhs) {
+            Node node;
+            node.push_back(rhs.x);
+            node.push_back(rhs.y);
+            return node;
+        }
+        
+        static bool decode(const Node& node, cv::Point2f& rhs) {
+            if (!node.IsSequence() || node.size() != 2) {
+                return false;
+            }
+            rhs.x = node[0].as<float>();
+            rhs.y = node[1].as<float>();
+            return true;
+        }
+    };
+}
 
 
 int main(int argc, char const *argv[])
@@ -36,8 +59,10 @@ int main(int argc, char const *argv[])
         cv::namedWindow("Video Preview", cv::WINDOW_NORMAL);
         cv::resizeWindow("Video Preview", 1280, 720);
 
-        std::cout << "视频播放中... 请在看到合适画面时按 'S' 键截取并开始标定。" << std::endl;
+        std::cout << "视频播放中... 请在看到合适画面时按 'S' 键截取并开始标定，按空格键使用已保存的标定点。" << std::endl;
 
+        bool calibrationDone = false;
+        
         while (true) {
             cv::Mat tempFrame;
             if (!cap.read(tempFrame)) {
@@ -57,19 +82,82 @@ int main(int argc, char const *argv[])
             if (key == 'q' || key == 27) {
                 return -1;
             }
+            if (key == ' ' && !calibrationDone) {
+                std::cout << "正在读取calib_result.yaml文件..." << std::endl;
+                try{
+                    std::filesystem::path configDir = std::filesystem::path("/home/delphine/rm/tensorrt10_detect/configs");
+                    std::string calibPath = (configDir / "calib_result.yaml").string();
+                    YAML::Node node = YAML::LoadFile(calibPath);
+                    if (node["image_points"].IsSequence()) {
+                        std::vector<cv::Point2f> imagePoints;
+                        imagePoints = node["image_points"].as<std::vector<cv::Point2f>>();
+                        
+                        if (imagePoints.size() == num) {
+                            std::cout << "成功读取标定点: " << imagePoints.size() << " 个" << std::endl;
+                            poseSolver.calibrate(cfg.camera.worldPoints, imagePoints);
+                            std::cout << "相机标定（PnP）成功！" << std::endl;
+                            calibrationDone = true;
+                            cv::destroyWindow("Video Preview");
+                            break;
+                        } else {
+                            std::cerr << "错误：已保存的标定点数量 (" << imagePoints.size() << ") 与所需数量 (" << num << ") 不匹配！" << std::endl;
+                            std::cout << "请按 'S' 键重新标定。" << std::endl;
+                        }
+                    } else {
+                        std::cerr << "错误：calib_result.yaml 文件中 image_points 键格式错误！" << std::endl;
+                        std::cout << "请按 'S' 键重新标定。" << std::endl;
+                    }
+                } catch (const YAML::Exception& e) {
+                    std::cerr << "错误：读取 calib_result.yaml 文件时出错: " << e.what() << std::endl;
+                    std::cout << "请按 'S' 键重新标定。" << std::endl;
+                }
+            }
         }
 
-        MouseBack mouseBack("Calibrate 1", num);
-        std::vector<cv::Point2f> imagePoints = mouseBack.getPoints(calibrateFrame);
+        if (!calibrationDone) {
+            MouseBack mouseBack("Calibrate 1", num);
+            std::vector<cv::Point2f> imagePoints = mouseBack.getPoints(calibrateFrame);
+            
+            if(imagePoints.size() == num) {
+                poseSolver.calibrate(cfg.camera.worldPoints, imagePoints);
+                std::cout << "相机标定（PnP）成功！" << std::endl;
+                            // 保存标定结果到 calib_result.yaml
+                cv::Mat R, T;
+                poseSolver.getExtrinsic(R, T);
+                std::filesystem::path configDir = std::filesystem::path("/home/delphine/rm/tensorrt10_detect/configs");
+                std::string calibPath = (configDir / "calib_result.yaml").string();
+                YAML::Emitter out;
+                out << YAML::BeginMap;
+                out << YAML::Key << "image_points" << YAML::Value << YAML::BeginSeq;
+                for (const auto& pt : imagePoints) {
+                    out << YAML::Flow << YAML::BeginSeq << pt.x << pt.y << YAML::EndSeq;
+                }
+                out << YAML::EndSeq;
+                out << YAML::Key << "r" << YAML::Value << YAML::Flow << YAML::BeginSeq;
+                for (int i = 0; i < 9; ++i) {
+                    out << R.at<double>(i);
+                }
+                out << YAML::EndSeq;
+                out << YAML::Key << "t" << YAML::Value << YAML::Flow << YAML::BeginSeq;
+                for (int i = 0; i < 3; ++i) {
+                    out << T.at<double>(i);
+                }
+                out << YAML::EndSeq;
+                out << YAML::EndMap;
+                std::ofstream fout(calibPath);
+                if (fout.is_open()) {
+                    fout << out.c_str();
+                    fout.close();
+                    std::cout << "标定结果已保存到: " << calibPath << std::endl;
+                } else {
+                    std::cerr << "警告：无法写入标定结果文件 " << calibPath << std::endl;
+                }
+            } else {
+                std::cout << "标定点数不足，程序退出。" << std::endl;
+                return -1;
+            }
+        }
         
-        if(imagePoints.size() == num) {
-            poseSolver.calibrate(cfg.camera.worldPoints, imagePoints);
-            std::cout << "相机标定（PnP）成功！" << std::endl;
-        } else {
-            std::cout << "标定点数不足，程序退出。" << std::endl;
-            return -1;
-        }
-
         cap.set(cv::CAP_PROP_POS_FRAMES, 0);
     }
 

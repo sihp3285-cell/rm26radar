@@ -69,6 +69,13 @@ struct RuntimeConfig {
     bool showFlag = true;
 };
 
+struct CalibConfig {
+    std::vector<cv::Point2f> imagePoints;
+    cv::Mat R;       // 3x3 CV_64F
+    cv::Mat T;       // 3x1 CV_64F
+    bool valid = false;
+};
+
 class Config {
 public:
     // 传配置目录，例如: "/home/delphine/rm/tensorrt10_detect/configs"
@@ -84,12 +91,14 @@ public:
     CameraConfig camera;
     MapConfig map;
     RuntimeConfig runtime;
+    CalibConfig calib;
 
 private:
     void loadModelConfig(const std::string& path);
     void loadCameraConfig(const std::string& path);
     void loadMapConfig(const std::string& path);
     void loadRuntimeConfig(const std::string& path);
+    void loadCalibConfig(const std::string& path);
 
     static cv::Mat parseMat3x3(const std::vector<double>& data);
     static cv::Mat parseRowMat(const std::vector<double>& data);
