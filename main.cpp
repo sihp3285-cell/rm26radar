@@ -88,23 +88,33 @@ int main(int argc, char const *argv[])
                     std::filesystem::path configDir = std::filesystem::path("/home/delphine/rm/tensorrt10_detect/configs");
                     std::string calibPath = (configDir / "calib_result.yaml").string();
                     YAML::Node node = YAML::LoadFile(calibPath);
-                    if (node["image_points"].IsSequence()) {
-                        std::vector<cv::Point2f> imagePoints;
-                        imagePoints = node["image_points"].as<std::vector<cv::Point2f>>();
+                    
+                    if (node["r"].IsSequence() && node["t"].IsSequence()) {
+                        std::vector<double> r_data = node["r"].as<std::vector<double>>();
+                        std::vector<double> t_data = node["t"].as<std::vector<double>>();
                         
-                        if (imagePoints.size() == num) {
-                            std::cout << "成功读取标定点: " << imagePoints.size() << " 个" << std::endl;
-                            poseSolver.calibrate(cfg.camera.worldPoints, imagePoints);
-                            std::cout << "相机标定（PnP）成功！" << std::endl;
+                        if (r_data.size() == 9 && t_data.size() == 3) {
+                            cv::Mat R(3, 3, CV_64F);
+                            cv::Mat T(3, 1, CV_64F);
+                            
+                            for (int i = 0; i < 9; ++i) {
+                                R.at<double>(i / 3, i % 3) = r_data[i];
+                            }
+                            for (int i = 0; i < 3; ++i) {
+                                T.at<double>(i, 0) = t_data[i];
+                            }
+                            
+                            poseSolver.setExtrinsic(R, T);
+                            std::cout << "成功从calib_result.yaml加载R和T矩阵！" << std::endl;
                             calibrationDone = true;
                             cv::destroyWindow("Video Preview");
                             break;
                         } else {
-                            std::cerr << "错误：已保存的标定点数量 (" << imagePoints.size() << ") 与所需数量 (" << num << ") 不匹配！" << std::endl;
+                            std::cerr << "错误：R矩阵需要9个元素，T向量需要3个元素！" << std::endl;
                             std::cout << "请按 'S' 键重新标定。" << std::endl;
                         }
                     } else {
-                        std::cerr << "错误：calib_result.yaml 文件中 image_points 键格式错误！" << std::endl;
+                        std::cerr << "错误：calib_result.yaml 文件中缺少 r 或 t 键！" << std::endl;
                         std::cout << "请按 'S' 键重新标定。" << std::endl;
                     }
                 } catch (const YAML::Exception& e) {

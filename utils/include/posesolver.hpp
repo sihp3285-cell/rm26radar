@@ -16,6 +16,7 @@ class PoseSolver
     PoseSolver(const cv::Mat& camMat, const cv::Mat& disMat);
     void calibrate(const std::vector<cv::Point3f>& objectPoints, 
                    const std::vector<cv::Point2f>& imagePoints);
+    void setExtrinsic(const cv::Mat& R_in, const cv::Mat& T_in);
     void getExtrinsic(cv::Mat& R_out, cv::Mat& T_out) const;
     cv::Point2f middletoworld(const cv::Rect& box);
     Raycaster& getRaycaster() { return raycaster_; }

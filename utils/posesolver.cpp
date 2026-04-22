@@ -17,6 +17,13 @@ void PoseSolver::calibrate(const std::vector<cv::Point3f>& objectPoints, const s
     this->isPoseEstimated = true;
 }
 
+void PoseSolver::setExtrinsic(const cv::Mat& R_in, const cv::Mat& T_in)
+{
+    this->R = R_in.clone();
+    this->T = T_in.clone();
+    this->isPoseEstimated = true;
+}
+
 void PoseSolver::getExtrinsic(cv::Mat& R_out, cv::Mat& T_out) const
 {
     R_out = this->R.clone();
