@@ -6,6 +6,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_BUILD_TYPE "Debug")
 
+# 确保安装后的可执行文件能自动找到 Open3D 等第三方动态库
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+list(APPEND CMAKE_INSTALL_RPATH "/home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/lib")
+
 # ========== ROS2 依赖 ==========
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -120,12 +124,26 @@ target_link_libraries(display_node pthread ${OpenCV_LIBS})
 
 target_include_directories(display_node PRIVATE ${COMMON_INCLUDE_DIRS})
 
+# ========== ROS2 节点：pose_node ==========
+add_executable(pose_node src/nodes/pose_node.cpp)
+
+ament_target_dependencies(pose_node
+    rclcpp
+    sensor_msgs
+    cv_bridge
+    std_msgs
+    tensorrt_detect_msgs
+)
+
+target_link_libraries(pose_node tensorrt_detect_core)
+
 # ========== 安装 & ament 打包 ==========
 install(TARGETS
     standard
     detect_node
     display_node
     video_node
+    pose_node
     DESTINATION lib/${PROJECT_NAME}
 )
 

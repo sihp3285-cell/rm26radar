@@ -43,4 +43,16 @@ def generate_launch_description():
                 'window_height': 720,
             }],
         ),
+
+        Node(
+            package='tensorrt_detect',
+            executable='pose_node',
+            name='pose_node',
+            output='screen',
+            parameters=[{
+                'config_dir': '/home/delphine/rm/tensorrt10_detect/configs',
+                'input_topic': '/armor_detections',
+                'output_topic': '/world_targets',
+            }],
+        ),
     ])
