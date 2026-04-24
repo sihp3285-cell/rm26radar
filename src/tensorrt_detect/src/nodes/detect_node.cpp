@@ -52,6 +52,15 @@ private:
             std::vector<Result> results = pipeline_->process(frame);
             drawDetect(frame, results, cfg_->model.classNames);
 
+            cv::Mat resize_frame = frame;
+            int target_width = 1280;
+            if(frame.cols > target_width) {
+                 double scale = static_cast<double>(target_width) / frame.cols;
+                 int target_height = static_cast<int>(frame.rows * scale);
+                 cv::resize(frame, resize_frame, cv::Size(target_width, target_height));
+            }
+
+
             auto now = std::chrono::steady_clock::now();
             double dt = std::chrono::duration<double>(now - last_time_).count();
             last_time_ = now;
@@ -59,7 +68,7 @@ private:
             double instant_fps = 1.0 / std::max(dt, 1e-6);
             fps_ = 0.9 * fps_ + 0.1 * instant_fps;
 
-            cv::putText(frame, cv::format("FPS: %.1f", fps_),
+            cv::putText(resize_frame, cv::format("FPS: %.1f", fps_),
                         cv::Point(20, 40),
                         cv::FONT_HERSHEY_SIMPLEX,
                         1.0, cv::Scalar(0, 255, 0), 2);
@@ -67,7 +76,7 @@ private:
             std_msgs::msg::Header header = msg->header;
             header.frame_id = "detected_frame";
 
-            auto out_msg = cv_bridge::CvImage(header, "bgr8", frame).toImageMsg();
+            auto out_msg = cv_bridge::CvImage(header, "bgr8", resize_frame).toImageMsg();
             image_pub_->publish(*out_msg);
 
             auto armor_msg = std::make_shared<tensorrt_detect_msgs::msg::DetectionArray>();
