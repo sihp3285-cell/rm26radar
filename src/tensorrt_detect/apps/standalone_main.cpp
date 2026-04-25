@@ -34,7 +34,7 @@ namespace YAML {
 
 int main(int argc, char const *argv[])
 {
-    Config cfg("/home/delphine/rm/tensorrt10_detect/configs/detectConfig.yaml");
+    Config cfg("/home/delphine/rm/tensorrt10_detect/configs");
     cv::VideoCapture cap("/home/delphine/rm/car_project/test/005.mp4");
     
     if (!cap.isOpened()) {

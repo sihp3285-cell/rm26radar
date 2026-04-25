@@ -235,6 +235,11 @@ pub struct WorldTarget {
 
     // This member is not documented.
     #[allow(missing_docs)]
+    pub team_id: i32,
+
+
+    // This member is not documented.
+    #[allow(missing_docs)]
     pub score: f32,
 
 
@@ -295,6 +300,7 @@ impl rosidl_runtime_rs::Message for WorldTarget {
       std::borrow::Cow::Owned(msg) => std::borrow::Cow::Owned(Self::RmwMsg {
         idx: msg.idx,
         class_id: msg.class_id,
+        team_id: msg.team_id,
         score: msg.score,
         valid: msg.valid,
         world_x: msg.world_x,
@@ -308,6 +314,7 @@ impl rosidl_runtime_rs::Message for WorldTarget {
       std::borrow::Cow::Borrowed(msg) => std::borrow::Cow::Owned(Self::RmwMsg {
       idx: msg.idx,
       class_id: msg.class_id,
+      team_id: msg.team_id,
       score: msg.score,
       valid: msg.valid,
       world_x: msg.world_x,
@@ -325,6 +332,7 @@ impl rosidl_runtime_rs::Message for WorldTarget {
     Self {
       idx: msg.idx,
       class_id: msg.class_id,
+      team_id: msg.team_id,
       score: msg.score,
       valid: msg.valid,
       world_x: msg.world_x,
@@ -396,6 +404,79 @@ impl rosidl_runtime_rs::Message for WorldTargetArray {
           .into_iter()
           .map(super::msg::WorldTarget::from_rmw_message)
           .collect(),
+    }
+  }
+}
+
+
+// Corresponds to tensorrt_detect_msgs__msg__RadarMap
+
+// This struct is not documented.
+#[allow(missing_docs)]
+
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
+pub struct RadarMap {
+
+    // This member is not documented.
+    #[allow(missing_docs)]
+    pub header: std_msgs::msg::Header,
+
+    /// 蓝方 1-5 号及哨兵(6)的地图坐标 (x, y)
+    pub blue_x: [f32; 6],
+
+
+    // This member is not documented.
+    #[allow(missing_docs)]
+    pub blue_y: [f32; 6],
+
+    /// 红方 1-5 号及哨兵(6)的地图坐标 (x, y)
+    pub red_x: [f32; 6],
+
+
+    // This member is not documented.
+    #[allow(missing_docs)]
+    pub red_y: [f32; 6],
+
+}
+
+
+
+impl Default for RadarMap {
+  fn default() -> Self {
+    <Self as rosidl_runtime_rs::Message>::from_rmw_message(super::msg::rmw::RadarMap::default())
+  }
+}
+
+impl rosidl_runtime_rs::Message for RadarMap {
+  type RmwMsg = super::msg::rmw::RadarMap;
+
+  fn into_rmw_message(msg_cow: std::borrow::Cow<'_, Self>) -> std::borrow::Cow<'_, Self::RmwMsg> {
+    match msg_cow {
+      std::borrow::Cow::Owned(msg) => std::borrow::Cow::Owned(Self::RmwMsg {
+        header: std_msgs::msg::Header::into_rmw_message(std::borrow::Cow::Owned(msg.header)).into_owned(),
+        blue_x: msg.blue_x,
+        blue_y: msg.blue_y,
+        red_x: msg.red_x,
+        red_y: msg.red_y,
+      }),
+      std::borrow::Cow::Borrowed(msg) => std::borrow::Cow::Owned(Self::RmwMsg {
+        header: std_msgs::msg::Header::into_rmw_message(std::borrow::Cow::Borrowed(&msg.header)).into_owned(),
+        blue_x: msg.blue_x,
+        blue_y: msg.blue_y,
+        red_x: msg.red_x,
+        red_y: msg.red_y,
+      })
+    }
+  }
+
+  fn from_rmw_message(msg: Self::RmwMsg) -> Self {
+    Self {
+      header: std_msgs::msg::Header::from_rmw_message(msg.header),
+      blue_x: msg.blue_x,
+      blue_y: msg.blue_y,
+      red_x: msg.red_x,
+      red_y: msg.red_y,
     }
   }
 }

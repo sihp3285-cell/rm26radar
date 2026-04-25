@@ -1,0 +1,40 @@
+CMake Deprecation Warning at /home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/lib/cmake/Open3D/Open3DConfig.cmake:18 (cmake_policy):
+  The OLD behavior for policy CMP0072 will be removed from a future version
+  of CMake.
+
+  The cmake-policies(7) manual explains that the OLD behaviors of all
+  policies are deprecated and that a policy should be set to OLD only under
+  specific short-term circumstances.  Projects should be ported to the NEW
+  behavior and not rely on setting a policy to OLD.
+Call Stack (most recent call first):
+  CMakeLists.txt:28 (find_package)
+
+
+/home/delphine/rm/tensorrt10_detect/src/tensorrt_detect/apps/standalone_main.cpp: In function ‘int main(int, const char**)’:
+/home/delphine/rm/tensorrt10_detect/src/tensorrt_detect/apps/standalone_main.cpp:200:61: error: ‘const struct Result’ has no member named ‘teamId’
+  200 |             mappoints.push_back({mp, "", result.idx, result.teamId});
+      |                                                             ^~~~~~
+/home/delphine/rm/tensorrt10_detect/src/tensorrt_detect/apps/standalone_main.cpp:200:32: error: no matching function for call to ‘std::vector<Mappoint>::push_back(<brace-enclosed initializer list>)’
+  200 |             mappoints.push_back({mp, "", result.idx, result.teamId});
+      |             ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /usr/include/c++/13/vector:66,
+                 from /home/delphine/miniconda3/include/yaml-cpp/binary.h:11,
+                 from /home/delphine/miniconda3/include/yaml-cpp/emitter.h:18,
+                 from /home/delphine/miniconda3/include/yaml-cpp/yaml.h:11,
+                 from /home/delphine/rm/tensorrt10_detect/src/tensorrt_detect/apps/standalone_main.cpp:1:
+/usr/include/c++/13/bits/stl_vector.h:1281:7: note: candidate: ‘void std::vector<_Tp, _Alloc>::push_back(const value_type&) [with _Tp = Mappoint; _Alloc = std::allocator<Mappoint>; value_type = Mappoint]’
+ 1281 |       push_back(const value_type& __x)
+      |       ^~~~~~~~~
+/usr/include/c++/13/bits/stl_vector.h:1281:35: note:   no known conversion for argument 1 from ‘<brace-enclosed initializer list>’ to ‘const std::vector<Mappoint>::value_type&’ {aka ‘const Mappoint&’}
+ 1281 |       push_back(const value_type& __x)
+      |                 ~~~~~~~~~~~~~~~~~~^~~
+/usr/include/c++/13/bits/stl_vector.h:1298:7: note: candidate: ‘void std::vector<_Tp, _Alloc>::push_back(value_type&&) [with _Tp = Mappoint; _Alloc = std::allocator<Mappoint>; value_type = Mappoint]’
+ 1298 |       push_back(value_type&& __x)
+      |       ^~~~~~~~~
+/usr/include/c++/13/bits/stl_vector.h:1298:30: note:   no known conversion for argument 1 from ‘<brace-enclosed initializer list>’ to ‘std::vector<Mappoint>::value_type&&’ {aka ‘Mappoint&&’}
+ 1298 |       push_back(value_type&& __x)
+      |                 ~~~~~~~~~~~~~^~~
+gmake[2]: *** [CMakeFiles/standard.dir/build.make:76: CMakeFiles/standard.dir/apps/standalone_main.cpp.o] Error 1
+gmake[1]: *** [CMakeFiles/Makefile2:173: CMakeFiles/standard.dir/all] Error 2
+gmake[1]: *** Waiting for unfinished jobs....
+gmake: *** [Makefile:146: all] Error 2

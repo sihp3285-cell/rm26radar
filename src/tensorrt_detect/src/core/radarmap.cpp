@@ -1,4 +1,5 @@
 #include "radarmap.hpp"
+#include "robot_id.hpp"
 
 RadarMap::RadarMap(const std::string& mapPath,const bool isflip)
 {
@@ -48,28 +49,19 @@ cv::Mat RadarMap::drawMap(const std::vector<Mappoint>& mappoints,const std::vect
     {
         cv::Point pt(static_cast<int>(mappoint.map_point.x), 
                      static_cast<int>(mappoint.map_point.y));
-                     cv::Scalar drawColor;
-        std::string teamPrefix = "";
-        if (mappoint.armorColor == 1) {  
-            drawColor = cv::Scalar(0, 0, 255); 
-        } else if (mappoint.armorColor == 2) { 
-            drawColor = cv::Scalar(255, 0, 0);
-        } else if (mappoint.armorColor == 0) { 
-            drawColor = cv::Scalar(0, 0, 0);
-        } else {
-            drawColor = cv::Scalar(0, 255, 255);   
-        }
+
+        cv::Scalar drawColor = robot_id::getTeamColor(mappoint.teamId);
         int baseRadius = 4;
         int strokeSize = 1;
         cv::circle(frame, pt, baseRadius + strokeSize, cv::Scalar(255, 255, 255), -1, cv::LINE_AA);
         cv::circle(frame, pt, baseRadius, drawColor, -1, cv::LINE_AA);
         
-        if (mappoint.classIdx >= 0 && mappoint.classIdx < classNames.size())
+        std::string label = robot_id::getRobotLabel(mappoint.teamId, mappoint.classIdx);
+        if (!label.empty())
         {
-            std::string Name = classNames[mappoint.classIdx];
             cv::Point textPt(pt.x + 10, pt.y - 10);
-            cv::putText(frame, Name, textPt, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 5, cv::LINE_AA);
-            cv::putText(frame, Name, textPt, cv::FONT_HERSHEY_SIMPLEX, 0.5, drawColor, 2, cv::LINE_AA);
+            cv::putText(frame, label, textPt, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 5, cv::LINE_AA);
+            cv::putText(frame, label, textPt, cv::FONT_HERSHEY_SIMPLEX, 0.5, drawColor, 2, cv::LINE_AA);
         }
     }
     return frame;

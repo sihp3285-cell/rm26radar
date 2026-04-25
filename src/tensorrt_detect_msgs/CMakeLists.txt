@@ -10,6 +10,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   msg/DetectionArray.msg
   msg/WorldTarget.msg
   msg/WorldTargetArray.msg
+  msg/RadarMap.msg
   DEPENDENCIES std_msgs
 )
 

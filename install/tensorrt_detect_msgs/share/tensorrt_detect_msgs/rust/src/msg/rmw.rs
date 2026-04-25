@@ -256,6 +256,11 @@ pub struct WorldTarget {
 
     // This member is not documented.
     #[allow(missing_docs)]
+    pub team_id: i32,
+
+
+    // This member is not documented.
+    #[allow(missing_docs)]
     pub score: f32,
 
 
@@ -419,6 +424,96 @@ impl rosidl_runtime_rs::RmwMessage for WorldTargetArray where Self: Sized {
   fn get_type_support() -> *const std::ffi::c_void {
     // SAFETY: No preconditions for this function.
     unsafe { rosidl_typesupport_c__get_message_type_support_handle__tensorrt_detect_msgs__msg__WorldTargetArray() }
+  }
+}
+
+
+#[link(name = "tensorrt_detect_msgs__rosidl_typesupport_c")]
+extern "C" {
+    fn rosidl_typesupport_c__get_message_type_support_handle__tensorrt_detect_msgs__msg__RadarMap() -> *const std::ffi::c_void;
+}
+
+#[link(name = "tensorrt_detect_msgs__rosidl_generator_c")]
+extern "C" {
+    fn tensorrt_detect_msgs__msg__RadarMap__init(msg: *mut RadarMap) -> bool;
+    fn tensorrt_detect_msgs__msg__RadarMap__Sequence__init(seq: *mut rosidl_runtime_rs::Sequence<RadarMap>, size: usize) -> bool;
+    fn tensorrt_detect_msgs__msg__RadarMap__Sequence__fini(seq: *mut rosidl_runtime_rs::Sequence<RadarMap>);
+    fn tensorrt_detect_msgs__msg__RadarMap__Sequence__copy(in_seq: &rosidl_runtime_rs::Sequence<RadarMap>, out_seq: *mut rosidl_runtime_rs::Sequence<RadarMap>) -> bool;
+}
+
+// Corresponds to tensorrt_detect_msgs__msg__RadarMap
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+
+
+// This struct is not documented.
+#[allow(missing_docs)]
+
+#[repr(C)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
+pub struct RadarMap {
+
+    // This member is not documented.
+    #[allow(missing_docs)]
+    pub header: std_msgs::msg::rmw::Header,
+
+    /// 蓝方 1-5 号及哨兵(6)的地图坐标 (x, y)
+    pub blue_x: [f32; 6],
+
+
+    // This member is not documented.
+    #[allow(missing_docs)]
+    pub blue_y: [f32; 6],
+
+    /// 红方 1-5 号及哨兵(6)的地图坐标 (x, y)
+    pub red_x: [f32; 6],
+
+
+    // This member is not documented.
+    #[allow(missing_docs)]
+    pub red_y: [f32; 6],
+
+}
+
+
+
+impl Default for RadarMap {
+  fn default() -> Self {
+    unsafe {
+      let mut msg = std::mem::zeroed();
+      if !tensorrt_detect_msgs__msg__RadarMap__init(&mut msg as *mut _) {
+        panic!("Call to tensorrt_detect_msgs__msg__RadarMap__init() failed");
+      }
+      msg
+    }
+  }
+}
+
+impl rosidl_runtime_rs::SequenceAlloc for RadarMap {
+  fn sequence_init(seq: &mut rosidl_runtime_rs::Sequence<Self>, size: usize) -> bool {
+    // SAFETY: This is safe since the pointer is guaranteed to be valid/initialized.
+    unsafe { tensorrt_detect_msgs__msg__RadarMap__Sequence__init(seq as *mut _, size) }
+  }
+  fn sequence_fini(seq: &mut rosidl_runtime_rs::Sequence<Self>) {
+    // SAFETY: This is safe since the pointer is guaranteed to be valid/initialized.
+    unsafe { tensorrt_detect_msgs__msg__RadarMap__Sequence__fini(seq as *mut _) }
+  }
+  fn sequence_copy(in_seq: &rosidl_runtime_rs::Sequence<Self>, out_seq: &mut rosidl_runtime_rs::Sequence<Self>) -> bool {
+    // SAFETY: This is safe since the pointer is guaranteed to be valid/initialized.
+    unsafe { tensorrt_detect_msgs__msg__RadarMap__Sequence__copy(in_seq, out_seq as *mut _) }
+  }
+}
+
+impl rosidl_runtime_rs::Message for RadarMap {
+  type RmwMsg = Self;
+  fn into_rmw_message(msg_cow: std::borrow::Cow<'_, Self>) -> std::borrow::Cow<'_, Self::RmwMsg> { msg_cow }
+  fn from_rmw_message(msg: Self::RmwMsg) -> Self { msg }
+}
+
+impl rosidl_runtime_rs::RmwMessage for RadarMap where Self: Sized {
+  const TYPE_NAME: &'static str = "tensorrt_detect_msgs/msg/RadarMap";
+  fn get_type_support() -> *const std::ffi::c_void {
+    // SAFETY: No preconditions for this function.
+    unsafe { rosidl_typesupport_c__get_message_type_support_handle__tensorrt_detect_msgs__msg__RadarMap() }
   }
 }
 

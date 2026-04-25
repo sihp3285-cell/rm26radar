@@ -24,6 +24,7 @@ typedef struct tensorrt_detect_msgs__msg__WorldTarget
 {
   int32_t idx;
   int32_t class_id;
+  int32_t team_id;
   float score;
   bool valid;
   float world_x;

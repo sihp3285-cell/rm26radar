@@ -11,10 +11,10 @@ tensorrt_detect_msgs__msg__WorldTarget__get_type_hash(
 {
   (void)type_support;
   static rosidl_type_hash_t hash = {1, {
-      0xd0, 0x94, 0x27, 0x87, 0x7a, 0x72, 0x92, 0x1e,
-      0x26, 0x40, 0xc5, 0xfc, 0xcd, 0xb8, 0xc6, 0xaa,
-      0x40, 0xc4, 0xb1, 0x62, 0x2e, 0x27, 0xf1, 0x68,
-      0x0f, 0x8b, 0x52, 0xcf, 0x2c, 0xbb, 0xad, 0x23,
+      0xb9, 0x71, 0x6a, 0xa0, 0x33, 0x3c, 0x57, 0x5b,
+      0x36, 0x8b, 0xf6, 0xf1, 0x35, 0x5a, 0xb5, 0x4c,
+      0x4a, 0xb7, 0x12, 0xe9, 0xfb, 0x96, 0x95, 0x29,
+      0x4f, 0x8b, 0xfd, 0x9f, 0x5a, 0x2e, 0x4a, 0x52,
     }};
   return &hash;
 }
@@ -33,6 +33,7 @@ static char tensorrt_detect_msgs__msg__WorldTarget__TYPE_NAME[] = "tensorrt_dete
 // Define type names, field names, and default values
 static char tensorrt_detect_msgs__msg__WorldTarget__FIELD_NAME__idx[] = "idx";
 static char tensorrt_detect_msgs__msg__WorldTarget__FIELD_NAME__class_id[] = "class_id";
+static char tensorrt_detect_msgs__msg__WorldTarget__FIELD_NAME__team_id[] = "team_id";
 static char tensorrt_detect_msgs__msg__WorldTarget__FIELD_NAME__score[] = "score";
 static char tensorrt_detect_msgs__msg__WorldTarget__FIELD_NAME__valid[] = "valid";
 static char tensorrt_detect_msgs__msg__WorldTarget__FIELD_NAME__world_x[] = "world_x";
@@ -56,6 +57,16 @@ static rosidl_runtime_c__type_description__Field tensorrt_detect_msgs__msg__Worl
   },
   {
     {tensorrt_detect_msgs__msg__WorldTarget__FIELD_NAME__class_id, 8, 8},
+    {
+      rosidl_runtime_c__type_description__FieldType__FIELD_TYPE_INT32,
+      0,
+      0,
+      {NULL, 0, 0},
+    },
+    {NULL, 0, 0},
+  },
+  {
+    {tensorrt_detect_msgs__msg__WorldTarget__FIELD_NAME__team_id, 7, 7},
     {
       rosidl_runtime_c__type_description__FieldType__FIELD_TYPE_INT32,
       0,
@@ -165,7 +176,7 @@ tensorrt_detect_msgs__msg__WorldTarget__get_type_description(
   static const rosidl_runtime_c__type_description__TypeDescription description = {
     {
       {tensorrt_detect_msgs__msg__WorldTarget__TYPE_NAME, 36, 36},
-      {tensorrt_detect_msgs__msg__WorldTarget__FIELDS, 11, 11},
+      {tensorrt_detect_msgs__msg__WorldTarget__FIELDS, 12, 12},
     },
     {NULL, 0, 0},
   };
@@ -178,6 +189,7 @@ tensorrt_detect_msgs__msg__WorldTarget__get_type_description(
 static char toplevel_type_raw_source[] =
   "int32 idx\n"
   "int32 class_id\n"
+  "int32 team_id\n"
   "float32 score\n"
   "\n"
   "bool valid\n"
@@ -203,7 +215,7 @@ tensorrt_detect_msgs__msg__WorldTarget__get_individual_type_description_source(
   static const rosidl_runtime_c__type_description__TypeSource source = {
     {tensorrt_detect_msgs__msg__WorldTarget__TYPE_NAME, 36, 36},
     {msg_encoding, 3, 3},
-    {toplevel_type_raw_source, 153, 153},
+    {toplevel_type_raw_source, 167, 167},
   };
   return &source;
 }

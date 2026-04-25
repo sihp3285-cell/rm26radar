@@ -1,0 +1,26 @@
+-- Found ament_cmake: 2.5.6 (/opt/ros/jazzy/share/ament_cmake/cmake)
+-- Found rclcpp: 28.1.18 (/opt/ros/jazzy/share/rclcpp/cmake)
+-- Found rosidl_generator_c: 4.6.7 (/opt/ros/jazzy/share/rosidl_generator_c/cmake)
+-- Found rosidl_generator_cpp: 4.6.7 (/opt/ros/jazzy/share/rosidl_generator_cpp/cmake)
+-- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+-- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+-- Found rmw_implementation_cmake: 7.3.3 (/opt/ros/jazzy/share/rmw_implementation_cmake/cmake)
+-- Found rmw_fastrtps_cpp: 8.4.3 (/opt/ros/jazzy/share/rmw_fastrtps_cpp/cmake)
+-- Using RMW implementation 'rmw_fastrtps_cpp' as default
+-- Found sensor_msgs: 5.3.7 (/opt/ros/jazzy/share/sensor_msgs/cmake)
+-- Found cv_bridge: 4.1.0 (/opt/ros/jazzy/share/cv_bridge/cmake)
+-- Found tensorrt_detect_msgs: 0.0.1 (/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake)
+-- Configuring done (0.5s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/delphine/rm/tensorrt10_detect/build/tensorrt_detect
+[ 18%] Built target video_node
+[ 18%] Built target display_node
+[ 63%] Built target tensorrt_detect_core
+[ 68%] Building CXX object CMakeFiles/map_node.dir/src/nodes/map_node.cpp.o
+[ 77%] Built target standard
+[ 81%] Building CXX object CMakeFiles/pose_node.dir/src/nodes/pose_node.cpp.o
+[ 86%] Building CXX object CMakeFiles/detect_node.dir/src/nodes/detect_node.cpp.o
+[ 90%] Linking CXX executable pose_node
+[ 90%] Built target pose_node
+[ 95%] Linking CXX executable detect_node
+[ 95%] Built target detect_node

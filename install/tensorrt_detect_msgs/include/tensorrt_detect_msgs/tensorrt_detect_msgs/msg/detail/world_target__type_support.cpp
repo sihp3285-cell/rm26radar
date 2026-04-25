@@ -38,7 +38,7 @@ void WorldTarget_fini_function(void * message_memory)
   typed_message->~WorldTarget();
 }
 
-static const ::rosidl_typesupport_introspection_cpp::MessageMember WorldTarget_message_member_array[11] = {
+static const ::rosidl_typesupport_introspection_cpp::MessageMember WorldTarget_message_member_array[12] = {
   {
     "idx",  // name
     ::rosidl_typesupport_introspection_cpp::ROS_TYPE_INT32,  // type
@@ -67,6 +67,24 @@ static const ::rosidl_typesupport_introspection_cpp::MessageMember WorldTarget_m
     0,  // array size
     false,  // is upper bound
     offsetof(tensorrt_detect_msgs::msg::WorldTarget, class_id),  // bytes offset in struct
+    nullptr,  // default value
+    nullptr,  // size() function pointer
+    nullptr,  // get_const(index) function pointer
+    nullptr,  // get(index) function pointer
+    nullptr,  // fetch(index, &value) function pointer
+    nullptr,  // assign(index, value) function pointer
+    nullptr  // resize(index) function pointer
+  },
+  {
+    "team_id",  // name
+    ::rosidl_typesupport_introspection_cpp::ROS_TYPE_INT32,  // type
+    0,  // upper bound of string
+    nullptr,  // members of sub message
+    false,  // is key
+    false,  // is array
+    0,  // array size
+    false,  // is upper bound
+    offsetof(tensorrt_detect_msgs::msg::WorldTarget, team_id),  // bytes offset in struct
     nullptr,  // default value
     nullptr,  // size() function pointer
     nullptr,  // get_const(index) function pointer
@@ -242,7 +260,7 @@ static const ::rosidl_typesupport_introspection_cpp::MessageMember WorldTarget_m
 static const ::rosidl_typesupport_introspection_cpp::MessageMembers WorldTarget_message_members = {
   "tensorrt_detect_msgs::msg",  // message namespace
   "WorldTarget",  // message name
-  11,  // number of fields
+  12,  // number of fields
   sizeof(tensorrt_detect_msgs::msg::WorldTarget),
   false,  // has_any_key_member_
   WorldTarget_message_member_array,  // message members

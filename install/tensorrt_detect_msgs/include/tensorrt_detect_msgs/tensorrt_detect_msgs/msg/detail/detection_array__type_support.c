@@ -6,8 +6,8 @@
 
 #include "tensorrt_detect_msgs/msg/detail/detection_array__struct.h"
 #include "tensorrt_detect_msgs/msg/detail/detection_array__functions.h"
-#include "tensorrt_detect_msgs/msg/detail/detection_array__type_support.h"
 #include "rosidl_typesupport_interface/macros.h"
+#include "tensorrt_detect_msgs/msg/detail/detection_array__type_support.h"
 
 #ifdef __cplusplus
 extern "C"

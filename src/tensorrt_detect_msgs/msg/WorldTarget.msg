@@ -1,5 +1,6 @@
 int32 idx
 int32 class_id
+int32 team_id
 float32 score
 
 bool valid

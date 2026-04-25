@@ -168,16 +168,32 @@ private:
   ::tensorrt_detect_msgs::msg::WorldTarget msg_;
 };
 
+class Init_WorldTarget_team_id
+{
+public:
+  explicit Init_WorldTarget_team_id(::tensorrt_detect_msgs::msg::WorldTarget & msg)
+  : msg_(msg)
+  {}
+  Init_WorldTarget_score team_id(::tensorrt_detect_msgs::msg::WorldTarget::_team_id_type arg)
+  {
+    msg_.team_id = std::move(arg);
+    return Init_WorldTarget_score(msg_);
+  }
+
+private:
+  ::tensorrt_detect_msgs::msg::WorldTarget msg_;
+};
+
 class Init_WorldTarget_class_id
 {
 public:
   explicit Init_WorldTarget_class_id(::tensorrt_detect_msgs::msg::WorldTarget & msg)
   : msg_(msg)
   {}
-  Init_WorldTarget_score class_id(::tensorrt_detect_msgs::msg::WorldTarget::_class_id_type arg)
+  Init_WorldTarget_team_id class_id(::tensorrt_detect_msgs::msg::WorldTarget::_class_id_type arg)
   {
     msg_.class_id = std::move(arg);
-    return Init_WorldTarget_score(msg_);
+    return Init_WorldTarget_team_id(msg_);
   }
 
 private:

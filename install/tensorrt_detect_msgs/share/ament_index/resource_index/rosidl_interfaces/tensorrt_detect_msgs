@@ -2,6 +2,8 @@ msg/DetectionArray.idl
 msg/DetectionArray.msg
 msg/DetectionBox.idl
 msg/DetectionBox.msg
+msg/RadarMap.idl
+msg/RadarMap.msg
 msg/WorldTarget.idl
 msg/WorldTarget.msg
 msg/WorldTargetArray.idl

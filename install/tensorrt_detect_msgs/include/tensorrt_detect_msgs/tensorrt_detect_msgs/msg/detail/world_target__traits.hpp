@@ -42,6 +42,13 @@ inline void to_flow_style_yaml(
     out << ", ";
   }
 
+  // member: team_id
+  {
+    out << "team_id: ";
+    rosidl_generator_traits::value_to_yaml(msg.team_id, out);
+    out << ", ";
+  }
+
   // member: score
   {
     out << "score: ";
@@ -127,6 +134,16 @@ inline void to_block_style_yaml(
     }
     out << "class_id: ";
     rosidl_generator_traits::value_to_yaml(msg.class_id, out);
+    out << "\n";
+  }
+
+  // member: team_id
+  {
+    if (indentation > 0) {
+      out << std::string(indentation, ' ');
+    }
+    out << "team_id: ";
+    rosidl_generator_traits::value_to_yaml(msg.team_id, out);
     out << "\n";
   }
 

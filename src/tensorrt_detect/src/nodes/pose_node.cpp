@@ -104,6 +104,7 @@ private:
                 tensorrt_detect_msgs::msg::WorldTarget target;
                 target.idx = det.idx;
                 target.class_id = det.idx;
+                target.team_id = det.armor_color;
                 target.score = det.confidence;
                 target.valid = true;
                 target.bbox_x = det.x;
@@ -135,7 +136,7 @@ private:
             RCLCPP_INFO_THROTTLE(
                 this->get_logger(),
                 *this->get_clock(),
-                1000,
+                10000,
                 "接收到 %zu 个检测，发布了 %zu 个世界坐标目标",
                 msg->detections.size(), world_msg->targets.size());
         }

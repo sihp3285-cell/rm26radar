@@ -10,6 +10,8 @@ module tensorrt_detect_msgs {
 
       int32 class_id;
 
+      int32 team_id;
+
       float score;
 
       boolean valid;

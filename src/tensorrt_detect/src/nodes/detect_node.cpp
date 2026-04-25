@@ -48,10 +48,8 @@ private:
         try {
             auto cv_ptr = cv_bridge::toCvCopy(msg, "bgr8");
             cv::Mat frame = cv_ptr->image;
-
             std::vector<Result> results = pipeline_->process(frame);
             drawDetect(frame, results, cfg_->model.classNames);
-
             cv::Mat resize_frame = frame;
             int target_width = 1280;
             if(frame.cols > target_width) {
@@ -59,6 +57,7 @@ private:
                  int target_height = static_cast<int>(frame.rows * scale);
                  cv::resize(frame, resize_frame, cv::Size(target_width, target_height));
             }
+
 
 
             auto now = std::chrono::steady_clock::now();
@@ -108,7 +107,7 @@ private:
             RCLCPP_INFO_THROTTLE(
                 this->get_logger(),
                 *this->get_clock(),
-                1000,
+                10000,
                 "检测到 %zu 个目标，fps: %.1f，发布了 DetectionArray 消息",
                 results.size(), fps_);
         }

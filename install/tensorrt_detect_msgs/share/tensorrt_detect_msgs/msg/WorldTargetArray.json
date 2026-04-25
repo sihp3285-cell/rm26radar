@@ -100,6 +100,16 @@
             "default_value": ""
           },
           {
+            "name": "team_id",
+            "type": {
+              "type_id": 6,
+              "capacity": 0,
+              "string_capacity": 0,
+              "nested_type_name": ""
+            },
+            "default_value": ""
+          },
+          {
             "name": "score",
             "type": {
               "type_id": 10,
@@ -196,7 +206,7 @@
   "type_hashes": [
     {
       "type_name": "tensorrt_detect_msgs/msg/WorldTargetArray",
-      "hash_string": "RIHS01_242561574f6b9127bacf6abdbfd798ae7149d4a37ab3d0a44dc83fe310f61844"
+      "hash_string": "RIHS01_ddc301227dbcd9590b0eb68a47c19da44ab0a306a84aa6e31d97a5ff3f398609"
     },
     {
       "type_name": "builtin_interfaces/msg/Time",
@@ -208,7 +218,7 @@
     },
     {
       "type_name": "tensorrt_detect_msgs/msg/WorldTarget",
-      "hash_string": "RIHS01_d09427877a72921e2640c5fccdb8c6aa40c4b1622e27f1680f8b52cf2cbbad23"
+      "hash_string": "RIHS01_b9716aa0333c575b368bf6f1355ab54c4ab712e9fb9695294f8bfd9f5a2e4a52"
     }
   ]
 }

@@ -44,6 +44,7 @@ struct WorldTarget_
     {
       this->idx = 0l;
       this->class_id = 0l;
+      this->team_id = 0l;
       this->score = 0.0f;
       this->valid = false;
       this->world_x = 0.0f;
@@ -64,6 +65,7 @@ struct WorldTarget_
     {
       this->idx = 0l;
       this->class_id = 0l;
+      this->team_id = 0l;
       this->score = 0.0f;
       this->valid = false;
       this->world_x = 0.0f;
@@ -83,6 +85,9 @@ struct WorldTarget_
   using _class_id_type =
     int32_t;
   _class_id_type class_id;
+  using _team_id_type =
+    int32_t;
+  _team_id_type team_id;
   using _score_type =
     float;
   _score_type score;
@@ -122,6 +127,12 @@ struct WorldTarget_
     const int32_t & _arg)
   {
     this->class_id = _arg;
+    return *this;
+  }
+  Type & set__team_id(
+    const int32_t & _arg)
+  {
+    this->team_id = _arg;
     return *this;
   }
   Type & set__score(
@@ -225,6 +236,9 @@ struct WorldTarget_
       return false;
     }
     if (this->class_id != other.class_id) {
+      return false;
+    }
+    if (this->team_id != other.team_id) {
       return false;
     }
     if (this->score != other.score) {

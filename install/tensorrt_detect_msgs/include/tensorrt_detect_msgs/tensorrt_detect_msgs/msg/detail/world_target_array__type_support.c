@@ -4,9 +4,9 @@
 
 #include <string.h>
 
-#include "tensorrt_detect_msgs/msg/detail/world_target_array__functions.h"
 #include "tensorrt_detect_msgs/msg/detail/world_target_array__type_support.h"
 #include "tensorrt_detect_msgs/msg/detail/world_target_array__struct.h"
+#include "tensorrt_detect_msgs/msg/detail/world_target_array__functions.h"
 #include "rosidl_typesupport_interface/macros.h"
 
 #ifdef __cplusplus

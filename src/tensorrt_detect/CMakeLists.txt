@@ -137,6 +137,19 @@ ament_target_dependencies(pose_node
 
 target_link_libraries(pose_node tensorrt_detect_core)
 
+# ========== ROS2 节点：map_node ==========
+add_executable(map_node src/nodes/map_node.cpp)
+
+ament_target_dependencies(map_node
+    rclcpp
+    sensor_msgs
+    cv_bridge
+    std_msgs
+    tensorrt_detect_msgs
+)
+
+target_link_libraries(map_node tensorrt_detect_core)
+
 # ========== 安装 & ament 打包 ==========
 install(TARGETS
     standard
@@ -144,6 +157,7 @@ install(TARGETS
     display_node
     video_node
     pose_node
+    map_node
     DESTINATION lib/${PROJECT_NAME}
 )
 

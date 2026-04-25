@@ -19,6 +19,7 @@ tensorrt_detect_msgs__msg__WorldTarget__init(tensorrt_detect_msgs__msg__WorldTar
   }
   // idx
   // class_id
+  // team_id
   // score
   // valid
   // world_x
@@ -39,6 +40,7 @@ tensorrt_detect_msgs__msg__WorldTarget__fini(tensorrt_detect_msgs__msg__WorldTar
   }
   // idx
   // class_id
+  // team_id
   // score
   // valid
   // world_x
@@ -62,6 +64,10 @@ tensorrt_detect_msgs__msg__WorldTarget__are_equal(const tensorrt_detect_msgs__ms
   }
   // class_id
   if (lhs->class_id != rhs->class_id) {
+    return false;
+  }
+  // team_id
+  if (lhs->team_id != rhs->team_id) {
     return false;
   }
   // score
@@ -115,6 +121,8 @@ tensorrt_detect_msgs__msg__WorldTarget__copy(
   output->idx = input->idx;
   // class_id
   output->class_id = input->class_id;
+  // team_id
+  output->team_id = input->team_id;
   // score
   output->score = input->score;
   // valid

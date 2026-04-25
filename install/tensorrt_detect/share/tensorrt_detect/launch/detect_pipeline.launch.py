@@ -30,7 +30,7 @@ def generate_launch_description():
             }],
         ),
 
-        # 显示节点：订阅 /detected_image 做可视化
+        # 显示节点：水平拼接 /detected_image 和 /map_image 做可视化
         Node(
             package='tensorrt_detect',
             executable='display_node',
@@ -38,9 +38,10 @@ def generate_launch_description():
             output='screen',
             parameters=[{
                 'topic': '/detected_image',
-                'window_name': 'Detection View',
-                'window_width': 1280,
+                'window_name': 'Video & Radar',
+                'window_width': 1920,
                 'window_height': 720,
+                'map_topic': '/map_image',
             }],
         ),
 
@@ -53,6 +54,19 @@ def generate_launch_description():
                 'config_dir': '/home/delphine/rm/tensorrt10_detect/configs',
                 'input_topic': '/armor_detections',
                 'output_topic': '/world_targets',
+            }],
+        ),
+
+        Node(
+            package='tensorrt_detect',
+            executable='map_node',
+            name='map_node',
+            output='screen',
+            parameters=[{
+                'config_dir': '/home/delphine/rm/tensorrt10_detect/configs',
+                'input_topic': '/world_targets',
+                'output_image_topic': '/map_image',
+                'output_map_topic': '/radar_map',
             }],
         ),
     ])

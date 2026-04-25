@@ -9,7 +9,7 @@ struct Mappoint
     cv::Point2f map_point;
     std::string label;
     int classIdx;
-    int armorColor;
+    int teamId;
 };
 class RadarMap
 {
