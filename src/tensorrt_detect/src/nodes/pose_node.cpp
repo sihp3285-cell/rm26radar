@@ -34,7 +34,6 @@ public:
         cfg_ = std::make_unique<Config>(config_dir);
         pose_solver_ = std::make_unique<PoseSolver>(cfg_->camera.cameraMatrix, cfg_->camera.distCoeffs);
 
-        // 加载外参：优先使用 Config 已加载的标定结果
         if (cfg_->calib.valid) {
             pose_solver_->setExtrinsic(cfg_->calib.R, cfg_->calib.T);
             RCLCPP_INFO(this->get_logger(), "成功从 Config 加载校准结果，已设置外参");
@@ -72,7 +71,6 @@ public:
             }
         }
 
-        // 加载 3D mesh（用于射线碰撞）
         if (!cfg_->camera.meshPath.empty()) {
             bool mesh_ok = pose_solver_->getRaycaster().loadingMesh(cfg_->camera.meshPath);
             if (mesh_ok) {
@@ -112,7 +110,6 @@ private:
                 target.bbox_w = det.width;
                 target.bbox_h = det.height;
 
-                // 优先使用 car_box 底部中心进行世界坐标解算
                 cv::Rect car_box(det.car_x, det.car_y, det.car_width, det.car_height);
                 if (car_box.width > 0 && car_box.height > 0) {
                     cv::Point2f world_pos = pose_solver_->middletoworld(car_box);
@@ -120,7 +117,6 @@ private:
                     target.world_y = 0.0f;
                     target.world_z = world_pos.y;
                 } else {
-                    // 若 car_box 无效，回退到 armor box
                     cv::Rect armor_box(det.x, det.y, det.width, det.height);
                     cv::Point2f world_pos = pose_solver_->middletoworld(armor_box);
                     target.world_x = world_pos.x;

@@ -1,22 +1,34 @@
-我们接着把 **`video_node.cpp` 也逐行讲透**。
+# `video_node.cpp` 逐行讲解
 
-这份文件在你当前三节点链路里的位置是：
+这份文件是**视频源节点**，在你当前 ROS2 视觉链路里的位置是：
 
-```text id="s76gvf"
-video_node
+```text
+video_node  ← 你在这里
    ↓  /image_raw
 detect_node
-   ↓  /detected_image
+   ↓  /detected_image, /armor_detections
+pose_node
+   ↓  /world_targets
+map_node
+   ↓  /map_image, /radar_map
 display_node
 ```
 
-也就是说，它不是算法节点，而是**输入源节点**。它负责把本地视频文件一帧一帧读出来，包装成 ROS2 图像消息，再发到 `/image_raw` 上。
+`video_node` 是整个系统的**数据源头**。它不负责任何算法，只负责一件事：
+
+> **把本地视频文件一帧一帧读出来，包装成 ROS2 图像消息，发到话题上。**
+
+在 ROS2 架构中，这种节点叫做 **Sensor Node（传感器节点）** 或 **Source Node（源节点）**。它的核心职责是：
+
+* 把非 ROS 格式的数据（本地视频文件）转换成 ROS 消息
+* 按固定节奏发布，模拟真实传感器的时序行为
+* 让下游算法节点**无需关心数据来源**
 
 ---
 
 # 一、头文件部分
 
-```cpp id="se1pq2"
+```cpp
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <cv_bridge/cv_bridge.hpp>
@@ -24,207 +36,152 @@ display_node
 #include <opencv2/opencv.hpp>
 ```
 
-这几行和 `detect_node` 很像，但职责不完全一样。
-
 ---
 
 ### `#include <rclcpp/rclcpp.hpp>`
 
-这是 ROS2 节点开发基础头文件。
-你后面要用它来：
-
-* 定义节点类
-* 打日志
-* 创建 publisher
-* 创建 timer
-* `spin`
-
-没有它，就不能写 ROS2 节点。
+ROS2 C++ 节点的基础头文件。你用它来定义节点类、创建 publisher、创建 timer、打日志、调用 `spin` 等。
 
 ---
 
 ### `#include <sensor_msgs/msg/image.hpp>`
 
-这表明你这个节点要发布的是图像消息。
+标准 ROS2 图像消息类型。`video_node` 的输出就是这个类型。
 
-也就是说，`video_node` 的输出不是普通变量，而是 ROS2 里的：
-
-```text id="td4jgv"
-sensor_msgs::msg::Image
+```text
+cv::Mat（OpenCV 世界）→ sensor_msgs::msg::Image（ROS2 世界）
 ```
 
 ---
 
 ### `#include <cv_bridge/cv_bridge.hpp>`
 
-虽然这个节点没有订阅图像，但它依然需要 `cv_bridge`。
-原因是：
+虽然这个节点没有"订阅"图像，但它依然需要 `cv_bridge`。
 
-* OpenCV 读出来的是 `cv::Mat`
-* ROS2 话题上传输的是 `sensor_msgs::msg::Image`
-
-所以这里要做的是：
-
-```text id="vq7gaf"
-cv::Mat → ROS2 Image
-```
+原因是它要把 OpenCV 的 `cv::Mat` 转成 ROS2 的 `sensor_msgs::msg::Image`。`cv_bridge` 提供了这个方向的转换能力。
 
 ---
 
 ### `#include <std_msgs/msg/header.hpp>`
 
-因为你发布图像时，也会给消息加 `header`，里面有：
+发布图像时需要填充 `header`，包含：
 
-* 时间戳
-* `frame_id`
-
-所以这个头文件也需要。
+* `stamp`：时间戳，告诉下游这帧图像是在什么时刻产生的
+* `frame_id`：坐标系标识，告诉下游这帧图像属于哪个坐标系
 
 ---
 
 ### `#include <opencv2/opencv.hpp>`
 
-因为本地视频读取靠的是 OpenCV 的：
+因为本地视频读取完全依赖 OpenCV：
 
-* `cv::VideoCapture`
-* `cv::Mat`
-
-这行当然必需。
+* `cv::VideoCapture`：打开视频文件、读取帧
+* `cv::Mat`：存储每一帧图像
 
 ---
 
 # 二、定义节点类
 
-```cpp id="hbimw7"
+```cpp
 class VideoNode : public rclcpp::Node
-{
 ```
 
-这一行说明：
+固定起手式：所有 ROS2 节点类都继承自 `rclcpp::Node`。
 
-> 你定义了一个叫 `VideoNode` 的 ROS2 节点类。
-
-以后你写任何 ROS2 节点，最常见的起手式都差不多是这样。
+这样 `VideoNode` 自动获得 ROS2 节点的一切基础设施：参数系统、日志系统、时钟、Pub/Sub 接口等。
 
 ---
 
-# 三、构造函数开始
+# 三、构造函数
 
-```cpp id="fmsn3m"
+```cpp
 public:
     VideoNode() : Node("video_node")
 ```
 
-这行的意思是：
+节点在 ROS2 系统中的注册名是 `"video_node"`。
 
-* 构造函数名叫 `VideoNode()`
-* 同时初始化父类 `Node`
-* 这个节点在 ROS2 系统里的名字叫 `"video_node"`
-
-所以以后你在日志里会看到 `[video_node]`。
+在 `ros2 node list` 里能看到它，日志里也会显示 `[video_node]`。
 
 ---
 
 # 四、声明参数
 
-```cpp id="9oa0ct"
+```cpp
 this->declare_parameter<std::string>("video_path", "/home/delphine/rm/car_project/test/005.mp4");
 this->declare_parameter<std::string>("topic_name", "/image_raw");
 this->declare_parameter<int>("fps", 30);
 ```
 
-这三行是参数注册。
+这三行向 ROS2 参数服务器注册参数。
 
 ---
 
-### 第一行：`video_path`
+### `video_path`
 
-告诉 ROS2：
+字符串参数，默认值指向一个本地 MP4 文件。
 
-> 这个节点有一个字符串参数，叫 `video_path`，默认值是视频文件路径。
+参数化而不是硬编码，意味着你以后可以通过 launch 文件或命令行换视频源，而不需要重新编译：
 
-也就是说，视频源不是写死在逻辑里的，而是参数化的。
-
----
-
-### 第二行：`topic_name`
-
-告诉 ROS2：
-
-> 这个节点发布图像的话题默认叫 `/image_raw`。
-
-这和后面 `detect_node` 的输入话题默认值正好对上。
+```bash
+ros2 run tensorrt_detect video_node --ros-args -p video_path:=/path/to/another.mp4
+```
 
 ---
 
-### 第三行：`fps`
+### `topic_name`
 
-告诉 ROS2：
+默认 `/image_raw`。
 
-> 这个节点还有一个整数参数，表示你希望按多少帧率发布视频。
+这是 ROS2 视觉领域的一个**约定俗成的话题名**。很多视觉工具（如 `image_view`、`rviz2`）默认就订阅 `/image_raw`。
 
-默认值是 30。
+把视频发到这个名字上，下游节点不需要改任何配置就能对接。
 
-这里很有意义，因为它说明这个节点不只是“尽力读帧”，而是试图按固定节奏发图像。
+---
+
+### `fps`
+
+整数参数，默认 30。
+
+这个参数的意义非常深：
+
+> 它不是在"限制视频播放速度"，而是在**模拟真实传感器的采样频率**。
+
+真实的 USB 摄像头、工业相机、GigE 相机，都是以固定帧率采集图像的。`video_node` 用 `fps` 参数来模拟这种行为，让下游算法节点感受到的时序特性和真实部署时一致。
 
 ---
 
 # 五、读取参数
 
-```cpp id="41f9kf"
+```cpp
 video_path_ = this->get_parameter("video_path").as_string();
 topic_name_ = this->get_parameter("topic_name").as_string();
 fps_setting_ = this->get_parameter("fps").as_int();
 ```
 
-前面是注册参数，这里才是真正把参数值取出来。
+把参数值取出来，保存到成员变量中。
 
----
-
-### 第一行
-
-把 `video_path` 的值读出来，保存到成员变量 `video_path_`。
-
----
-
-### 第二行
-
-把 `topic_name` 的值读出来，保存到成员变量 `topic_name_`。
-
----
-
-### 第三行
-
-把 `fps` 的值读出来，保存到成员变量 `fps_setting_`。
-
-这里为什么都存成成员变量？
-因为这些值会在整个节点生命周期里反复被用到，不只是构造函数里临时使用。
+这三个值会在整个节点生命周期里反复使用：`video_path_` 和 `topic_name_` 不需要再变，但 `fps_setting_` 参与了定时器周期的计算。
 
 ---
 
 # 六、打印初始化信息
 
-```cpp id="ll0kbl"
+```cpp
 RCLCPP_INFO(this->get_logger(), "视频路径: %s", video_path_.c_str());
 RCLCPP_INFO(this->get_logger(), "发布话题: %s", topic_name_.c_str());
 RCLCPP_INFO(this->get_logger(), "设定帧率: %d", fps_setting_);
 ```
 
-这三行是初始化日志。
+节点启动时打印关键配置，这是排查参数是否生效的最佳实践。
 
-它们会告诉你：
-
-* 视频路径是什么
-* 要发到哪个话题
-* 目标帧率是多少
-
-这非常适合排查 launch 文件、参数文件、命令行传参是否生效。
+比如如果你通过 launch 文件改了 `fps`，但日志里还是显示 30，说明参数没传进来。
 
 ---
 
 # 七、打开视频
 
-```cpp id="fceli0"
+```cpp
 cap_.open(video_path_);
 if (!cap_.isOpened()) {
     RCLCPP_ERROR(this->get_logger(), "无法打开视频: %s", video_path_.c_str());
@@ -233,190 +190,162 @@ if (!cap_.isOpened()) {
 }
 ```
 
-这是 `video_node` 的核心初始化之一：准备输入源。
+---
+
+### `cap_.open(video_path_)`
+
+`cap_` 是 `cv::VideoCapture` 对象。这行让它尝试打开指定路径的视频文件。
 
 ---
 
-### `cap_.open(video_path_);`
+### 错误处理
 
-这里 `cap_` 是一个 `cv::VideoCapture` 对象。
-这行让它尝试打开视频文件。
+如果打开失败：
 
----
+1. `RCLCPP_ERROR` 打印错误日志
+2. `rclcpp::shutdown()` 请求关闭 ROS2 系统
+3. `return` 结束构造函数
 
-### `if (!cap_.isOpened())`
-
-检查打开是否成功。
-
-如果失败，通常可能是：
-
-* 路径写错
-* 文件不存在
-* 编码不支持
+这体现了**快速失败（Fail Fast）**原则：输入源都打不开，节点没有继续运行的意义，尽早退出比带着错误跑更好。
 
 ---
 
-### `RCLCPP_ERROR(...)`
+# 八、创建 Publisher
 
-打印错误日志。
-
----
-
-### `rclcpp::shutdown();`
-
-因为输入源都打不开，节点就没必要继续运行了，所以直接请求关闭 ROS2。
-
----
-
-### `return;`
-
-结束构造函数，避免后面继续执行。
-
-这体现了一个很好的工程习惯：
-
-> 初始化失败时尽早退出，而不是带着错误继续跑。
-
----
-
-# 八、创建 publisher
-
-```cpp id="0p0g07"
+```cpp
 image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(topic_name_, 10);
 ```
 
-这行创建图像发布者。
+---
 
-它的含义是：
+### `create_publisher<sensor_msgs::msg::Image>`
 
-* 类型：`sensor_msgs::msg::Image`
-* 话题：`topic_name_`
-* 队列深度：10
+说明这个 publisher 发送的是图像消息。
 
-所以这行本质上是在说：
+---
 
-> `video_node` 具备了把视频帧发到 ROS2 网络中的能力。
+### `topic_name_`
+
+话题名由参数控制，默认 `/image_raw`。
+
+---
+
+### `10`
+
+队列深度（QoS History Depth）。
+
+在 ROS2 中，publisher 和 subscriber 之间是**异步解耦**的。如果 subscriber 处理得慢，消息会在 publisher 的发送队列里缓冲。`10` 表示最多缓冲 10 条消息，超过的旧消息会被丢弃。
+
+对于视频流这种连续数据，丢旧帧是可以接受的，因为用户更关心最新的画面。
 
 ---
 
 # 九、根据 FPS 计算定时器周期
 
-```cpp id="zax2zq"
+```cpp
 int interval_ms = 1000 / std::max(fps_setting_, 1);
 ```
 
-这行是一个很典型的小计算。
+---
 
-逻辑是：
+### 计算逻辑
 
-* 如果你想 30fps
-* 那每帧间隔就是大约 `1000 / 30 ≈ 33ms`
+如果 `fps_setting_ = 30`，那每帧间隔就是 `1000 / 30 ≈ 33ms`。
 
-所以这个变量 `interval_ms` 表示：
+这个变量表示：定时器每隔多少毫秒触发一次。
 
-> 定时器每隔多少毫秒触发一次
+---
 
-为什么用了 `std::max(fps_setting_, 1)`？
-因为防止用户把 fps 设成 0，导致除零错误。
+### `std::max(fps_setting_, 1)`
+
+防御式编程。防止用户把 fps 设成 0 或负数，导致除零错误。
 
 ---
 
 # 十、创建定时器
 
-```cpp id="mev5za"
+```cpp
 timer_ = this->create_wall_timer(
     std::chrono::milliseconds(interval_ms),
     std::bind(&VideoNode::timer_callback, this));
 ```
 
-这是 `video_node` 的运行驱动核心。
+这是 `video_node` 的**运行驱动核心**。
 
 ---
 
-### 第一行
+### `create_wall_timer`
 
-调用 `create_wall_timer(...)` 创建一个基于系统时间的定时器。
+创建基于**系统挂钟时间（Wall Clock）**的定时器。
+
+在 ROS2 中，定时器有两种概念：
+
+| 定时器类型 | 依据 | 适用场景 |
+|-----------|------|---------|
+| Wall Timer | 系统真实时间 | 模拟固定帧率、UI 刷新 |
+| ROS Timer | ROS 仿真时间（`/clock`） | 与 Gazebo 等仿真器同步 |
+
+这里用 `create_wall_timer` 而不是 `create_timer`，是因为视频播放要跟着真实时间走，而不是仿真时间。
 
 ---
 
-### 第二行
+### 定时器周期
 
-```cpp id="u3y8lw"
+```cpp
 std::chrono::milliseconds(interval_ms)
 ```
 
-表示这个定时器的触发周期。
-
-比如如果 `interval_ms = 33`，那就大约每 33ms 触发一次。
+用 C++11 的 `std::chrono` 库表示时间长度，类型安全、可读性好。
 
 ---
 
-### 第三行
+### 回调绑定
 
-```cpp id="s5mjlwm"
+```cpp
 std::bind(&VideoNode::timer_callback, this)
 ```
 
-意思是：
+意思是：每次定时器触发，就调用当前对象的 `timer_callback()` 函数。
 
-> 每次定时器到时间，就调用当前这个 `VideoNode` 对象的 `timer_callback()` 函数。
+这建立了一个循环机制：
 
-所以这行建立了一个循环机制：
-
-```text id="vokc4m"
+```text
 每隔 interval_ms 毫秒
-→ 调一次 timer_callback
+→ 调 timer_callback
 → 读一帧视频
-→ 发布一帧图像
+→ 转成 ROS 图像消息
+→ 发布到 /image_raw
 ```
-
-这就是 `video_node` 的“主循环”。
 
 ---
 
 # 十一、初始化完成日志
 
-```cpp id="u1zcb8"
+```cpp
 RCLCPP_INFO(this->get_logger(), "VideoNode 初始化完成，开始发布视频帧");
 ```
 
-这行说明构造函数已经完成了所有准备工作：
-
-* 参数读完了
-* 视频打开成功了
-* publisher 建好了
-* timer 建好了
-
-从这里开始，节点就会进入“持续发帧”的运行状态。
+构造函数执行完毕：参数读取、视频打开、publisher 创建、timer 创建。节点进入持续发帧的运行状态。
 
 ---
 
-# 十二、进入 `private`，看真正干活的定时器回调
+# 十二、定时器回调：`timer_callback`
 
-```cpp id="7wifyu"
+```cpp
 private:
     void timer_callback()
 ```
 
-这个函数就是整个 `video_node` 的真正执行体。
+这是整个 `video_node` 的真正执行体。每次定时器触发，它就执行一次。
 
-每次定时器一触发，它就执行一次。
-你可以把它理解成“视频节点版本的主循环”。
+可以把它理解成"视频节点版本的主循环"。
 
 ---
 
-# 十三、先定义当前帧变量
+# 十三、读取一帧视频
 
-```cpp id="jxcsj8"
+```cpp
 cv::Mat frame;
-```
-
-这行创建一个 OpenCV 图像对象，用来接收当前这一帧视频画面。
-
----
-
-# 十四、读取一帧视频
-
-```cpp id="15wa5s"
 if (!cap_.read(frame)) {
     RCLCPP_WARN(this->get_logger(), "视频播放结束，重新回到开头");
     cap_.set(cv::CAP_PROP_POS_FRAMES, 0);
@@ -424,125 +353,104 @@ if (!cap_.read(frame)) {
 }
 ```
 
-这几行是视频循环播放逻辑。
-
 ---
 
 ### `cap_.read(frame)`
 
-从视频里读取一帧到 `frame` 中。
-
-如果成功，`frame` 里就有图像内容。
+从视频里读取一帧到 `frame` 中。如果成功，`frame` 里就有图像内容。
 
 ---
 
-### `if (!cap_.read(frame))`
+### 循环播放
 
-如果返回失败，通常说明视频已经读到结尾，或者读取出错。
+如果读取失败（通常是播到结尾了）：
 
----
+1. `RCLCPP_WARN` 打印警告
+2. `cap_.set(cv::CAP_PROP_POS_FRAMES, 0)` 把读头跳回第 0 帧
+3. `return` 结束本次回调
 
-### `RCLCPP_WARN(...)`
-
-打印警告日志，告诉你视频播完了。
-
----
-
-### `cap_.set(cv::CAP_PROP_POS_FRAMES, 0);`
-
-把当前视频位置跳回第 0 帧。
-
-所以你的视频节点不是播完就停，而是会从头循环播放。
+所以你的视频节点不是播完就停，而是会**从头循环播放**。这对于长时间测试和调试非常方便。
 
 ---
 
-### `return;`
+# 十四、转成 ROS2 图像消息
 
-这次回调先结束，等下一次定时器再重新开始读。
-
----
-
-# 十五、把 OpenCV 图像转成 ROS2 图像消息
-
-```cpp id="hr2l9l"
+```cpp
 auto msg = cv_bridge::CvImage(
     std_msgs::msg::Header(), "bgr8", frame).toImageMsg();
 ```
 
 这行非常关键。
 
-意思是：
-
-* 用一份新的 `Header`
-* 指定编码格式 `"bgr8"`
+* 用一份新的 `std_msgs::msg::Header()`
+* 指定编码 `"bgr8"`
 * 把 `frame` 这张 `cv::Mat`
 * 包装成 ROS2 的图像消息
 
-这就是：
+也就是：
 
-```text id="gwj8a9"
+```text
 cv::Mat → sensor_msgs::msg::Image
 ```
 
 ---
 
-# 十六、给消息补 header 信息
+# 十五、填充 Header
 
-```cpp id="0di82o"
+```cpp
 msg->header.stamp = this->now();
 msg->header.frame_id = "video_frame";
 ```
 
-这两行是在给图像消息加身份信息。
+---
+
+### `msg->header.stamp = this->now()`
+
+给这帧图像打上**当前 ROS2 时间戳**。
+
+`this->now()` 返回的是 `rclcpp::Time`，它基于 ROS2 时钟（默认是系统时钟）。
+
+这个时间戳非常重要：
+
+* 下游节点可以用它做**消息时序对齐**
+* 如果以后做多摄像头同步，所有源节点都用 `this->now()` 打戳，就能对齐
+* `ros2 bag record` 录制时，时间戳是回放的关键
 
 ---
 
-### `msg->header.stamp = this->now();`
+### `msg->header.frame_id = "video_frame"`
 
-给这帧图像打上当前 ROS2 时间戳。
-
-这表示：
-
-> 这张图是在这个时刻发布出去的。
-
-以后如果你做时间同步、多节点对齐，这个很重要。
-
----
-
-### `msg->header.frame_id = "video_frame";`
-
-给图像消息一个坐标系/来源标识。
+给图像消息一个**坐标系/来源标识**。
 
 这里写 `"video_frame"`，语义上表示：
 
 > 这是来自视频源节点的一帧图像。
 
-后面 `detect_node` 收到它时，会继承这个 header 再加工。
+后面 `detect_node` 收到它时，会继承这个 header 再改写为 `"detected_frame"`。这就形成了一条清晰的**消息血缘链**：
+
+```text
+video_frame → detected_frame
+```
 
 ---
 
-# 十七、真正发布图像
+# 十六、发布图像
 
-```cpp id="khdb98"
+```cpp
 image_pub_->publish(*msg);
 ```
 
-这一行就是 `video_node` 的最终输出动作。
+这是 `video_node` 的最终输出动作。
 
-它的意义很简单：
+一旦发布成功，`detect_node` 就能在 `/image_raw` 上收到它，整个视觉链就流动起来了。
 
-> 把这一帧图像送到 ROS2 话题网络中去。
-
-一旦发布成功：
-
-* `detect_node` 就能在 `/image_raw` 上收到它
-* 整个视觉链就流动起来了
+注意这里传的是 `*msg`（解引用），因为 `publish` 接收的是消息对象的引用，而 `msg` 是 `std::shared_ptr`。
 
 ---
 
-# 十八、成员变量部分
+# 十七、成员变量
 
-```cpp id="vvmbj7"
+```cpp
 cv::VideoCapture cap_;
 std::string video_path_;
 std::string topic_name_;
@@ -552,52 +460,33 @@ rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_pub_;
 rclcpp::TimerBase::SharedPtr timer_;
 ```
 
-这些都是 `video_node` 在整个生命周期里要长期保存的状态。
-
 ---
 
 ### `cv::VideoCapture cap_`
 
-视频读取器对象。
-必须作为成员变量保存，因为每次回调都要继续从同一个视频流中读下一帧。
-
----
-
-### `std::string video_path_`
-
-保存视频路径。
-
----
-
-### `std::string topic_name_`
-
-保存发布话题名。
-
----
-
-### `int fps_setting_`
-
-保存设定帧率。
+视频读取器对象。必须作为成员变量保存，因为每次回调都要继续从同一个视频流中读下一帧。
 
 ---
 
 ### `image_pub_`
 
-保存 publisher 对象。
-如果不保存，publisher 会被析构，节点就不能持续发消息了。
+Publisher 对象。必须长期存活，否则节点就不能持续发消息。
 
 ---
 
 ### `timer_`
 
-保存定时器对象。
-这个也必须是成员变量，不然构造函数一结束定时器就没了，回调根本不会触发。
+定时器对象。这个也必须是成员变量，不然构造函数一结束定时器就没了，回调根本不会触发。
+
+这是一个 ROS2 新手常踩的坑：
+
+> **如果把 timer 写成局部变量，它会随构造函数结束而销毁，节点看似启动了，实际上什么都不做。**
 
 ---
 
-# 十九、最后看 `main`
+# 十八、`main` 函数
 
-```cpp id="c00jq5"
+```cpp
 int main(int argc, char** argv)
 {
     rclcpp::init(argc, argv);
@@ -608,86 +497,93 @@ int main(int argc, char** argv)
 }
 ```
 
-这部分和 `detect_node` 的主函数结构完全一样。
+经典四步法：
+
+| 步骤 | 函数 | 作用 |
+|------|------|------|
+| 1 | `rclcpp::init(argc, argv)` | 初始化 ROS2 通信框架，解析命令行参数 |
+| 2 | `make_shared<VideoNode>()` | 创建节点，执行构造函数（读参数、开视频、建 pub、建 timer） |
+| 3 | `rclcpp::spin(node)` | 进入事件循环，让 timer 一次次触发 |
+| 4 | `rclcpp::shutdown()` | 清理资源 |
 
 ---
 
-### `rclcpp::init(argc, argv);`
+### 为什么 `spin` 能让 timer 工作？
 
-初始化 ROS2 运行环境。
+`rclcpp::spin` 内部是一个循环，不断检查节点上的事件：
 
----
+* 有定时器到期了？→ 执行 timer_callback
+* 有订阅消息到了？→ 执行 subscription callback（这个节点没有订阅）
+* 有服务请求到了？→ 执行 service callback（这个节点没有服务）
 
-### `auto node = std::make_shared<VideoNode>();`
-
-创建一个 `VideoNode` 节点对象。
-
-这里会自动执行它的构造函数，也就是：
-
-* 读参数
-* 打开视频
-* 创建 publisher
-* 创建 timer
+所以虽然你代码里没有显式写 `while` 循环，但 `spin` 就是它的幕后推手。
 
 ---
 
-### `rclcpp::spin(node);`
+# 十九、把整份 `video_node.cpp` 总结成一句话
 
-进入 ROS2 事件循环。
+> **把本地视频文件包装成一个按固定帧率发布图像的 ROS2 话题源。**
 
-在这个文件里，`spin` 主要负责让 timer 一次次触发 `timer_callback()`。
+也就是把你原本"自己在程序里读视频"的做法，拆成了一个**独立、可替换、可复用的节点**。
 
-也就是说：
+以后你想换视频源，不需要改 `detect_node` 的任何代码，只需要：
 
-> `spin` 让这个视频节点真正“活起来”。
+```bash
+ros2 run tensorrt_detect video_node --ros-args -p video_path:=/new/video.mp4
+```
 
----
+或者直接在 launch 文件里改参数。
 
-### `rclcpp::shutdown();`
-
-退出时关闭 ROS2。
-
----
-
-### `return 0;`
-
-程序正常结束。
+这就是 ROS2 **话题解耦**的威力。
 
 ---
 
-# 二十、把整份 `video_node.cpp` 总结成一句话
+# 二十、从这份代码里学到的"源节点模板"
 
-这份代码做的事情就是：
+以后你写任何"从某处取数据，转成 ROS 消息发出去"的节点，都可以套这个模板：
 
-> **把本地视频文件包装成一个 ROS2 图像话题源。**
+## 源节点五步法
 
-也就是把你原本“自己在程序里读视频”的做法，拆成了一个独立节点。
-这样后面的算法节点就不用关心视频文件在哪里，只要订阅 `/image_raw` 就行。
+1. **声明输入参数**：文件路径、设备 ID、topic 名、帧率等
+2. **初始化输入源**：打开文件、初始化设备、连接数据库
+3. **创建 Publisher**：把数据要发到哪里去声明好
+4. **用 Timer 或线程持续取数据**：模拟固定频率，或阻塞读取
+5. **转换并发布**：把原始数据转成 ROS 消息，填好 header，发出去
 
----
+以后你写 `camera_node` 时，结构会很像，只不过：
 
-# 二十一、你现在应该从这份代码里学到什么
-
-这份代码最重要的不是“怎么读视频”，而是学会下面这个模板：
-
-## 输入源节点模板
-
-1. 声明输入相关参数
-2. 初始化输入设备/输入文件
-3. 创建 publisher
-4. 用 timer 或线程持续取数据
-5. 把数据转换成 ROS 消息
-6. 发布出去
-
-以后你写 `camera_node` 时，结构会很像，只不过这里的：
-
-* `cv::VideoCapture`
-
-会换成：
-
-* 工业相机 SDK
-* 或者你的相机封装类
+* `cv::VideoCapture` → 工业相机 SDK（如 Hikrobot、Daheng）
+* `fps` 参数 → 相机的真实采集帧率
+* `this->now()` 打戳 → 尽可能用相机硬件触发的时间戳（更精确）
 
 但外壳几乎一样。
 
 ---
+
+# 二十一、ROS2 时间系统补充
+
+`video_node` 里涉及两种时间概念，值得深入理解：
+
+## 1. Wall Time（挂钟时间）
+
+就是你手腕上手表的时间，真实世界流逝的时间。
+
+`create_wall_timer` 依据的就是它。无论 ROS2 仿真时间怎么变，wall timer 都按真实节奏走。
+
+## 2. ROS Time（ROS 时间）
+
+由 ROS2 时钟系统维护的时间。默认情况下它和 Wall Time 一致，但在仿真环境中（如 Gazebo），它可能被 `/clock` 话题控制，可以暂停、加速、减速。
+
+`this->now()` 默认返回的是 ROS Time。
+
+## 3. 时间戳的重要性
+
+```cpp
+msg->header.stamp = this->now();
+```
+
+这行代码看似简单，但它是 ROS2 **分布式时间同步**的基石。
+
+假设以后你的系统扩展成多摄像头：`video_node_1` 和 `video_node_2` 同时发布到各自的 topic。下游做图像融合时，就可以根据 `header.stamp` 找到同一时刻的两帧图像，实现时间对齐。
+
+没有这个时间戳，分布式系统中的数据就只是一堆无序的像素块。

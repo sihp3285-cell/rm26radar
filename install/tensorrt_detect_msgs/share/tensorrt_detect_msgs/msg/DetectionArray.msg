@@ -1,2 +1,1 @@
-std_msgs/Header header
-DetectionBox[] detections
+/home/delphine/rm/tensorrt10_detect/src/tensorrt_detect_msgs/msg/DetectionArray.msg

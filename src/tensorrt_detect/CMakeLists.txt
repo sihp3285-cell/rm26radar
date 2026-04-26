@@ -4,7 +4,7 @@ project(tensorrt_detect)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_BUILD_TYPE "Debug")
+set(CMAKE_BUILD_TYPE "RelWithDebInfo")
 
 # 确保安装后的可执行文件能自动找到 Open3D 等第三方动态库
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)

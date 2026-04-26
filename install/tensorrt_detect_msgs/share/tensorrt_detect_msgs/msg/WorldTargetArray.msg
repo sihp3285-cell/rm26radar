@@ -1,2 +1,1 @@
-std_msgs/Header header
-WorldTarget[] targets
+/home/delphine/rm/tensorrt10_detect/src/tensorrt_detect_msgs/msg/WorldTargetArray.msg

@@ -1,0 +1,520 @@
+# 系统架构与数据流总览
+
+这份文档从**全局视角**讲解你当前 ROS2 视觉检测系统的架构设计。不会逐行抠代码，而是侧重：
+
+* 为什么拆成这五个节点？
+* 话题之间怎么配合？
+* 自定义消息为什么这样设计？
+* Launch 文件怎么把节点串起来？
+* 这套架构体现了哪些 ROS2 核心思想？
+
+---
+
+# 一、完整节点拓扑图
+
+```text
+┌─────────────┐     /image_raw      ┌─────────────┐
+│  video_node │ ──────────────────→ │ detect_node │
+│  (传感器层)  │                     │  (算法核心层) │
+└─────────────┘                     └──────┬──────┘
+                                           │
+                          ┌────────────────┼────────────────┐
+                          │                │                │
+                          ↓                ↓                ↓
+                   /detected_image   /armor_detections      │
+                          │                │                │
+                          ↓                ↓                │
+                   ┌─────────────┐   ┌─────────────┐       │
+                   │ display_node│   │  pose_node  │       │
+                   │ (可视化末端) │   │ (几何变换层) │       │
+                   └─────────────┘   └──────┬──────┘       │
+                                            │              │
+                                            ↓              │
+                                     /world_targets        │
+                                            │              │
+                                            ↓              │
+                                     ┌─────────────┐       │
+                                     │   map_node  │       │
+                                     │ (汇聚输出层) │       │
+                                     └──────┬──────┘       │
+                                            │              │
+                          ┌─────────────────┼──────────────┘
+                          │                 │
+                          ↓                 ↓
+                   /map_image        /radar_map
+                          │                 │
+                          ↓                 ↓
+                   ┌─────────────┐    ┌─────────────┐
+                   │ display_node│    │ (决策/通信)  │
+                   │             │    │             │
+                   └─────────────┘    └─────────────┘
+```
+
+---
+
+# 二、分层架构设计思想
+
+你的系统可以自然地分成四层：
+
+## 2.1 传感器层（Sensor Layer）
+
+**节点**：`video_node`
+
+**职责**：产生原始数据。
+
+* 打开视频文件 / 相机设备
+* 按固定帧率发布图像
+* 给每帧图像打上时间戳和 `frame_id`
+
+在 ROS2 中，传感器节点的特点是：
+
+> **只有 Publisher，没有 Subscriber。** 它是整个数据流的起点。
+
+以后你把 `video_node` 换成真正的 `camera_node`（接工业相机），这一层以下的所有节点**完全不需要改动**。这就是 ROS2 **话题解耦**的价值。
+
+---
+
+## 2.2 算法核心层（Algorithm Core Layer）
+
+**节点**：`detect_node`
+
+**职责**：接收原始图像，输出算法结果。
+
+* 跑 TensorRT 检测模型
+* 同时输出两路数据：
+  * `/detected_image`：带框的可视化图像（供人看）
+  * `/armor_detections`：结构化检测数据（供机器下游用）
+
+这是系统的**分水岭节点**。上游只关心图像输入， downstream 分成两条独立链路，互不干扰。
+
+---
+
+## 2.3 几何变换层（Geometric Transform Layer）
+
+**节点**：`pose_node`
+
+**职责**：像素坐标 → 世界坐标。
+
+* 接收 `DetectionArray`（像素坐标 + 检测框）
+* 用相机内参、外参、PnP 解算、射线碰撞，得到世界坐标
+* 发布 `WorldTargetArray`
+
+这个节点是**纯数学节点**，不碰图像、不碰硬件。它的输入输出都是结构化消息，非常适合单元测试：
+
+> 你可以手写一个 `DetectionArray`，喂给 `pose_node`，验证输出的世界坐标是否等于预期值。
+
+---
+
+## 2.4 汇聚输出层（Aggregation & Output Layer）
+
+**节点**：`map_node`
+
+**职责**：接收世界坐标，生成最终输出。
+
+* 把世界坐标转成地图像素坐标
+* 绘制小地图图像 → `/map_image`
+* 整理成结构化 `RadarMap` → `/radar_map`
+
+这个节点有两个消费者：
+
+* `display_node`：看 `/map_image`
+* 决策/通信节点：读 `/radar_map`，把敌方位置发给下位机或队友
+
+---
+
+## 2.5 可视化末端层（Visualization Layer）
+
+**节点**：`display_node`
+
+**职责**：把图像数据呈现给人类。
+
+* 订阅 `/detected_image` 和 `/map_image`
+* 水平拼接，显示到一个 OpenCV 窗口
+* 用 `mutex` 保护多线程图像共享
+
+这个节点是**纯消费者**，不发布任何话题。它的存在与否不影响上游节点运行。
+
+---
+
+# 三、话题设计详解
+
+## 3.1 话题一览表
+
+| 话题名 | 消息类型 | 发布者 | 订阅者 | 作用 |
+|--------|---------|--------|--------|------|
+| `/image_raw` | `sensor_msgs/Image` | video_node | detect_node | 原始图像 |
+| `/detected_image` | `sensor_msgs/Image` | detect_node | display_node | 带检测框的可视化图 |
+| `/armor_detections` | `DetectionArray` | detect_node | pose_node | 结构化检测结果 |
+| `/world_targets` | `WorldTargetArray` | pose_node | map_node | 世界坐标目标 |
+| `/map_image` | `sensor_msgs/Image` | map_node | display_node | 小地图图像 |
+| `/radar_map` | `RadarMap` | map_node | (决策节点) | 结构化雷达数据 |
+
+---
+
+## 3.2 为什么用两个话题发检测结果？
+
+`detect_node` 同时发 `/detected_image` 和 `/armor_detections`。
+
+这体现了 ROS2 中一个经典设计原则：
+
+> **同一批原始数据，用不同消息类型服务不同消费者。**
+
+| 消费者 | 需要的数据形式 | 订阅的话题 |
+|--------|--------------|-----------|
+| 人类操作员 | 带框的彩色图像 | `/detected_image` |
+| pose_node（机器） | 像素坐标、类别、置信度 | `/armor_detections` |
+
+如果只用图像，下游机器要重新做 OCR 或图像解析才能拿到坐标，荒谬且低效。
+
+如果只用结构化消息，人类就无法直观看到检测效果。
+
+所以**双管齐下**是最优解。
+
+---
+
+## 3.3 为什么不用一个超大消息包？
+
+有人可能会想：为什么不把检测框、世界坐标、地图坐标全部打包成一个大消息，从一个节点直接发到另一个节点？
+
+这样设计的坏处：
+
+1. **耦合严重**：改一个字段，所有节点都要重新编译
+2. **带宽浪费**：`display_node` 根本不关心世界坐标，却被迫接收
+3. **节点无法独立替换**：如果想换一个检测模型，必须同时换后面的解算逻辑
+4. **不利于调试**：无法单独测试某个环节
+
+而你的**多节点 + 多话题**架构的好处：
+
+```text
+video_node 可以换成 camera_node，detect_node 不用改
+detect_node 可以换检测模型，pose_node 不用改
+pose_node 可以换标定参数，map_node 不用改
+```
+
+这就是 ROS2 **节点即插件（Node as Plugin）** 的思想。
+
+---
+
+# 四、自定义消息设计
+
+你的自定义消息定义在 `tensorrt_detect_msgs` 包里，共 5 种：
+
+## 4.1 `DetectionBox`（单条检测）
+
+```yaml
+int32 idx           # 类别 ID
+float32 confidence  # 置信度
+int32 x, y, width, height      # 装甲板检测框
+int32 armor_color   # 装甲颜色 / 队伍 ID
+int32 car_x, car_y, car_width, car_height  # 车辆整体检测框
+float32 world_x, world_y  # 世界坐标（如果 pipeline 已算）
+float32 fps         # 当前帧率
+```
+
+**设计要点**：字段足够完整，让下游节点按需取用。
+
+`pose_node` 主要用 `car_x/car_y/car_width/car_height` 做位姿解算，`display_node` 如果以后想显示结构化信息，可以直接读 `confidence` 和 `idx`。
+
+---
+
+## 4.2 `DetectionArray`（检测数组）
+
+```yaml
+std_msgs/Header header
+DetectionBox[] detections
+```
+
+**设计要点**：
+
+* 带 `header`，时间戳可以沿消息链传递
+* 变长数组 `[]`，适应每帧检测数量不同的情况
+
+---
+
+## 4.3 `WorldTarget`（单个世界坐标目标）
+
+```yaml
+int32 idx, class_id, team_id
+float32 score
+bool valid
+float32 world_x, world_y, world_z
+int32 bbox_x, bbox_y, bbox_w, bbox_h
+```
+
+**设计要点**：
+
+* `valid` 字段允许 `pose_node` 标记某个目标"解算失败"
+* 保留了原始检测框 `bbox_*`，方便回溯
+* `world_y` 通常表示高度，目前为 0（平地假设）
+
+---
+
+## 4.4 `WorldTargetArray`（世界坐标目标数组）
+
+```yaml
+std_msgs/Header header
+WorldTarget[] targets
+```
+
+和 `DetectionArray` 结构对称，形成**输入-输出对**。
+
+---
+
+## 4.5 `RadarMap`（结构化雷达地图）
+
+```yaml
+std_msgs/Header header
+float32[6] blue_x, blue_y
+float32[6] red_x, red_y
+```
+
+**设计要点**：
+
+* 用**固定长度数组**而非变长数组
+* 索引约定：0~3 对应 R1~R4，5 对应哨兵
+* 0 值表示"未检测到"
+
+这种设计的好处是**下游消费极简单**：
+
+```cpp
+// 直接数组索引，O(1) 访问
+float red3_x = msg.red_x[2];
+```
+
+不需要遍历、不需要查表、不需要字符串匹配。
+
+---
+
+# 五、Launch 文件详解
+
+```python
+from launch import LaunchDescription
+from launch_ros.actions import Node
+
+def generate_launch_description():
+    return LaunchDescription([
+        Node(package='tensorrt_detect', executable='video_node', ...),
+        Node(package='tensorrt_detect', executable='detect_node', ...),
+        Node(package='tensorrt_detect', executable='display_node', ...),
+        Node(package='tensorrt_detect', executable='pose_node', ...),
+        Node(package='tensorrt_detect', executable='map_node', ...),
+    ])
+```
+
+---
+
+## 5.1 Launch 文件的价值
+
+没有 launch 文件时，你需要开 5 个终端，分别运行 5 个节点。每个节点还要手动 source ROS2 环境。
+
+有了 launch 文件，一行命令启动整个系统：
+
+```bash
+ros2 launch tensorrt_detect detect_pipeline.launch.py
+```
+
+---
+
+## 5.2 参数集中配置
+
+launch 文件里，每个节点的 `parameters=[{...}]` 把参数和代码分离：
+
+```python
+Node(
+    package='tensorrt_detect',
+    executable='detect_node',
+    parameters=[{
+        'config_dir': '/home/delphine/rm/tensorrt10_detect/configs',
+        'input_topic': '/image_raw',
+        'output_topic': '/detected_image',
+    }],
+)
+```
+
+这意味着：
+
+* 换视频源 → 改 launch 文件里的 `video_path`，不用改代码
+* 换话题名 → 改 launch 文件里的 `topic` 参数，不用改代码
+* 换配置目录 → 改 launch 文件里的 `config_dir`，不用改代码
+
+---
+
+## 5.3 话题名的契约
+
+launch 文件里隐含了一套**话题契约**：
+
+```text
+video_node 的 topic_name     = "/image_raw"
+                              ↓
+detect_node 的 input_topic   = "/image_raw"
+detect_node 的 armor topic   = "/armor_detections"
+                              ↓
+pose_node 的 input_topic     = "/armor_detections"
+pose_node 的输出_topic       = "/world_targets"
+                              ↓
+map_node 的 input_topic      = "/world_targets"
+```
+
+只要这套契约保持一致，节点之间就能正确对接。这就是 ROS2 **话题即接口（Topic as API）** 的理念。
+
+---
+
+# 六、ROS2 核心思想在本项目中的体现
+
+## 6.1 节点即进程（Node as Process）
+
+ROS2 中，每个节点通常是一个**独立的操作系统进程**（你的 `CMakeLists.txt` 里每个节点都是独立的 `add_executable`）。
+
+好处：
+
+* 一个节点崩溃，不会影响其他节点
+* 每个节点可以独立重启
+* 可以分布在不同机器上（比如 `video_node` 在边缘计算盒，`detect_node` 在服务器）
+
+## 6.2 话题解耦（Topic Decoupling）
+
+Publisher 和 Subscriber 之间是**匿名**的：
+
+* `video_node` 不知道谁在订阅 `/image_raw`
+* `detect_node` 不知道 `/detected_image` 有没有人在看
+* `map_node` 不知道 `/radar_map` 的消费者是否存在
+
+这种匿名性让系统极其灵活。你可以随时启动或停止 `display_node`，上游节点毫无感知。
+
+## 6.3 参数系统（Parameter System）
+
+每个节点都通过 `declare_parameter` / `get_parameter` 管理配置。
+
+在 ROS2 中，参数可以在运行时通过命令行修改：
+
+```bash
+ros2 param set /detect_node output_topic /my_custom_topic
+```
+
+不过你的节点在构造函数里就读取了参数值，运行时修改不会生效。如果要做动态调参，需要用 `add_on_set_parameters_callback` 注册回调。
+
+## 6.4 消息血缘（Message Lineage）
+
+注意观察这个模式在多个节点中重复出现：
+
+```cpp
+output_msg->header = input_msg->header;
+```
+
+* `detect_node` 继承 `video_node` 的时间戳
+* `pose_node` 继承 `detect_node` 的时间戳
+* `map_node` 继承 `pose_node` 的时间戳
+
+这就形成了一条**时间戳血缘链**。如果以后引入多传感器融合（比如雷达 + 视觉），可以用 `message_filters::TimeSynchronizer` 根据 `header.stamp` 对齐不同来源的数据。
+
+## 6.5 QoS（Quality of Service）
+
+你的代码里每个 Pub/Sub 都用了默认 QoS，队列深度设为 10：
+
+```cpp
+create_publisher<...>(topic_name, 10);
+create_subscription<...>(topic_name, 10, ...);
+```
+
+在 ROS2 中，QoS 远不止队列深度。完整的 QoS Profile 包含：
+
+| 策略 | 含义 | 你的场景 |
+|------|------|---------|
+| History | 保存多少条历史消息 | Keep Last 10 |
+| Reliability | 可靠传输还是尽力传输 | Best Effort（视频流适合） |
+| Durability | 新订阅者能否收到历史消息 | Volatile（不需要） |
+| Deadline | 消息发布间隔期望 | 未设置 |
+
+对于视频流这类连续数据，通常用 `Best Effort` + `Keep Last` 组合，因为：
+
+* 丢一帧无所谓，下一帧马上来
+* 不需要 TCP 的可靠重传，UDP 的低开销更合适
+
+你的代码目前用的是默认 QoS（Reliable + Keep Last），对于本地测试没问题。如果是分布式部署或高帧率场景，可以显式配置 QoS：
+
+```cpp
+rclcpp::QoS qos(10);
+qos.best_effort();
+auto pub = create_publisher<Image>(topic, qos);
+```
+
+---
+
+# 七、从 Standalone 到 ROS2 的演进
+
+你的项目里同时保留了两个入口：
+
+* `standard`（`apps/standalone_main.cpp`）：单进程 monolithic 程序
+* 五个 ROS2 节点（`src/nodes/*.cpp`）：分布式节点程序
+
+对比两者，可以清晰看到 ROS2 带来的变化：
+
+| 维度 | Standalone | ROS2 节点化 |
+|------|-----------|------------|
+| 架构 | 单进程，函数调用 | 多进程，话题通信 |
+| 耦合 | 高，改一处可能影响全局 | 低，节点间通过话题解耦 |
+| 可替换性 | 差，换相机要改 main | 好，换 video_node 即可 |
+| 可调试性 | 差，只能整体调试 | 好，可单独测试每个节点 |
+| 可视化 | 内置 OpenCV 窗口 | display_node 独立运行 |
+| 部署 | 固定配置 | launch 文件灵活配置 |
+
+---
+
+# 八、扩展方向
+
+基于你当前的架构，未来可以很方便地扩展：
+
+## 8.1 加入 Tracker（目标跟踪）
+
+```text
+detect_node ──/armor_detections──→ tracker_node ──/tracked_targets──→ pose_node
+```
+
+在 `detect_node` 和 `pose_node` 之间插入 `tracker_node`，做卡尔曼滤波或 DeepSORT 跟踪，给每个目标分配稳定的 ID。
+
+不需要改 `detect_node` 或 `pose_node` 的任何代码，只需改 launch 文件里的 `input_topic`。
+
+## 8.2 加入决策节点
+
+```text
+map_node ──/radar_map──→ decision_node ──/cmd_vel──→ 下位机
+```
+
+`decision_node` 订阅 `/radar_map`，根据敌方位置计算最优移动策略，发布控制指令。
+
+## 8.3 多相机融合
+
+```text
+camera_node_1 ──/image_raw_1──→ detect_node_1 ──┐
+                                                  ├── fusion_node ── ...
+camera_node_2 ──/image_raw_2──→ detect_node_2 ──┘
+```
+
+多个相机从不同角度拍摄，`fusion_node` 做数据融合，消除遮挡盲区。
+
+## 8.4 录制与回放
+
+```bash
+# 录制所有话题
+ros2 bag record -a
+
+# 回放时，不需要 video_node，bag 直接发布 /image_raw
+ros2 bag play my_bag
+```
+
+因为数据流完全通过话题，`ros2 bag` 可以无缝录制和回放整个系统，方便离线调试算法。
+
+---
+
+# 九、总结
+
+你的系统架构遵循了 ROS2 的最佳实践：
+
+1. **单一职责**：每个节点只做一件事
+2. **话题解耦**：节点通过匿名话题通信，互不依赖
+3. **多路输出**：同一批数据用不同形式服务不同消费者
+4. **Header 传递**：时间戳沿消息链继承，支持时序对齐
+5. **参数化配置**：launch 文件集中管理，无需重新编译
+6. **异常隔离**：try/catch 保护回调，单帧失败不崩节点
+
+这套架构不是过度设计，而是为未来的扩展、替换、调试、部署打下了坚实基础。
