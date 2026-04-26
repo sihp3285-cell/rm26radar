@@ -4,7 +4,12 @@ project(tensorrt_detect)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_BUILD_TYPE "Debug")
+
+# 单配置生成器下，若未显式指定构建类型，默认使用 Release
+if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type" FORCE)
+endif()
+set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo" "MinSizeRel")
 
 # 确保安装后的可执行文件能自动找到 Open3D 等第三方动态库
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
@@ -149,6 +154,26 @@ ament_target_dependencies(map_node
 )
 
 target_link_libraries(map_node tensorrt_detect_core)
+
+# 按配置启用编译优化，避免影响 Debug 调试体验
+set(TRT_DETECT_RELEASE_COMPILE_OPTIONS
+    $<$<CONFIG:Release>:-O3>
+    $<$<CONFIG:Release>:-DNDEBUG>
+)
+
+set(TRT_DETECT_OPT_TARGETS
+    tensorrt_detect_core
+    standard
+    detect_node
+    video_node
+    display_node
+    pose_node
+    map_node
+)
+
+foreach(target_name IN LISTS TRT_DETECT_OPT_TARGETS)
+    target_compile_options(${target_name} PRIVATE ${TRT_DETECT_RELEASE_COMPILE_OPTIONS})
+endforeach()
 
 # ========== 安装 & ament 打包 ==========
 install(TARGETS
