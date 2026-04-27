@@ -286,7 +286,7 @@ pipeline_ = std::make_unique<DetectPipeline>(*cfg_);
 # 八、创建两个 Publisher
 
 ```cpp
-image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(output_topic_, 10);
+image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(output_topic_, rclcpp::QoS(1));
 armor_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::DetectionArray>("/armor_detections", 10);
 ```
 
@@ -298,7 +298,7 @@ armor_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::DetectionArray>("
 
 * 类型：`sensor_msgs::msg::Image`
 * 话题：`/detected_image`
-* 队列深度：10
+* QoS：`rclcpp::QoS(1)`（Keep Last 1）
 
 发布带检测框、FPS 文字的可视化图像，供 `display_node` 显示给人类看。
 
@@ -310,7 +310,7 @@ armor_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::DetectionArray>("
 
 * 类型：`tensorrt_detect_msgs::msg::DetectionArray`
 * 话题：`/armor_detections`
-* 队列深度：10
+* QoS：`depth=10` Reliable
 
 发布**结构化检测结果**，供 `pose_node` 做位姿解算、世界坐标转换。
 
@@ -327,7 +327,7 @@ armor_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::DetectionArray>("
 
 ```cpp
 image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-    input_topic_, 10,
+    input_topic_, rclcpp::QoS(1),
     std::bind(&DetectNode::image_callback, this, std::placeholders::_1));
 ```
 
@@ -366,11 +366,33 @@ private:
 
 ```cpp
 try {
+    double input_delay_ms = (this->now() - msg->header.stamp).seconds() * 1000.0;
+
     auto cv_ptr = cv_bridge::toCvShare(msg, "bgr8");
     const cv::Mat& frame = cv_ptr->image;
 ```
 
 ---
+
+### `input_delay_ms`
+
+**（链路时延监控）**
+
+计算从图像产生（`msg->header.stamp`，由 `video_node` 在发布时设置）到进入检测回调的**传输+调度延迟**。
+
+```cpp
+double input_delay_ms = (this->now() - msg->header.stamp).seconds() * 1000.0;
+```
+
+这个指标可以帮你定位延迟瓶颈：
+
+* `input_delay_ms ≈ 0-5ms`：正常，图像几乎无排队直接到达
+* `input_delay_ms > 30ms`：subscriber 队列积压，或 CPU 调度延迟
+* `input_delay_ms` 持续增大：下游消费速度跟不上上游发布速度
+
+它被打印在节流日志中，每 10 秒输出一次，方便长期观察链路健康状况。
+
+----
 
 ### `cv_bridge::toCvShare(msg, "bgr8")`
 
@@ -723,8 +745,8 @@ RCLCPP_INFO_THROTTLE(
     this->get_logger(),
     *this->get_clock(),
     10000,
-    "检测到 %zu 个目标，fps: %.1f，发布了 DetectionArray 消息",
-    results.size(), fps_);
+    "检测到 %zu 个目标，fps: %.1f，input_delay: %.2f ms",
+    results.size(), fps_, input_delay_ms);
 ```
 
 `RCLCPP_INFO_THROTTLE` 是**节流日志**，最多每 10000 毫秒（10 秒）打印一次。
@@ -733,7 +755,7 @@ RCLCPP_INFO_THROTTLE(
 
 * 检测到的目标数量
 * 当前平滑 FPS
-* 提示已发布 DetectionArray
+* 图像输入延迟 `input_delay_ms`
 
 ---
 

@@ -409,34 +409,58 @@ output_msg->header = input_msg->header;
 
 ## 6.5 QoS（Quality of Service）
 
-你的代码里每个 Pub/Sub 都用了默认 QoS，队列深度设为 10：
+当前代码对不同类别的话题采用**分层 QoS 策略**：
+
+### 图像话题（视频流）
+
+所有图像 Pub/Sub 统一使用 `rclcpp::QoS(1)`，即 **Keep Last 1 + Reliable**：
 
 ```cpp
-create_publisher<...>(topic_name, 10);
-create_subscription<...>(topic_name, 10, ...);
+// video_node.cpp
+image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(topic_name_, rclcpp::QoS(1));
+
+// detect_node.cpp
+image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(output_topic_, rclcpp::QoS(1));
+image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(input_topic_, rclcpp::QoS(1), ...);
+
+// display_node.cpp
+sub_ = this->create_subscription<sensor_msgs::msg::Image>(topic_, rclcpp::QoS(1), ...);
+map_sub_ = this->create_subscription<sensor_msgs::msg::Image>(map_topic_, rclcpp::QoS(1), ...);
+
+// map_node.cpp
+image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(output_image_topic_, rclcpp::QoS(1));
 ```
 
-在 ROS2 中，QoS 远不止队列深度。完整的 QoS Profile 包含：
+| 策略 | 配置 | 原因 |
+|------|------|------|
+| History | Keep Last 1 | 视频流只需要最新帧，旧帧无意义 |
+| Depth | 1 | 防止队列积压导致显示延迟 |
+| Reliability | Reliable（默认） | 先保留可靠传输，后续如需适应高频丢包网络再改为 Best Effort |
 
-| 策略 | 含义 | 你的场景 |
-|------|------|---------|
-| History | 保存多少条历史消息 | Keep Last 10 |
-| Reliability | 可靠传输还是尽力传输 | Best Effort（视频流适合） |
-| Durability | 新订阅者能否收到历史消息 | Volatile（不需要） |
-| Deadline | 消息发布间隔期望 | 未设置 |
+### 结构化数据话题
 
-对于视频流这类连续数据，通常用 `Best Effort` + `Keep Last` 组合，因为：
-
-* 丢一帧无所谓，下一帧马上来
-* 不需要 TCP 的可靠重传，UDP 的低开销更合适
-
-你的代码目前用的是默认 QoS（Reliable + Keep Last），对于本地测试没问题。如果是分布式部署或高帧率场景，可以显式配置 QoS：
+检测/位姿/地图的结构化消息保持 `depth=10` Reliable：
 
 ```cpp
-rclcpp::QoS qos(10);
-qos.best_effort();
-auto pub = create_publisher<Image>(topic, qos);
+armor_pub_ = this->create_publisher<DetectionArray>("/armor_detections", 10);
+world_pub_ = this->create_publisher<WorldTargetArray>(output_topic_, 10);
+radar_map_pub_ = this->create_publisher<RadarMap>(output_map_topic_, 10);
 ```
+
+| 策略 | 配置 | 原因 |
+|------|------|------|
+| History | Keep Last 10 | 结构化数据量小，允许短暂缓冲 |
+| Reliability | Reliable | 检测结果、世界坐标、雷达图数据不允许丢失 |
+
+### 为什么图像用 KeepLast(1)？
+
+对于实时图像显示，队列深度大于 1 是**反作用**的：
+
+> 显示节点只需要看**最新一帧**，积压的旧帧毫无意义。
+
+如果 `detect_node` 发布 30fps，但 `display_node` 因为渲染慢只能处理 20fps，队列深度 10 意味着最多积压约 300ms 的旧帧。Subscriber 会一口气消费这些积压帧，`latest_frame_` 被连续覆盖多次，最终显示的是延迟了好几帧的旧图像，造成"视频越来越滞后，然后突然加速跳帧"的现象。
+
+改成 `QoS(1)` 后，队列只保留最新 1 帧，旧帧直接被 ROS2 丢弃，display_node 永远只处理最新帧，从根源上消除了图像链路的队列积压。
 
 ---
 

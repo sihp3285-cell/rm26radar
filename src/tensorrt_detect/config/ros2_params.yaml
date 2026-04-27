@@ -1,0 +1,38 @@
+# ROS2 统一参数文件
+# 所有节点的参数集中在此管理，通过 launch 文件统一加载
+# 修改后需重新 colcon build 使 install 目录同步
+
+video_node:
+  ros__parameters:
+    video_path: "/home/delphine/rm/car_project/test/005.mp4"
+    topic_name: "/image_raw"
+    fps: 30
+
+detect_node:
+  ros__parameters:
+    config_dir: "/home/delphine/rm/tensorrt10_detect/configs"
+    input_topic: "/image_raw"
+    output_topic: "/detected_image"
+    publish_debug_image: true
+    debug_output_max_width: 1280
+
+display_node:
+  ros__parameters:
+    topic: "/detected_image"
+    window_name: "Video & Radar"
+    window_width: 1920
+    window_height: 720
+    map_topic: "/map_image"
+
+pose_node:
+  ros__parameters:
+    config_dir: "/home/delphine/rm/tensorrt10_detect/configs"
+    input_topic: "/armor_detections"
+    output_topic: "/world_targets"
+
+map_node:
+  ros__parameters:
+    config_dir: "/home/delphine/rm/tensorrt10_detect/configs"
+    input_topic: "/world_targets"
+    output_image_topic: "/map_image"
+    output_map_topic: "/radar_map"

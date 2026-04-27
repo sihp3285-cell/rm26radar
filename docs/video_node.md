@@ -213,7 +213,7 @@ if (!cap_.isOpened()) {
 # 八、创建 Publisher
 
 ```cpp
-image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(topic_name_, 10);
+image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(topic_name_, rclcpp::QoS(1));
 ```
 
 ---
@@ -230,13 +230,17 @@ image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(topic_name_, 10);
 
 ---
 
-### `10`
+### `rclcpp::QoS(1)`
 
-队列深度（QoS History Depth）。
+图像话题的 QoS 配置：**Keep Last 1**。
 
-在 ROS2 中，publisher 和 subscriber 之间是**异步解耦**的。如果 subscriber 处理得慢，消息会在 publisher 的发送队列里缓冲。`10` 表示最多缓冲 10 条消息，超过的旧消息会被丢弃。
+在 ROS2 中，publisher 和 subscriber 之间是**异步解耦**的。如果 subscriber 处理得慢，消息会在 publisher 的发送队列里缓冲。`QoS(1)` 表示只保留最新 1 条消息，旧消息直接丢弃。
 
-对于视频流这种连续数据，丢旧帧是可以接受的，因为用户更关心最新的画面。
+对于视频流这种连续数据：
+
+* 用户更关心最新的画面，旧帧无意义
+* 深度 1 可以防止队列积压导致整条图像链路延迟
+* 与下游 `detect_node`（`QoS(1)` 订阅）和 `display_node`（`QoS(1)` 订阅）保持一致，形成统一的低延迟图像传输策略
 
 ---
 

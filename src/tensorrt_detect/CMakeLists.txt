@@ -166,4 +166,9 @@ install(DIRECTORY launch
     DESTINATION share/${PROJECT_NAME}
 )
 
+# ========== 安装参数配置文件 ==========
+install(DIRECTORY config
+    DESTINATION share/${PROJECT_NAME}
+)
+
 ament_package()

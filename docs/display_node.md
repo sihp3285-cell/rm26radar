@@ -201,13 +201,12 @@ cv::resizeWindow(window_name_, win_w, win_h);
 # 七、创建两个订阅者
 
 ```cpp
-auto image_qos = rclcpp::QoS(1).best_effort();
 sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-    topic_, image_qos,
+    topic_, rclcpp::QoS(1),
     std::bind(&DisplayNode::image_callback, this, std::placeholders::_1));
 
 map_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-    map_topic_, image_qos,
+    map_topic_, rclcpp::QoS(1),
     std::bind(&DisplayNode::map_callback, this, std::placeholders::_1));
 ```
 
@@ -219,7 +218,7 @@ map_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
 
 * 类型：`sensor_msgs::msg::Image`
 * 话题：`topic_`（默认 `/detected_image`）
-* QoS：`QoS(1).best_effort()` —— 只保留最新 1 帧，旧帧直接丢弃
+* QoS：`rclcpp::QoS(1)` —— 只保留最新 1 帧，旧帧直接丢弃
 * 回调：`image_callback`
 
 负责接收检测后的图像。
@@ -230,14 +229,14 @@ map_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
 
 * 类型：`sensor_msgs::msg::Image`
 * 话题：`map_topic_`（默认 `/map_image`）
-* QoS：`QoS(1).best_effort()` —— 只保留最新 1 帧，旧帧直接丢弃
+* QoS：`rclcpp::QoS(1)` —— 只保留最新 1 帧，旧帧直接丢弃
 * 回调：`map_callback`
 
 负责接收小地图图像。
 
 ---
 
-### 为什么用 `QoS(1).best_effort()`？
+### 为什么用 `rclcpp::QoS(1)`？
 
 **（性能优化关键改动）**
 
@@ -247,12 +246,10 @@ map_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
 
 如果 `detect_node` 发布 30fps，但 `display_node` 因为渲染慢只能处理 20fps，队列深度 10 意味着最多可以积压约 300ms 的旧帧。`spin_some` 会一口气消费这些积压帧，`latest_frame_` 被连续覆盖多次，前几次的拷贝全是**无用功**。最终显示的是延迟了好几帧的旧图像，造成"视频越来越滞后，然后突然加速跳帧"的现象。
 
-改成 `QoS(1).best_effort()` 后：
+改成 `rclcpp::QoS(1)` 后：
 
 * **深度 1**：subscriber 队列只保留最新 1 帧，旧帧直接被 ROS2 丢弃
-* **Best Effort**：publisher 不需要重传丢失的消息，减少反向压力
-
-这样 display_node 永远只处理最新帧，从根源上消除了图像链路的队列积压。
+* 配合整条图像链路（`video_node` → `detect_node` → `display_node`）统一使用 KeepLast(1)，从根源上消除了图像链路的队列积压
 
 ---
 

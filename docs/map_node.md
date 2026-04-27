@@ -227,16 +227,16 @@ if (!radar_map_->m_isCalibrated) {
 # 七、创建两个 Publisher
 
 ```cpp
-image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(output_image_topic_, 10);
+image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(output_image_topic_, rclcpp::QoS(1));
 radar_map_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::RadarMap>(output_map_topic_, 10);
 ```
 
 和 `detect_node` 一样，`map_node` 也采用**一输入、双输出**模式：
 
-| Publisher | 类型 | 话题 | 给谁用 |
-|-----------|------|------|--------|
-| `image_pub_` | `sensor_msgs::msg::Image` | `/map_image` | `display_node`（给人看） |
-| `radar_map_pub_` | `RadarMap` | `/radar_map` | 决策系统/通信模块（给机器用） |
+| Publisher | 类型 | 话题 | QoS | 给谁用 |
+|-----------|------|------|-----|--------|
+| `image_pub_` | `sensor_msgs::msg::Image` | `/map_image` | `QoS(1)` | `display_node`（给人看） |
+| `radar_map_pub_` | `RadarMap` | `/radar_map` | `depth=10` | 决策系统/通信模块（给机器用） |
 
 ---
 

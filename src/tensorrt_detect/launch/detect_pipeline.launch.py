@@ -1,8 +1,17 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
+from launch.substitutions import PathJoinSubstitution
+from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
+    # 统一参数文件路径：从 tensorrt_detect 包的 config 目录加载
+    params_file = PathJoinSubstitution([
+        FindPackageShare('tensorrt_detect'),
+        'config',
+        'ros2_params.yaml',
+    ])
+
     return LaunchDescription([
         # 视频源节点：发布图像到 /image_raw
         Node(
@@ -10,11 +19,7 @@ def generate_launch_description():
             executable='video_node',
             name='video_node',
             output='screen',
-            parameters=[{
-                'video_path': '/home/delphine/rm/car_project/test/005.mp4',
-                'topic_name': '/image_raw',
-                'fps': 30,
-            }],
+            parameters=[params_file],
         ),
 
         # 检测节点：订阅 /image_raw，发布 /detected_image 和 /armor_detections
@@ -23,11 +28,7 @@ def generate_launch_description():
             executable='detect_node',
             name='detect_node',
             output='screen',
-            parameters=[{
-                'config_dir': '/home/delphine/rm/tensorrt10_detect/configs',
-                'input_topic': '/image_raw',
-                'output_topic': '/detected_image',
-            }],
+            parameters=[params_file],
         ),
 
         # 显示节点：水平拼接 /detected_image 和 /map_image 做可视化
@@ -36,37 +37,24 @@ def generate_launch_description():
             executable='display_node',
             name='display_node',
             output='screen',
-            parameters=[{
-                'topic': '/detected_image',
-                'window_name': 'Video & Radar',
-                'window_width': 1920,
-                'window_height': 720,
-                'map_topic': '/map_image',
-            }],
+            parameters=[params_file],
         ),
 
+        # 位姿解算节点：将检测结果转换到世界坐标
         Node(
             package='tensorrt_detect',
             executable='pose_node',
             name='pose_node',
             output='screen',
-            parameters=[{
-                'config_dir': '/home/delphine/rm/tensorrt10_detect/configs',
-                'input_topic': '/armor_detections',
-                'output_topic': '/world_targets',
-            }],
+            parameters=[params_file],
         ),
 
+        # 小地图节点：绘制雷达地图
         Node(
             package='tensorrt_detect',
             executable='map_node',
             name='map_node',
             output='screen',
-            parameters=[{
-                'config_dir': '/home/delphine/rm/tensorrt10_detect/configs',
-                'input_topic': '/world_targets',
-                'output_image_topic': '/map_image',
-                'output_map_topic': '/radar_map',
-            }],
+            parameters=[params_file],
         ),
     ])
