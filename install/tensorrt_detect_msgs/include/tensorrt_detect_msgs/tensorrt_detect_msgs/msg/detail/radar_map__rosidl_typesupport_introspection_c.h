@@ -1,1 +1,26 @@
-/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect_msgs/rosidl_typesupport_introspection_c/tensorrt_detect_msgs/msg/detail/radar_map__rosidl_typesupport_introspection_c.h
+// generated from rosidl_typesupport_introspection_c/resource/idl__rosidl_typesupport_introspection_c.h.em
+// with input from tensorrt_detect_msgs:msg/RadarMap.idl
+// generated code does not contain a copyright notice
+
+#ifndef TENSORRT_DETECT_MSGS__MSG__DETAIL__RADAR_MAP__ROSIDL_TYPESUPPORT_INTROSPECTION_C_H_
+#define TENSORRT_DETECT_MSGS__MSG__DETAIL__RADAR_MAP__ROSIDL_TYPESUPPORT_INTROSPECTION_C_H_
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+
+#include "rosidl_runtime_c/message_type_support_struct.h"
+#include "rosidl_typesupport_interface/macros.h"
+#include "tensorrt_detect_msgs/msg/rosidl_typesupport_introspection_c__visibility_control.h"
+
+ROSIDL_TYPESUPPORT_INTROSPECTION_C_PUBLIC_tensorrt_detect_msgs
+const rosidl_message_type_support_t *
+ROSIDL_TYPESUPPORT_INTERFACE__MESSAGE_SYMBOL_NAME(rosidl_typesupport_introspection_c, tensorrt_detect_msgs, msg, RadarMap)();
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif  // TENSORRT_DETECT_MSGS__MSG__DETAIL__RADAR_MAP__ROSIDL_TYPESUPPORT_INTROSPECTION_C_H_

@@ -1,1 +1,4 @@
-/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect_msgs/ament_cmake_environment_hooks/local_setup.dsv
+source;share/tensorrt_detect_msgs/environment/ament_prefix_path.sh
+source;share/tensorrt_detect_msgs/environment/library_path.sh
+source;share/tensorrt_detect_msgs/environment/path.sh
+source;share/tensorrt_detect_msgs/environment/pythonpath.sh

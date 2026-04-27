@@ -38,11 +38,11 @@ public:
         cfg_ = std::make_unique<Config>(config_dir);
         pipeline_ = std::make_unique<DetectPipeline>(*cfg_);
 
-        image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(output_topic_, 10);
+        image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(output_topic_, rclcpp::QoS(1));
         armor_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::DetectionArray>("/armor_detections", 10);
 
         image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-            input_topic_, 10,
+            input_topic_, rclcpp::QoS(1),
             std::bind(&DetectNode::image_callback, this, std::placeholders::_1));
 
         RCLCPP_INFO(this->get_logger(), "DetectNode 初始化完成，等待图像输入...");
@@ -72,6 +72,8 @@ private:
     void image_callback(const sensor_msgs::msg::Image::SharedPtr msg)
     {
         try {
+            double input_delay_ms = (this->now() - msg->header.stamp).seconds() * 1000.0;
+
             auto cv_ptr = cv_bridge::toCvShare(msg, "bgr8");
             const cv::Mat& frame = cv_ptr->image;
 
@@ -145,8 +147,8 @@ private:
                 this->get_logger(),
                 *this->get_clock(),
                 10000,
-                "检测到 %zu 个目标，fps: %.1f，发布了 DetectionArray 消息",
-                results.size(), fps_);
+                "检测到 %zu 个目标，fps: %.1f，input_delay: %.2f ms",
+                results.size(), fps_, input_delay_ms);
         }
         catch (const cv_bridge::Exception& e) {
             RCLCPP_ERROR(this->get_logger(), "cv_bridge 转换失败: %s", e.what());

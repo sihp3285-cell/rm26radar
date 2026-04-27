@@ -28,7 +28,7 @@ public:
             return;
         }
 
-        image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(topic_name_, 10);
+        image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(topic_name_, rclcpp::QoS(1));
 
         int interval_ms = 1000 / std::max(fps_setting_, 1);
         timer_ = this->create_wall_timer(

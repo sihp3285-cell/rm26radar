@@ -1,0 +1,56 @@
+[0.006s] Invoking command in '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect': CMAKE_PREFIX_PATH=/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect:/opt/ros/jazzy/opt/gz_math_vendor:/opt/ros/jazzy/opt/gz_utils_vendor:/opt/ros/jazzy/opt/gz_cmake_vendor:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com LD_LIBRARY_PATH=/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/opt/ros/jazzy/opt/rviz_ogre_vendor/lib:/opt/ros/jazzy/lib/x86_64-linux-gnu:/opt/ros/jazzy/opt/gz_math_vendor/lib:/opt/ros/jazzy/opt/gz_utils_vendor/lib:/opt/ros/jazzy/opt/gz_cmake_vendor/lib:/opt/ros/jazzy/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/TensorRT/TensorRT-10.2.0/lib:/usr/local/cuda-12.6/lib64:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32 /usr/bin/cmake --build /home/delphine/rm/tensorrt10_detect/build/tensorrt_detect -- -j20 -l20
+[0.052s] [  4%] [32mBuilding CXX object CMakeFiles/display_node.dir/src/nodes/display_node.cpp.o[0m
+[0.052s] [ 13%] Built target video_node
+[0.066s] [ 59%] Built target tensorrt_detect_core
+[0.087s] [ 63%] [32mBuilding CXX object CMakeFiles/detect_node.dir/src/nodes/detect_node.cpp.o[0m
+[0.088s] [ 72%] Built target standard
+[0.088s] [ 81%] Built target pose_node
+[0.094s] [ 90%] Built target map_node
+[2.253s] [01m[K/home/delphine/rm/tensorrt10_detect/src/tensorrt_detect/src/nodes/detect_node.cpp:[m[K In constructor ‘[01m[KDetectNode::[01;32m[KDetectNode[m[K()[m[K’:
+[2.253s] [01m[K/home/delphine/rm/tensorrt10_detect/src/tensorrt_detect/src/nodes/detect_node.cpp:33:43:[m[K [01;31m[Kerror: [m[Kno matching function for call to ‘[01m[Kmax(int, int64_t)[m[K’
+[2.253s]    33 |         debug_publish_interval_ = [01;31m[Kstd::max(1, this->get_parameter("debug_publish_interval").as_int())[m[K;
+[2.253s]       |                                   [01;31m[K~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
+[2.253s] In file included from [01m[K/usr/include/c++/13/bits/stl_uninitialized.h:63[m[K,
+[2.253s]                  from [01m[K/usr/include/c++/13/memory:69[m[K,
+[2.253s]                  from [01m[K/opt/ros/jazzy/include/rclcpp/rclcpp/rclcpp.hpp:169[m[K,
+[2.253s]                  from [01m[K/home/delphine/rm/tensorrt10_detect/src/tensorrt_detect/src/nodes/detect_node.cpp:1[m[K:
+[2.253s] [01m[K/usr/include/c++/13/bits/stl_algobase.h:257:5:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Ktemplate<class _Tp> constexpr const _Tp& std::[01;32m[Kmax[m[K(const _Tp&, const _Tp&)[m[K’
+[2.253s]   257 |     [01;36m[Kmax[m[K(const _Tp& __a, const _Tp& __b)
+[2.254s]       |     [01;36m[K^~~[m[K
+[2.254s] [01m[K/usr/include/c++/13/bits/stl_algobase.h:257:5:[m[K [01;36m[Knote: [m[K  template argument deduction/substitution failed:
+[2.257s] [01m[K/home/delphine/rm/tensorrt10_detect/src/tensorrt_detect/src/nodes/detect_node.cpp:33:43:[m[K [01;36m[Knote: [m[K  deduced conflicting types for parameter ‘[01m[Kconst _Tp[m[K’ (‘[01m[Kint[m[K’ and ‘[01m[Kint64_t[m[K’ {aka ‘[01m[Klong int[m[K’})
+[2.257s]    33 |         debug_publish_interval_ = [01;36m[Kstd::max(1, this->get_parameter("debug_publish_interval").as_int())[m[K;
+[2.257s]       |                                   [01;36m[K~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
+[2.257s] [01m[K/usr/include/c++/13/bits/stl_algobase.h:303:5:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Ktemplate<class _Tp, class _Compare> constexpr const _Tp& std::[01;32m[Kmax[m[K(const _Tp&, const _Tp&, _Compare)[m[K’
+[2.257s]   303 |     [01;36m[Kmax[m[K(const _Tp& __a, const _Tp& __b, _Compare __comp)
+[2.257s]       |     [01;36m[K^~~[m[K
+[2.257s] [01m[K/usr/include/c++/13/bits/stl_algobase.h:303:5:[m[K [01;36m[Knote: [m[K  template argument deduction/substitution failed:
+[2.258s] [01m[K/home/delphine/rm/tensorrt10_detect/src/tensorrt_detect/src/nodes/detect_node.cpp:33:43:[m[K [01;36m[Knote: [m[K  deduced conflicting types for parameter ‘[01m[Kconst _Tp[m[K’ (‘[01m[Kint[m[K’ and ‘[01m[Kint64_t[m[K’ {aka ‘[01m[Klong int[m[K’})
+[2.258s]    33 |         debug_publish_interval_ = [01;36m[Kstd::max(1, this->get_parameter("debug_publish_interval").as_int())[m[K;
+[2.258s]       |                                   [01;36m[K~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
+[2.258s] In file included from [01m[K/usr/include/c++/13/algorithm:61[m[K,
+[2.258s]                  from [01m[K/opt/ros/jazzy/include/rcl_interfaces/rcl_interfaces/srv/detail/list_parameters__struct.hpp:11[m[K,
+[2.258s]                  from [01m[K/opt/ros/jazzy/include/rcl_interfaces/rcl_interfaces/srv/list_parameters.hpp:7[m[K,
+[2.258s]                  from [01m[K/opt/ros/jazzy/include/rclcpp/rclcpp/copy_all_parameter_values.hpp:21[m[K,
+[2.258s]                  from [01m[K/opt/ros/jazzy/include/rclcpp/rclcpp/rclcpp.hpp:171[m[K:
+[2.258s] [01m[K/usr/include/c++/13/bits/stl_algo.h:5795:5:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Ktemplate<class _Tp> constexpr _Tp std::[01;32m[Kmax[m[K(initializer_list<_Tp>)[m[K’
+[2.258s]  5795 |     [01;36m[Kmax[m[K(initializer_list<_Tp> __l)
+[2.258s]       |     [01;36m[K^~~[m[K
+[2.258s] [01m[K/usr/include/c++/13/bits/stl_algo.h:5795:5:[m[K [01;36m[Knote: [m[K  template argument deduction/substitution failed:
+[2.258s] [01m[K/home/delphine/rm/tensorrt10_detect/src/tensorrt_detect/src/nodes/detect_node.cpp:33:43:[m[K [01;36m[Knote: [m[K  mismatched types ‘[01m[Kstd::initializer_list<_Tp>[m[K’ and ‘[01m[Kint[m[K’
+[2.258s]    33 |         debug_publish_interval_ = [01;36m[Kstd::max(1, this->get_parameter("debug_publish_interval").as_int())[m[K;
+[2.258s]       |                                   [01;36m[K~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
+[2.258s] [01m[K/usr/include/c++/13/bits/stl_algo.h:5805:5:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Ktemplate<class _Tp, class _Compare> constexpr _Tp std::[01;32m[Kmax[m[K(initializer_list<_Tp>, _Compare)[m[K’
+[2.258s]  5805 |     [01;36m[Kmax[m[K(initializer_list<_Tp> __l, _Compare __comp)
+[2.258s]       |     [01;36m[K^~~[m[K
+[2.258s] [01m[K/usr/include/c++/13/bits/stl_algo.h:5805:5:[m[K [01;36m[Knote: [m[K  template argument deduction/substitution failed:
+[2.258s] [01m[K/home/delphine/rm/tensorrt10_detect/src/tensorrt_detect/src/nodes/detect_node.cpp:33:43:[m[K [01;36m[Knote: [m[K  mismatched types ‘[01m[Kstd::initializer_list<_Tp>[m[K’ and ‘[01m[Kint[m[K’
+[2.258s]    33 |         debug_publish_interval_ = [01;36m[Kstd::max(1, this->get_parameter("debug_publish_interval").as_int())[m[K;
+[2.258s]       |                                   [01;36m[K~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
+[3.721s] gmake[2]: *** [CMakeFiles/detect_node.dir/build.make:76：CMakeFiles/detect_node.dir/src/nodes/detect_node.cpp.o] 错误 1
+[3.721s] gmake[1]: *** [CMakeFiles/Makefile2:201：CMakeFiles/detect_node.dir/all] 错误 2
+[3.721s] gmake[1]: *** 正在等待未完成的任务....
+[11.372s] [ 95%] [32m[1mLinking CXX executable display_node[0m
+[11.789s] [ 95%] Built target display_node
+[11.790s] gmake: *** [Makefile:146：all] 错误 2
+[11.791s] Invoked command in '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect' returned '2': CMAKE_PREFIX_PATH=/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect:/opt/ros/jazzy/opt/gz_math_vendor:/opt/ros/jazzy/opt/gz_utils_vendor:/opt/ros/jazzy/opt/gz_cmake_vendor:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com LD_LIBRARY_PATH=/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/opt/ros/jazzy/opt/rviz_ogre_vendor/lib:/opt/ros/jazzy/lib/x86_64-linux-gnu:/opt/ros/jazzy/opt/gz_math_vendor/lib:/opt/ros/jazzy/opt/gz_utils_vendor/lib:/opt/ros/jazzy/opt/gz_cmake_vendor/lib:/opt/ros/jazzy/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/TensorRT/TensorRT-10.2.0/lib:/usr/local/cuda-12.6/lib64:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32 /usr/bin/cmake --build /home/delphine/rm/tensorrt10_detect/build/tensorrt_detect -- -j20 -l20

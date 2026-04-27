@@ -1,1 +1,2 @@
-/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect/ament_cmake_environment_hooks/local_setup.dsv
+source;share/tensorrt_detect/environment/ament_prefix_path.sh
+source;share/tensorrt_detect/environment/path.sh

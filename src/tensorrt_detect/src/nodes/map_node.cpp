@@ -46,7 +46,7 @@ public:
             RCLCPP_INFO(this->get_logger(), "RadarMap 校准完成");
         }
 
-        image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(output_image_topic_, 10);
+        image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(output_image_topic_, rclcpp::QoS(1));
         radar_map_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::RadarMap>(output_map_topic_, 10);
 
         target_sub_ = this->create_subscription<tensorrt_detect_msgs::msg::WorldTargetArray>(

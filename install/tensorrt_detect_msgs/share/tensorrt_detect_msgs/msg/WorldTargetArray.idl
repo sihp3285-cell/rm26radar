@@ -1,1 +1,16 @@
-/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect_msgs/rosidl_adapter/tensorrt_detect_msgs/msg/WorldTargetArray.idl
+// generated from rosidl_adapter/resource/msg.idl.em
+// with input from tensorrt_detect_msgs/msg/WorldTargetArray.msg
+// generated code does not contain a copyright notice
+
+#include "std_msgs/msg/Header.idl"
+#include "tensorrt_detect_msgs/msg/WorldTarget.idl"
+
+module tensorrt_detect_msgs {
+  module msg {
+    struct WorldTargetArray {
+      std_msgs::msg::Header header;
+
+      sequence<tensorrt_detect_msgs::msg::WorldTarget> targets;
+    };
+  };
+};

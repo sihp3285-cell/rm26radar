@@ -1,1 +1,10 @@
-/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect_msgs/ament_cmake_index/share/ament_index/resource_index/rosidl_interfaces/tensorrt_detect_msgs
+msg/DetectionArray.idl
+msg/DetectionArray.msg
+msg/DetectionBox.idl
+msg/DetectionBox.msg
+msg/RadarMap.idl
+msg/RadarMap.msg
+msg/WorldTarget.idl
+msg/WorldTarget.msg
+msg/WorldTargetArray.idl
+msg/WorldTargetArray.msg

@@ -201,12 +201,13 @@ cv::resizeWindow(window_name_, win_w, win_h);
 # 七、创建两个订阅者
 
 ```cpp
+auto image_qos = rclcpp::QoS(1).best_effort();
 sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-    topic_, 10,
+    topic_, image_qos,
     std::bind(&DisplayNode::image_callback, this, std::placeholders::_1));
 
 map_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-    map_topic_, 10,
+    map_topic_, image_qos,
     std::bind(&DisplayNode::map_callback, this, std::placeholders::_1));
 ```
 
@@ -218,7 +219,7 @@ map_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
 
 * 类型：`sensor_msgs::msg::Image`
 * 话题：`topic_`（默认 `/detected_image`）
-* 队列深度：10
+* QoS：`QoS(1).best_effort()` —— 只保留最新 1 帧，旧帧直接丢弃
 * 回调：`image_callback`
 
 负责接收检测后的图像。
@@ -229,10 +230,29 @@ map_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
 
 * 类型：`sensor_msgs::msg::Image`
 * 话题：`map_topic_`（默认 `/map_image`）
-* 队列深度：10
+* QoS：`QoS(1).best_effort()` —— 只保留最新 1 帧，旧帧直接丢弃
 * 回调：`map_callback`
 
 负责接收小地图图像。
+
+---
+
+### 为什么用 `QoS(1).best_effort()`？
+
+**（性能优化关键改动）**
+
+旧版队列深度是 10。对于实时图像显示来说，这是**反作用**的：
+
+> 显示节点只需要看**最新一帧**，积压的旧帧毫无意义。
+
+如果 `detect_node` 发布 30fps，但 `display_node` 因为渲染慢只能处理 20fps，队列深度 10 意味着最多可以积压约 300ms 的旧帧。`spin_some` 会一口气消费这些积压帧，`latest_frame_` 被连续覆盖多次，前几次的拷贝全是**无用功**。最终显示的是延迟了好几帧的旧图像，造成"视频越来越滞后，然后突然加速跳帧"的现象。
+
+改成 `QoS(1).best_effort()` 后：
+
+* **深度 1**：subscriber 队列只保留最新 1 帧，旧帧直接被 ROS2 丢弃
+* **Best Effort**：publisher 不需要重传丢失的消息，减少反向压力
+
+这样 display_node 永远只处理最新帧，从根源上消除了图像链路的队列积压。
 
 ---
 
@@ -457,13 +477,17 @@ try {
 ```cpp
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        latest_frame_ = cv_ptr->image.clone();
+        latest_frame_ = cv_ptr->image;  // toCvCopy 已是深拷贝，无需再 clone
     }
 ```
 
-再次看到 `lock_guard` + `clone()` 的组合。
+**（性能优化）** 这里去掉了 `.clone()`。
 
-回调线程在写 `latest_frame_`，主线程在读 `latest_frame_`。`mutex_` 就是它们之间的"交通信号灯"，保证同一时刻只有一个线程在访问这块数据。
+原因是：`cv_bridge::toCvCopy(msg, "bgr8")` 已经在内部做了**一次深拷贝**，把 ROS 消息的数据复制到了 `cv_ptr->image` 的新内存里。所以 `cv_ptr->image` 本身就是独立内存，直接赋值给 `latest_frame_` 即可，没必要再 `clone()` 一次。
+
+旧版这里多了一次全图深拷贝（比如 1280×720×3 ≈ 2.7MB），每帧都浪费，积少成多。
+
+`mutex_` 仍然是必须的：回调线程在写 `latest_frame_`，主线程在读 `latest_frame_`，需要保证同一时刻只有一个线程访问。
 
 ---
 

@@ -31,11 +31,11 @@ public:
 
         // ===== 订阅图像话题 =====
         sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-            topic_, 10,
+            topic_, rclcpp::QoS(1),
             std::bind(&DisplayNode::image_callback, this, std::placeholders::_1));
 
         map_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-            map_topic_, 10,
+            map_topic_, rclcpp::QoS(1),
             std::bind(&DisplayNode::map_callback, this, std::placeholders::_1));
 
         RCLCPP_INFO(this->get_logger(),

@@ -1,0 +1,263 @@
+[0.055s] DEBUG:colcon:Command line arguments: ['/usr/bin/colcon', 'build']
+[0.055s] DEBUG:colcon:Parsed command line arguments: Namespace(log_base=None, log_level=None, verb_name='build', build_base='build', install_base='install', merge_install=False, symlink_install=False, test_result_base=None, continue_on_error=False, executor='parallel', parallel_workers=20, event_handlers=None, ignore_user_meta=False, metas=['./colcon.meta'], base_paths=['.'], packages_ignore=None, packages_ignore_regex=None, paths=None, packages_up_to=None, packages_up_to_regex=None, packages_above=None, packages_above_and_dependencies=None, packages_above_depth=None, packages_select_by_dep=None, packages_skip_by_dep=None, packages_skip_up_to=None, packages_select_build_failed=False, packages_skip_build_finished=False, packages_select_test_failures=False, packages_skip_test_passed=False, packages_select=None, packages_skip=None, packages_select_regex=None, packages_skip_regex=None, packages_start=None, packages_end=None, allow_overriding=[], cmake_args=None, cmake_target=None, cmake_target_skip_unavailable=False, cmake_clean_cache=False, cmake_clean_first=False, cmake_force_configure=False, ament_cmake_args=None, catkin_cmake_args=None, catkin_skip_building_tests=False, verb_parser=<colcon_defaults.argument_parser.defaults.DefaultArgumentsDecorator object at 0x7d0f34c82450>, verb_extension=<colcon_core.verb.build.BuildVerb object at 0x7d0f34c5a0c0>, main=<bound method BuildVerb.main of <colcon_core.verb.build.BuildVerb object at 0x7d0f34c5a0c0>>)
+[0.077s] Level 1:colcon.colcon_core.package_discovery:discover_packages(colcon_meta) check parameters
+[0.077s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) check parameters
+[0.077s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) check parameters
+[0.077s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) check parameters
+[0.077s] Level 1:colcon.colcon_core.package_discovery:discover_packages(colcon_meta) discover
+[0.077s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) discover
+[0.077s] INFO:colcon.colcon_core.package_discovery:Crawling recursively for packages in '/home/delphine/rm/tensorrt10_detect'
+[0.077s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['ignore', 'ignore_ament_install']
+[0.077s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ignore'
+[0.077s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ignore_ament_install'
+[0.077s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['colcon_pkg']
+[0.077s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'colcon_pkg'
+[0.077s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['colcon_meta']
+[0.077s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'colcon_meta'
+[0.077s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['ros']
+[0.077s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ros'
+[0.092s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['cmake', 'python']
+[0.092s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'cmake'
+[0.092s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'python'
+[0.092s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['python_setup_py']
+[0.092s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'python_setup_py'
+[0.092s] Level 1:colcon.colcon_core.package_identification:_identify(build) by extensions ['ignore', 'ignore_ament_install']
+[0.092s] Level 1:colcon.colcon_core.package_identification:_identify(build) by extension 'ignore'
+[0.092s] Level 1:colcon.colcon_core.package_identification:_identify(build) ignored
+[0.092s] Level 1:colcon.colcon_core.package_identification:_identify(configs) by extensions ['ignore', 'ignore_ament_install']
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(configs) by extension 'ignore'
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(configs) by extension 'ignore_ament_install'
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(configs) by extensions ['colcon_pkg']
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(configs) by extension 'colcon_pkg'
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(configs) by extensions ['colcon_meta']
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(configs) by extension 'colcon_meta'
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(configs) by extensions ['ros']
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(configs) by extension 'ros'
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(configs) by extensions ['cmake', 'python']
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(configs) by extension 'cmake'
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(configs) by extension 'python'
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(configs) by extensions ['python_setup_py']
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(configs) by extension 'python_setup_py'
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(docs) by extensions ['ignore', 'ignore_ament_install']
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(docs) by extension 'ignore'
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(docs) by extension 'ignore_ament_install'
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(docs) by extensions ['colcon_pkg']
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(docs) by extension 'colcon_pkg'
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(docs) by extensions ['colcon_meta']
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(docs) by extension 'colcon_meta'
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(docs) by extensions ['ros']
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(docs) by extension 'ros'
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(docs) by extensions ['cmake', 'python']
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(docs) by extension 'cmake'
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(docs) by extension 'python'
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(docs) by extensions ['python_setup_py']
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(docs) by extension 'python_setup_py'
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(install) by extensions ['ignore', 'ignore_ament_install']
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(install) by extension 'ignore'
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(install) ignored
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(log) by extensions ['ignore', 'ignore_ament_install']
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(log) by extension 'ignore'
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(log) ignored
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(models) by extensions ['ignore', 'ignore_ament_install']
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(models) by extension 'ignore'
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(models) by extension 'ignore_ament_install'
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(models) by extensions ['colcon_pkg']
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(models) by extension 'colcon_pkg'
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(models) by extensions ['colcon_meta']
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(models) by extension 'colcon_meta'
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(models) by extensions ['ros']
+[0.093s] Level 1:colcon.colcon_core.package_identification:_identify(models) by extension 'ros'
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(models) by extensions ['cmake', 'python']
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(models) by extension 'cmake'
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(models) by extension 'python'
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(models) by extensions ['python_setup_py']
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(models) by extension 'python_setup_py'
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['ignore', 'ignore_ament_install']
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'ignore'
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'ignore_ament_install'
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['colcon_pkg']
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'colcon_pkg'
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['colcon_meta']
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'colcon_meta'
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['ros']
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'ros'
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['cmake', 'python']
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'cmake'
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'python'
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['python_setup_py']
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'python_setup_py'
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(src/tensorrt_detect) by extensions ['ignore', 'ignore_ament_install']
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(src/tensorrt_detect) by extension 'ignore'
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(src/tensorrt_detect) by extension 'ignore_ament_install'
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(src/tensorrt_detect) by extensions ['colcon_pkg']
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(src/tensorrt_detect) by extension 'colcon_pkg'
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(src/tensorrt_detect) by extensions ['colcon_meta']
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(src/tensorrt_detect) by extension 'colcon_meta'
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(src/tensorrt_detect) by extensions ['ros']
+[0.094s] Level 1:colcon.colcon_core.package_identification:_identify(src/tensorrt_detect) by extension 'ros'
+[0.096s] DEBUG:colcon.colcon_core.package_identification:Package 'src/tensorrt_detect' with type 'ros.ament_cmake' and name 'tensorrt_detect'
+[0.096s] Level 1:colcon.colcon_core.package_identification:_identify(src/tensorrt_detect_msgs) by extensions ['ignore', 'ignore_ament_install']
+[0.096s] Level 1:colcon.colcon_core.package_identification:_identify(src/tensorrt_detect_msgs) by extension 'ignore'
+[0.096s] Level 1:colcon.colcon_core.package_identification:_identify(src/tensorrt_detect_msgs) by extension 'ignore_ament_install'
+[0.096s] Level 1:colcon.colcon_core.package_identification:_identify(src/tensorrt_detect_msgs) by extensions ['colcon_pkg']
+[0.096s] Level 1:colcon.colcon_core.package_identification:_identify(src/tensorrt_detect_msgs) by extension 'colcon_pkg'
+[0.096s] Level 1:colcon.colcon_core.package_identification:_identify(src/tensorrt_detect_msgs) by extensions ['colcon_meta']
+[0.096s] Level 1:colcon.colcon_core.package_identification:_identify(src/tensorrt_detect_msgs) by extension 'colcon_meta'
+[0.096s] Level 1:colcon.colcon_core.package_identification:_identify(src/tensorrt_detect_msgs) by extensions ['ros']
+[0.096s] Level 1:colcon.colcon_core.package_identification:_identify(src/tensorrt_detect_msgs) by extension 'ros'
+[0.096s] DEBUG:colcon.colcon_core.package_identification:Package 'src/tensorrt_detect_msgs' with type 'ros.ament_cmake' and name 'tensorrt_detect_msgs'
+[0.096s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) using defaults
+[0.096s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) discover
+[0.096s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) using defaults
+[0.096s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) discover
+[0.096s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) using defaults
+[0.106s] Level 1:colcon.colcon_core.package_discovery:discover_packages(prefix_path) check parameters
+[0.106s] Level 1:colcon.colcon_core.package_discovery:discover_packages(prefix_path) discover
+[0.107s] DEBUG:colcon.colcon_installed_package_information.package_discovery:Found 2 installed packages in /home/delphine/rm/tensorrt10_detect/install
+[0.108s] DEBUG:colcon.colcon_installed_package_information.package_discovery:Found 287 installed packages in /opt/ros/jazzy
+[0.108s] Level 1:colcon.colcon_core.package_discovery:discover_packages(prefix_path) using defaults
+[0.128s] Level 5:colcon.colcon_core.verb:set package 'tensorrt_detect_msgs' build argument 'cmake_args' from command line to 'None'
+[0.128s] Level 5:colcon.colcon_core.verb:set package 'tensorrt_detect_msgs' build argument 'cmake_target' from command line to 'None'
+[0.128s] Level 5:colcon.colcon_core.verb:set package 'tensorrt_detect_msgs' build argument 'cmake_target_skip_unavailable' from command line to 'False'
+[0.128s] Level 5:colcon.colcon_core.verb:set package 'tensorrt_detect_msgs' build argument 'cmake_clean_cache' from command line to 'False'
+[0.128s] Level 5:colcon.colcon_core.verb:set package 'tensorrt_detect_msgs' build argument 'cmake_clean_first' from command line to 'False'
+[0.129s] Level 5:colcon.colcon_core.verb:set package 'tensorrt_detect_msgs' build argument 'cmake_force_configure' from command line to 'False'
+[0.129s] Level 5:colcon.colcon_core.verb:set package 'tensorrt_detect_msgs' build argument 'ament_cmake_args' from command line to 'None'
+[0.129s] Level 5:colcon.colcon_core.verb:set package 'tensorrt_detect_msgs' build argument 'catkin_cmake_args' from command line to 'None'
+[0.129s] Level 5:colcon.colcon_core.verb:set package 'tensorrt_detect_msgs' build argument 'catkin_skip_building_tests' from command line to 'False'
+[0.129s] DEBUG:colcon.colcon_core.verb:Building package 'tensorrt_detect_msgs' with the following arguments: {'ament_cmake_args': None, 'build_base': '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect_msgs', 'catkin_cmake_args': None, 'catkin_skip_building_tests': False, 'cmake_args': None, 'cmake_clean_cache': False, 'cmake_clean_first': False, 'cmake_force_configure': False, 'cmake_target': None, 'cmake_target_skip_unavailable': False, 'install_base': '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs', 'merge_install': False, 'path': '/home/delphine/rm/tensorrt10_detect/src/tensorrt_detect_msgs', 'symlink_install': False, 'test_result_base': None}
+[0.129s] Level 5:colcon.colcon_core.verb:set package 'tensorrt_detect' build argument 'cmake_args' from command line to 'None'
+[0.129s] Level 5:colcon.colcon_core.verb:set package 'tensorrt_detect' build argument 'cmake_target' from command line to 'None'
+[0.129s] Level 5:colcon.colcon_core.verb:set package 'tensorrt_detect' build argument 'cmake_target_skip_unavailable' from command line to 'False'
+[0.129s] Level 5:colcon.colcon_core.verb:set package 'tensorrt_detect' build argument 'cmake_clean_cache' from command line to 'False'
+[0.129s] Level 5:colcon.colcon_core.verb:set package 'tensorrt_detect' build argument 'cmake_clean_first' from command line to 'False'
+[0.129s] Level 5:colcon.colcon_core.verb:set package 'tensorrt_detect' build argument 'cmake_force_configure' from command line to 'False'
+[0.129s] Level 5:colcon.colcon_core.verb:set package 'tensorrt_detect' build argument 'ament_cmake_args' from command line to 'None'
+[0.129s] Level 5:colcon.colcon_core.verb:set package 'tensorrt_detect' build argument 'catkin_cmake_args' from command line to 'None'
+[0.129s] Level 5:colcon.colcon_core.verb:set package 'tensorrt_detect' build argument 'catkin_skip_building_tests' from command line to 'False'
+[0.129s] DEBUG:colcon.colcon_core.verb:Building package 'tensorrt_detect' with the following arguments: {'ament_cmake_args': None, 'build_base': '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect', 'catkin_cmake_args': None, 'catkin_skip_building_tests': False, 'cmake_args': None, 'cmake_clean_cache': False, 'cmake_clean_first': False, 'cmake_force_configure': False, 'cmake_target': None, 'cmake_target_skip_unavailable': False, 'install_base': '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect', 'merge_install': False, 'path': '/home/delphine/rm/tensorrt10_detect/src/tensorrt_detect', 'symlink_install': False, 'test_result_base': None}
+[0.129s] INFO:colcon.colcon_core.executor:Executing jobs using 'parallel' executor
+[0.129s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:run_until_complete
+[0.130s] INFO:colcon.colcon_ros.task.ament_cmake.build:Building ROS package in '/home/delphine/rm/tensorrt10_detect/src/tensorrt_detect_msgs' with build type 'ament_cmake'
+[0.130s] INFO:colcon.colcon_cmake.task.cmake.build:Building CMake package in '/home/delphine/rm/tensorrt10_detect/src/tensorrt_detect_msgs'
+[0.131s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_core.shell.bat': Not used on non-Windows systems
+[0.131s] INFO:colcon.colcon_core.shell:Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[0.131s] DEBUG:colcon.colcon_core.shell:Skip shell extension 'dsv' for command environment
+[0.138s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoking command in '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect_msgs': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --build /home/delphine/rm/tensorrt10_detect/build/tensorrt_detect_msgs -- -j20 -l20
+[0.366s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoked command in '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect_msgs' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --build /home/delphine/rm/tensorrt10_detect/build/tensorrt_detect_msgs -- -j20 -l20
+[0.375s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoking command in '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect_msgs': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --install /home/delphine/rm/tensorrt10_detect/build/tensorrt_detect_msgs
+[0.414s] Level 1:colcon.colcon_core.environment:create_environment_scripts_only(tensorrt_detect_msgs)
+[0.414s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoked command in '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect_msgs' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --install /home/delphine/rm/tensorrt10_detect/build/tensorrt_detect_msgs
+[0.415s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs' for CMake module files
+[0.415s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs' for CMake config files
+[0.415s] Level 1:colcon.colcon_core.shell:create_environment_hook('tensorrt_detect_msgs', 'cmake_prefix_path')
+[0.415s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/hook/cmake_prefix_path.ps1'
+[0.416s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/hook/cmake_prefix_path.dsv'
+[0.416s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/hook/cmake_prefix_path.sh'
+[0.416s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib'
+[0.416s] Level 1:colcon.colcon_core.shell:create_environment_hook('tensorrt_detect_msgs', 'ld_library_path_lib')
+[0.417s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/hook/ld_library_path_lib.ps1'
+[0.417s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/hook/ld_library_path_lib.dsv'
+[0.417s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/hook/ld_library_path_lib.sh'
+[0.417s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/bin'
+[0.417s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/pkgconfig/tensorrt_detect_msgs.pc'
+[0.417s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.12/site-packages'
+[0.417s] Level 1:colcon.colcon_core.shell:create_environment_hook('tensorrt_detect_msgs', 'pythonpath')
+[0.417s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/hook/pythonpath.ps1'
+[0.418s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/hook/pythonpath.dsv'
+[0.418s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/hook/pythonpath.sh'
+[0.418s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/bin'
+[0.418s] INFO:colcon.colcon_core.shell:Creating package script '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/package.ps1'
+[0.419s] INFO:colcon.colcon_core.shell:Creating package descriptor '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/package.dsv'
+[0.419s] INFO:colcon.colcon_core.shell:Creating package script '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/package.sh'
+[0.419s] INFO:colcon.colcon_core.shell:Creating package script '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/package.bash'
+[0.420s] INFO:colcon.colcon_core.shell:Creating package script '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/package.zsh'
+[0.420s] Level 1:colcon.colcon_core.environment:create_file_with_runtime_dependencies(/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/colcon-core/packages/tensorrt_detect_msgs)
+[0.420s] Level 1:colcon.colcon_core.environment:create_environment_scripts_only(tensorrt_detect_msgs)
+[0.420s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs' for CMake module files
+[0.420s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs' for CMake config files
+[0.421s] Level 1:colcon.colcon_core.shell:create_environment_hook('tensorrt_detect_msgs', 'cmake_prefix_path')
+[0.421s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/hook/cmake_prefix_path.ps1'
+[0.421s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/hook/cmake_prefix_path.dsv'
+[0.421s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/hook/cmake_prefix_path.sh'
+[0.421s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib'
+[0.421s] Level 1:colcon.colcon_core.shell:create_environment_hook('tensorrt_detect_msgs', 'ld_library_path_lib')
+[0.421s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/hook/ld_library_path_lib.ps1'
+[0.422s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/hook/ld_library_path_lib.dsv'
+[0.422s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/hook/ld_library_path_lib.sh'
+[0.422s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/bin'
+[0.422s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/pkgconfig/tensorrt_detect_msgs.pc'
+[0.422s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.12/site-packages'
+[0.422s] Level 1:colcon.colcon_core.shell:create_environment_hook('tensorrt_detect_msgs', 'pythonpath')
+[0.422s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/hook/pythonpath.ps1'
+[0.422s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/hook/pythonpath.dsv'
+[0.423s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/hook/pythonpath.sh'
+[0.423s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/bin'
+[0.423s] INFO:colcon.colcon_core.shell:Creating package script '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/package.ps1'
+[0.423s] INFO:colcon.colcon_core.shell:Creating package descriptor '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/package.dsv'
+[0.424s] INFO:colcon.colcon_core.shell:Creating package script '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/package.sh'
+[0.424s] INFO:colcon.colcon_core.shell:Creating package script '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/package.bash'
+[0.424s] INFO:colcon.colcon_core.shell:Creating package script '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/package.zsh'
+[0.424s] Level 1:colcon.colcon_core.environment:create_file_with_runtime_dependencies(/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/colcon-core/packages/tensorrt_detect_msgs)
+[0.424s] INFO:colcon.colcon_ros.task.ament_cmake.build:Building ROS package in '/home/delphine/rm/tensorrt10_detect/src/tensorrt_detect' with build type 'ament_cmake'
+[0.424s] INFO:colcon.colcon_cmake.task.cmake.build:Building CMake package in '/home/delphine/rm/tensorrt10_detect/src/tensorrt_detect'
+[0.425s] INFO:colcon.colcon_core.shell:Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[0.425s] DEBUG:colcon.colcon_core.shell:Skip shell extension 'dsv' for command environment
+[0.431s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoking command in '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect': CMAKE_PREFIX_PATH=/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect:/opt/ros/jazzy/opt/gz_math_vendor:/opt/ros/jazzy/opt/gz_utils_vendor:/opt/ros/jazzy/opt/gz_cmake_vendor:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com LD_LIBRARY_PATH=/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/opt/ros/jazzy/opt/rviz_ogre_vendor/lib:/opt/ros/jazzy/lib/x86_64-linux-gnu:/opt/ros/jazzy/opt/gz_math_vendor/lib:/opt/ros/jazzy/opt/gz_utils_vendor/lib:/opt/ros/jazzy/opt/gz_cmake_vendor/lib:/opt/ros/jazzy/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/TensorRT/TensorRT-10.2.0/lib:/usr/local/cuda-12.6/lib64:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32 /usr/bin/cmake --build /home/delphine/rm/tensorrt10_detect/build/tensorrt_detect -- -j20 -l20
+[14.033s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoked command in '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect' returned '0': CMAKE_PREFIX_PATH=/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect:/opt/ros/jazzy/opt/gz_math_vendor:/opt/ros/jazzy/opt/gz_utils_vendor:/opt/ros/jazzy/opt/gz_cmake_vendor:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com LD_LIBRARY_PATH=/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/opt/ros/jazzy/opt/rviz_ogre_vendor/lib:/opt/ros/jazzy/lib/x86_64-linux-gnu:/opt/ros/jazzy/opt/gz_math_vendor/lib:/opt/ros/jazzy/opt/gz_utils_vendor/lib:/opt/ros/jazzy/opt/gz_cmake_vendor/lib:/opt/ros/jazzy/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/TensorRT/TensorRT-10.2.0/lib:/usr/local/cuda-12.6/lib64:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32 /usr/bin/cmake --build /home/delphine/rm/tensorrt10_detect/build/tensorrt_detect -- -j20 -l20
+[14.034s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoking command in '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect': CMAKE_PREFIX_PATH=/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect:/opt/ros/jazzy/opt/gz_math_vendor:/opt/ros/jazzy/opt/gz_utils_vendor:/opt/ros/jazzy/opt/gz_cmake_vendor:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com LD_LIBRARY_PATH=/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/opt/ros/jazzy/opt/rviz_ogre_vendor/lib:/opt/ros/jazzy/lib/x86_64-linux-gnu:/opt/ros/jazzy/opt/gz_math_vendor/lib:/opt/ros/jazzy/opt/gz_utils_vendor/lib:/opt/ros/jazzy/opt/gz_cmake_vendor/lib:/opt/ros/jazzy/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/TensorRT/TensorRT-10.2.0/lib:/usr/local/cuda-12.6/lib64:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32 /usr/bin/cmake --install /home/delphine/rm/tensorrt10_detect/build/tensorrt_detect
+[14.054s] Level 1:colcon.colcon_core.environment:create_environment_scripts_only(tensorrt_detect)
+[14.054s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoked command in '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect' returned '0': CMAKE_PREFIX_PATH=/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect:/opt/ros/jazzy/opt/gz_math_vendor:/opt/ros/jazzy/opt/gz_utils_vendor:/opt/ros/jazzy/opt/gz_cmake_vendor:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com LD_LIBRARY_PATH=/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/opt/ros/jazzy/opt/rviz_ogre_vendor/lib:/opt/ros/jazzy/lib/x86_64-linux-gnu:/opt/ros/jazzy/opt/gz_math_vendor/lib:/opt/ros/jazzy/opt/gz_utils_vendor/lib:/opt/ros/jazzy/opt/gz_cmake_vendor/lib:/opt/ros/jazzy/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/TensorRT/TensorRT-10.2.0/lib:/usr/local/cuda-12.6/lib64:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32 /usr/bin/cmake --install /home/delphine/rm/tensorrt10_detect/build/tensorrt_detect
+[14.054s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect' for CMake module files
+[14.055s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect' for CMake config files
+[14.055s] Level 1:colcon.colcon_core.shell:create_environment_hook('tensorrt_detect', 'cmake_prefix_path')
+[14.056s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/hook/cmake_prefix_path.ps1'
+[14.056s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/hook/cmake_prefix_path.dsv'
+[14.056s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/hook/cmake_prefix_path.sh'
+[14.057s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib'
+[14.057s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/bin'
+[14.057s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/pkgconfig/tensorrt_detect.pc'
+[14.057s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/python3.12/site-packages'
+[14.057s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/bin'
+[14.057s] INFO:colcon.colcon_core.shell:Creating package script '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/package.ps1'
+[14.058s] INFO:colcon.colcon_core.shell:Creating package descriptor '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/package.dsv'
+[14.058s] INFO:colcon.colcon_core.shell:Creating package script '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/package.sh'
+[14.058s] INFO:colcon.colcon_core.shell:Creating package script '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/package.bash'
+[14.058s] INFO:colcon.colcon_core.shell:Creating package script '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/package.zsh'
+[14.058s] Level 1:colcon.colcon_core.environment:create_file_with_runtime_dependencies(/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/colcon-core/packages/tensorrt_detect)
+[14.058s] Level 1:colcon.colcon_core.environment:create_environment_scripts_only(tensorrt_detect)
+[14.058s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect' for CMake module files
+[14.059s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect' for CMake config files
+[14.059s] Level 1:colcon.colcon_core.shell:create_environment_hook('tensorrt_detect', 'cmake_prefix_path')
+[14.059s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/hook/cmake_prefix_path.ps1'
+[14.059s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/hook/cmake_prefix_path.dsv'
+[14.059s] INFO:colcon.colcon_core.shell:Creating environment hook '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/hook/cmake_prefix_path.sh'
+[14.060s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib'
+[14.060s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/bin'
+[14.060s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/pkgconfig/tensorrt_detect.pc'
+[14.060s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/python3.12/site-packages'
+[14.060s] Level 1:colcon.colcon_core.environment:checking '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/bin'
+[14.060s] INFO:colcon.colcon_core.shell:Creating package script '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/package.ps1'
+[14.060s] INFO:colcon.colcon_core.shell:Creating package descriptor '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/package.dsv'
+[14.060s] INFO:colcon.colcon_core.shell:Creating package script '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/package.sh'
+[14.061s] INFO:colcon.colcon_core.shell:Creating package script '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/package.bash'
+[14.061s] INFO:colcon.colcon_core.shell:Creating package script '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/package.zsh'
+[14.061s] Level 1:colcon.colcon_core.environment:create_file_with_runtime_dependencies(/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/colcon-core/packages/tensorrt_detect)
+[14.061s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:closing loop
+[14.061s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:loop closed
+[14.061s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:run_until_complete finished with '0'
+[14.061s] DEBUG:colcon.colcon_core.event_reactor:joining thread
+[14.064s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_notification.desktop_notification.terminal_notifier': Not used on non-Darwin systems
+[14.064s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_notification.desktop_notification.win32': Not used on non-Windows systems
+[14.065s] INFO:colcon.colcon_notification.desktop_notification:Sending desktop notification using 'notify2'
+[14.074s] DEBUG:colcon.colcon_core.event_reactor:joined thread
+[14.074s] INFO:colcon.colcon_core.shell:Creating prefix script '/home/delphine/rm/tensorrt10_detect/install/local_setup.ps1'
+[14.075s] INFO:colcon.colcon_core.shell:Creating prefix util module '/home/delphine/rm/tensorrt10_detect/install/_local_setup_util_ps1.py'
+[14.075s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/home/delphine/rm/tensorrt10_detect/install/setup.ps1'
+[14.076s] INFO:colcon.colcon_core.shell:Creating prefix script '/home/delphine/rm/tensorrt10_detect/install/local_setup.sh'
+[14.076s] INFO:colcon.colcon_core.shell:Creating prefix util module '/home/delphine/rm/tensorrt10_detect/install/_local_setup_util_sh.py'
+[14.076s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/home/delphine/rm/tensorrt10_detect/install/setup.sh'
+[14.077s] INFO:colcon.colcon_core.shell:Creating prefix script '/home/delphine/rm/tensorrt10_detect/install/local_setup.bash'
+[14.077s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/home/delphine/rm/tensorrt10_detect/install/setup.bash'
+[14.077s] INFO:colcon.colcon_core.shell:Creating prefix script '/home/delphine/rm/tensorrt10_detect/install/local_setup.zsh'
+[14.078s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/home/delphine/rm/tensorrt10_detect/install/setup.zsh'

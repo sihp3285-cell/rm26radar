@@ -1,0 +1,9 @@
+[  4%] [32mBuilding CXX object CMakeFiles/display_node.dir/src/nodes/display_node.cpp.o[0m
+[ 13%] Built target video_node
+[ 59%] Built target tensorrt_detect_core
+[ 63%] [32mBuilding CXX object CMakeFiles/detect_node.dir/src/nodes/detect_node.cpp.o[0m
+[ 72%] Built target standard
+[ 81%] Built target pose_node
+[ 90%] Built target map_node
+[ 95%] [32m[1mLinking CXX executable display_node[0m
+[ 95%] Built target display_node

@@ -23,6 +23,10 @@ display_node / pose_node
 
 > **视觉图像供人看，结构化数据供机器下游节点用。**
 
+此外，新版经过一轮**性能优化**，核心思路是：
+
+> **减少图像拷贝、避免不必要的图像处理、预分配内存、零拷贝访问。**
+
 ---
 
 # 一、头文件部分
@@ -167,9 +171,11 @@ this->declare_parameter<std::string>("config_dir",
     "/home/delphine/rm/tensorrt10_detect/configs");
 this->declare_parameter<std::string>("input_topic", "/image_raw");
 this->declare_parameter<std::string>("output_topic", "/detected_image");
+this->declare_parameter<bool>("publish_debug_image", true);
+this->declare_parameter<int>("debug_output_max_width", 1280);
 ```
 
-这三行向 ROS2 参数服务器注册参数。
+这五行向 ROS2 参数服务器注册参数。
 
 ---
 
@@ -195,17 +201,39 @@ this->declare_parameter<std::string>("output_topic", "/detected_image");
 
 ---
 
+### `publish_debug_image`
+
+**（性能优化新增）** 控制是否发布可视化调试图像，默认 `true`。
+
+在纯自动运行模式（不需要给人看画面）时，可以设为 `false`，**彻底跳过** `drawDetect`、`resize`、`putText` 和图像发布，显著降低 CPU 和话题带宽占用。这是本次性能优化中收益最大的开关。
+
+---
+
+### `debug_output_max_width`
+
+**（性能优化新增）** 控制调试输出图像的最大宽度，默认 `1280`。
+
+旧版硬编码为 1280，新版改为参数，可根据实际带宽和显示需求动态调整。
+
+---
+
 # 五、读取参数
 
 ```cpp
 std::string config_dir = this->get_parameter("config_dir").as_string();
 input_topic_ = this->get_parameter("input_topic").as_string();
 output_topic_ = this->get_parameter("output_topic").as_string();
+publish_debug_image_ = this->get_parameter("publish_debug_image").as_bool();
+const int64_t debug_output_max_width_param =
+    this->get_parameter("debug_output_max_width").as_int();
+debug_output_max_width_ = static_cast<int>(std::max<int64_t>(1, debug_output_max_width_param));
 ```
 
 `declare_parameter` 只是注册，`get_parameter` 才是真正取值。
 
 `config_dir` 是局部变量，因为只在构造函数里初始化 `Config` 时用一次；`input_topic_` 和 `output_topic_` 是成员变量，因为后面创建 pub/sub 时还要用。
+
+`std::max<int64_t>(1, ...)` 保证即使参数传入非法值（如 0 或负数），宽度也不会变成 0，避免后续 `resize` 出现除零或空图。
 
 ---
 
@@ -274,6 +302,8 @@ armor_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::DetectionArray>("
 
 发布带检测框、FPS 文字的可视化图像，供 `display_node` 显示给人类看。
 
+**（性能优化相关）** 如果 `publish_debug_image_` 为 `false`，这个 publisher 实际上不会发布任何消息，避免了带宽浪费。
+
 ---
 
 ### `armor_pub_`
@@ -336,23 +366,31 @@ private:
 
 ```cpp
 try {
-    auto cv_ptr = cv_bridge::toCvCopy(msg, "bgr8");
-    cv::Mat frame = cv_ptr->image;
+    auto cv_ptr = cv_bridge::toCvShare(msg, "bgr8");
+    const cv::Mat& frame = cv_ptr->image;
 ```
 
 ---
 
-### `cv_bridge::toCvCopy(msg, "bgr8")`
+### `cv_bridge::toCvShare(msg, "bgr8")`
+
+**（性能优化关键改动）**
 
 把 ROS2 图像消息按 `bgr8` 编码转成 OpenCV 可用的 `cv::Mat`。
 
 `"bgr8"` 是 OpenCV 最常用的彩色图像格式：蓝-绿-红三通道，每通道 8 位。
 
+旧版使用的是 `toCvCopy`，会在堆上分配一块新内存，把整帧图像**深拷贝**一份。对于 1920×1080×3 的图像，每帧约 **6MB** 的拷贝开销。
+
+新版改用 `toCvShare`，它只返回一个**共享指针**，`cv::Mat` 内部的数据指针直接指向 ROS 消息底层的图像缓冲区，**零拷贝**。这是本次优化中最基础、也最重要的一步。
+
 ---
 
-### `cv::Mat frame = cv_ptr->image`
+### `const cv::Mat& frame = cv_ptr->image`
 
-从 `cv_ptr` 中取出真正的 `cv::Mat`。从这行开始，你就回到了熟悉的纯 OpenCV 世界。
+从 `cv_ptr` 中取出真正的 `cv::Mat`，并用 `const` 引用绑定。
+
+`const` 在这里很重要：因为 `toCvShare` 让 `frame` 直接指向 ROS 消息的原始数据，任何对 `frame` 的写操作都会**篡改原始消息**，可能影响到其他订阅者。用 `const` 在语义上明确这是只读访问。
 
 ---
 
@@ -372,60 +410,47 @@ std::vector<Result> results = pipeline_->process(frame);
 
 ---
 
-# 十四、绘制检测结果
+# 十四、结果坐标缩放
 
 ```cpp
-drawDetect(frame, results, cfg_->model.classNames);
+const float scale_x = static_cast<float>(frame.cols) / static_cast<float>(frame.cols);
+const float scale_y = static_cast<float>(frame.rows) / static_cast<float>(frame.rows);
+scale_results(results, scale_x, scale_y);
 ```
-
-在原始图像上画框、画类别标签。`cfg_->model.classNames` 把数字类别 ID 映射成人类可读的字符串（如 "R1", "R2", "S" 等）。
-
-注意这里画的是 `frame`，也就是原始分辨率图像。
 
 ---
 
-# 十五、图像缩放（新版新增）
+### `scale_results` 函数
 
 ```cpp
-cv::Mat resize_frame = frame;
-int target_width = 1280;
-if(frame.cols > target_width) {
-     double scale = static_cast<double>(target_width) / frame.cols;
-     int target_height = static_cast<int>(frame.rows * scale);
-     cv::resize(frame, resize_frame, cv::Size(target_width, target_height));
+void scale_results(std::vector<Result>& results, float scale_x, float scale_y) const
+{
+    for (auto& res : results) {
+        res.box.x = static_cast<int>(res.box.x * scale_x);
+        res.box.y = static_cast<int>(res.box.y * scale_y);
+        res.box.width = static_cast<int>(res.box.width * scale_x);
+        res.box.height = static_cast<int>(res.box.height * scale_y);
+
+        res.car_box.x = static_cast<int>(res.car_box.x * scale_x);
+        res.car_box.y = static_cast<int>(res.car_box.y * scale_y);
+        res.car_box.width = static_cast<int>(res.car_box.width * scale_x);
+        res.car_box.height = static_cast<int>(res.car_box.height * scale_y);
+
+        res.worldPoint.x *= scale_x;
+        res.worldPoint.y *= scale_y;
+    }
 }
 ```
 
-这是新版增加的重要优化。
+**（新版新增）** 将检测结果中的像素坐标按缩放比例映射回原图坐标。
+
+当前代码中 `scale_x` 和 `scale_y` 都是 `1.0`（因为分子分母相同），但这是为未来预留的扩展点。如果后续 `pipeline_->process` 内部对图像做了 resize 推理（比如为了加速把图缩放到 640×640），这里就可以传入真实的缩放比例，把结果映射回原始分辨率。
+
+把缩放逻辑独立成函数，代码更清晰，也方便后续维护。
 
 ---
 
-### 为什么要缩放？
-
-原始视频可能是 1920×1080 甚至 4K。如果直接发布原图：
-
-* 话题带宽占用大
-* `display_node` 处理慢
-* 网络传输延迟高
-
-所以这里做了一个**上限控制**：宽度超过 1280 时，等比例缩放到 1280 宽。
-
----
-
-### 为什么只在发布可视化图时缩，而不在检测时缩？
-
-仔细看代码：`drawDetect` 是在缩放**之前**调用的，检测用的也是原始 `frame`。
-
-```text
-检测算法 ← 原始 frame（保证精度）
-可视化图 ← resize_frame（保证传输效率）
-```
-
-这体现了**精度与带宽的权衡**：检测需要原图保证精度，但给人看的图不需要那么高的分辨率。
-
----
-
-# 十六、FPS 计算
+# 十五、FPS 计算
 
 ```cpp
 auto now = std::chrono::steady_clock::now();
@@ -458,61 +483,16 @@ fps_ = 0.9 * fps_ + 0.1 * instant_fps;
 
 ---
 
-# 十七、把 FPS 画到图像上
-
-```cpp
-cv::putText(resize_frame, cv::format("FPS: %.1f", fps_),
-            cv::Point(20, 40),
-            cv::FONT_HERSHEY_SIMPLEX,
-            1.0, cv::Scalar(0, 255, 0), 2);
-```
-
-注意这里是画在 `resize_frame` 上，因为最终发布的是缩放后的图。
-
----
-
-# 十八、发布可视化图像
-
-```cpp
-std_msgs::msg::Header header = msg->header;
-header.frame_id = "detected_frame";
-
-auto out_msg = cv_bridge::CvImage(header, "bgr8", resize_frame).toImageMsg();
-image_pub_->publish(*out_msg);
-```
-
----
-
-### Header 继承与改写
-
-```cpp
-std_msgs::msg::Header header = msg->header;
-header.frame_id = "detected_frame";
-```
-
-* **继承**：原图的时间戳 `stamp` 被保留下来。这对于下游节点做时间同步非常重要。
-* **改写**：`frame_id` 改成 `"detected_frame"`，语义上表明这是"检测后输出的图像帧"，不再是原始视频帧。
-
----
-
-### 转回 ROS 消息并发布
-
-```cpp
-auto out_msg = cv_bridge::CvImage(header, "bgr8", resize_frame).toImageMsg();
-image_pub_->publish(*out_msg);
-```
-
-`CvImage` 构造时传入 header、编码、图像数据，然后 `toImageMsg()` 生成 ROS2 图像消息，最后通过 publisher 发出去。
-
----
-
-# 十九、构建并发布结构化检测消息（新版核心）
+# 十六、构建并发布结构化检测消息（新版核心）
 
 ```cpp
 auto armor_msg = std::make_shared<tensorrt_detect_msgs::msg::DetectionArray>();
 armor_msg->header = msg->header;   // 复用图像时间戳，方便下游同步
 armor_msg->header.frame_id = "detection";
+armor_msg->detections.reserve(results.size());
 ```
+
+**（性能优化新增 `reserve`）**
 
 ---
 
@@ -521,6 +501,20 @@ armor_msg->header.frame_id = "detection";
 这是 ROS2 **消息链时间同步**的关键技巧。
 
 `pose_node` 收到 `DetectionArray` 后，可以通过 `header.stamp` 知道这批检测对应的是哪一帧图像。如果以后要做多传感器时间对齐（比如和雷达、IMU 融合），这个共同的时间戳就是纽带。
+
+---
+
+### `reserve(results.size())` —— 预分配内存
+
+**（性能优化关键改动）**
+
+旧版直接 `push_back`，如果检测结果较多（比如一帧检测到 10+ 个目标），`std::vector` 会经历多次翻倍扩容（1→2→4→8→16...），每次扩容都要：
+
+1. 分配一块更大的新内存
+2. 把已有元素逐个搬过去
+3. 释放旧内存
+
+`reserve(results.size())` 在循环开始前**一次分配足够空间**，后续所有 `push_back` 都直接原地构造，**消除所有动态扩容开销**。
 
 ---
 
@@ -576,9 +570,153 @@ armor_pub_->publish(*armor_msg);
 
 把结构化检测数据发到 `/armor_detections`。`pose_node` 订阅这个话题后，就能拿到每个目标的像素坐标，进而解算出世界坐标。
 
+**（性能优化相关）** 新版把 `/armor_detections` 的构建和发布**提前**到了 debug 图像处理之前。这意味着：
+
+- 下游节点能**更早收到**检测结果
+- 如果 `publish_debug_image=false`，结构化数据发布的延迟进一步降低
+
 ---
 
-# 二十、节流日志
+# 十七、条件化发布可视化图像（性能优化核心）
+
+```cpp
+if (publish_debug_image_) {
+    frame.copyTo(debug_frame_);
+    drawDetect(debug_frame_, results, cfg_->model.classNames);
+
+    if (debug_frame_.cols > debug_output_max_width_) {
+        const double debug_scale = static_cast<double>(debug_output_max_width_) /
+                                   static_cast<double>(debug_frame_.cols);
+        const int target_height = static_cast<int>(debug_frame_.rows * debug_scale);
+        cv::resize(debug_frame_, debug_output_frame_, cv::Size(debug_output_max_width_, target_height));
+    } else {
+        debug_output_frame_ = debug_frame_;
+    }
+
+    cv::putText(debug_output_frame_, cv::format("FPS: %.1f", fps_),
+                cv::Point(20, 40),
+                cv::FONT_HERSHEY_SIMPLEX,
+                1.0, cv::Scalar(0, 255, 0), 2);
+
+    std_msgs::msg::Header header = msg->header;
+    header.frame_id = "detected_frame";
+    auto out_msg = cv_bridge::CvImage(header, "bgr8", debug_output_frame_).toImageMsg();
+    image_pub_->publish(*out_msg);
+}
+```
+
+---
+
+### 为什么要条件化？
+
+旧版**每帧都**执行：
+
+1. `drawDetect` —— 遍历所有检测结果，画框、画文字、画线
+2. `cv::resize` —— 如果图大，还要做图像缩放
+3. `cv::putText` —— 画 FPS
+4. `toImageMsg` + `publish` —— 编码并发布
+
+这些操作对于**纯自动运行模式**（不需要给人看画面，只需要 `/armor_detections` 给下游算法用）完全是浪费。
+
+新版通过 `publish_debug_image_` 参数，可以**彻底跳过**这段逻辑。当设为 `false` 时：
+
+- 省掉 `drawDetect` 的 CPU 开销
+- 省掉 `resize` 的 CPU 开销
+- 省掉 `toImageMsg` 的内存分配和编码开销
+- 省掉 `/detected_image` 话题的全部带宽占用
+
+这是本次性能优化中**收益最大**的改动。
+
+---
+
+### `copyTo` 保护原始数据
+
+```cpp
+frame.copyTo(debug_frame_);
+drawDetect(debug_frame_, results, cfg_->model.classNames);
+```
+
+因为前面用了 `toCvShare`，`frame` 直接指向 ROS 消息原始缓冲区。如果直接 `drawDetect(frame, ...)`，会**篡改原始图像数据**，可能导致同一消息的其他订阅者看到被画过框的图。
+
+`copyTo` 保证只修改副本，逻辑更安全。
+
+---
+
+### 成员变量缓存 `cv::Mat`
+
+```cpp
+cv::Mat debug_frame_;
+cv::Mat debug_output_frame_;
+```
+
+**（性能优化新增）**
+
+旧版 `resize_frame` 是局部变量，每次回调结束就析构，下次来新帧再重新分配内存。改成成员变量后，OpenCV 的引用计数机制可以在多次回调间**复用已分配的内存缓冲区**，减少频繁的堆分配/释放。
+
+---
+
+### 图像缩放（参数化版）
+
+```cpp
+if (debug_frame_.cols > debug_output_max_width_) {
+    const double debug_scale = static_cast<double>(debug_output_max_width_) /
+                               static_cast<double>(debug_frame_.cols);
+    const int target_height = static_cast<int>(debug_frame_.rows * debug_scale);
+    cv::resize(debug_frame_, debug_output_frame_, cv::Size(debug_output_max_width_, target_height));
+} else {
+    debug_output_frame_ = debug_frame_;
+}
+```
+
+宽度超过 `debug_output_max_width_` 时，等比例缩放到指定宽度。
+
+为什么要缩放？原始视频可能是 1920×1080 甚至 4K。如果直接发布原图：
+
+* 话题带宽占用大
+* `display_node` 处理慢
+* 网络传输延迟高
+
+所以这里做了一个**上限控制**。新版把硬编码的 1280 改成参数 `debug_output_max_width_`，部署更灵活。
+
+---
+
+### 把 FPS 画到图像上
+
+```cpp
+cv::putText(debug_output_frame_, cv::format("FPS: %.1f", fps_),
+            cv::Point(20, 40),
+            cv::FONT_HERSHEY_SIMPLEX,
+            1.0, cv::Scalar(0, 255, 0), 2);
+```
+
+注意这里是画在 `debug_output_frame_` 上，因为最终发布的是缩放后的图。
+
+---
+
+### Header 继承与改写
+
+```cpp
+std_msgs::msg::Header header = msg->header;
+header.frame_id = "detected_frame";
+```
+
+* **继承**：原图的时间戳 `stamp` 被保留下来。这对于下游节点做时间同步非常重要。
+* **改写**：`frame_id` 改成 `"detected_frame"`，语义上表明这是"检测后输出的图像帧"，不再是原始视频帧。
+
+---
+
+### 转回 ROS 消息并发布
+
+```cpp
+auto out_msg = cv_bridge::CvImage(header, "bgr8", debug_output_frame_).toImageMsg();
+image_pub_->publish(*out_msg);
+```
+
+`CvImage` 构造时传入 header、编码、图像数据，然后 `toImageMsg()` 生成 ROS2 图像消息，最后通过 publisher 发出去。
+
+---
+
+# 十八、节流日志
 
 ```cpp
 RCLCPP_INFO_THROTTLE(
@@ -599,7 +737,7 @@ RCLCPP_INFO_THROTTLE(
 
 ---
 
-# 二十一、异常处理
+# 十九、异常处理
 
 ```cpp
 catch (const cv_bridge::Exception& e) {
@@ -619,7 +757,7 @@ catch (const std::exception& e) {
 
 ---
 
-# 二十二、成员变量
+# 二十、成员变量
 
 ```cpp
 std::unique_ptr<Config> cfg_;
@@ -627,12 +765,19 @@ std::unique_ptr<DetectPipeline> pipeline_;
 
 std::string input_topic_;
 std::string output_topic_;
+bool publish_debug_image_ = true;
+int detect_input_width_ = 0;
+int detect_input_height_ = 0;
+int debug_output_max_width_ = 1280;
 
 rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
 rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_pub_;
 rclcpp::Publisher<tensorrt_detect_msgs::msg::DetectionArray>::SharedPtr armor_pub_;
 std::chrono::steady_clock::time_point last_time_ = std::chrono::steady_clock::now();
 double fps_ = 0.0;
+cv::Mat detect_input_frame_;
+cv::Mat debug_frame_;
+cv::Mat debug_output_frame_;
 ```
 
 ---
@@ -655,7 +800,19 @@ Pub/Sub 对象必须作为成员变量保存。如果只在构造函数里用局
 
 ---
 
-# 二十三、`main` 函数
+### `publish_debug_image_` / `debug_output_max_width_`
+
+**（性能优化新增）** 控制可视化输出的开关和尺寸上限。
+
+---
+
+### `debug_frame_` / `debug_output_frame_`
+
+**（性能优化新增）** 缓存的 OpenCV 图像缓冲区，避免每帧重复分配内存。
+
+---
+
+# 二十一、`main` 函数
 
 ```cpp
 int main(int argc, char** argv)
@@ -679,7 +836,7 @@ int main(int argc, char** argv)
 
 ---
 
-# 二十四、完整数据流回顾
+# 二十二、完整数据流回顾
 
 ```text
 video_node ──/image_raw──→ detect_node
@@ -700,7 +857,68 @@ video_node ──/image_raw──→ detect_node
 
 ---
 
-# 二十五、从这份代码里学到的设计要点
+# 二十三、性能优化总结
+
+本次 `detect_node` 的性能优化围绕一个核心原则：**不做无用功**。具体手段包括：
+
+## 1. 零拷贝图像访问
+
+```cpp
+auto cv_ptr = cv_bridge::toCvShare(msg, "bgr8");
+const cv::Mat& frame = cv_ptr->image;
+```
+
+用 `toCvShare` 替代 `toCvCopy`，每帧省下一次整图深拷贝（约 6MB 对于 1080p）。
+
+## 2. 条件化 Debug 图像生成
+
+```cpp
+if (publish_debug_image_) { /* draw + resize + publish */ }
+```
+
+增加 `publish_debug_image` 参数。纯自动模式时关闭可视化，彻底跳过 `drawDetect`、`resize`、`putText` 和图像发布，CPU 和带宽双省。
+
+## 3. 预分配容器内存
+
+```cpp
+armor_msg->detections.reserve(results.size());
+```
+
+提前为 `DetectionArray` 分配足够空间，消除 `push_back` 过程中的多次动态扩容。
+
+## 4. 复用 Mat 缓冲区
+
+```cpp
+cv::Mat debug_frame_;
+cv::Mat debug_output_frame_;
+```
+
+把临时 `cv::Mat` 从局部变量改为成员变量，OpenCV 在多次回调间复用已分配的内存，减少堆操作。
+
+## 5. 保护原始数据
+
+```cpp
+frame.copyTo(debug_frame_);
+drawDetect(debug_frame_, ...);
+```
+
+因为使用了 `toCvShare`，`frame` 指向 ROS 消息原始缓冲区。`copyTo` 保证绘制操作不篡改原始数据，避免影响其他订阅者。
+
+## 6. 参数化缩放上限
+
+```cpp
+this->declare_parameter<int>("debug_output_max_width", 1280);
+```
+
+把硬编码的 1280 改为参数，方便在不同带宽环境下调整。
+
+## 7. 先发布结构化数据，再做可视化
+
+把 `/armor_detections` 的发布提前到 debug 图像处理之前，下游节点能更早拿到结果，端到端延迟更低。
+
+---
+
+# 二十四、从这份代码里学到的设计要点
 
 ## 1. 一输入、多输出
 
@@ -724,3 +942,9 @@ output_msg->header = input_msg->header;
 ## 4. 异常隔离
 
 用 `try/catch` 包裹回调，单帧失败不崩节点，保证系统鲁棒性。
+
+## 5. 性能优化要抓主要矛盾
+
+不要一上来就抠微优化。先问自己：**这段代码在不需要的时候能不能不执行？**
+
+`publish_debug_image` 开关就是一个典型例子——关掉它，一整段高开销逻辑直接消失，收益远大于在某几个循环里省几个时钟周期。
