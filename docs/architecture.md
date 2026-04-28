@@ -290,14 +290,54 @@ float red3_x = msg.red_x[2];
 ```python
 from launch import LaunchDescription
 from launch_ros.actions import Node
+from launch.substitutions import PathJoinSubstitution
+from launch_ros.substitutions import FindPackageShare
+
 
 def generate_launch_description():
+    # 使用 FindPackageShare 自动定位参数文件，不依赖绝对路径
+    params_file = PathJoinSubstitution([
+        FindPackageShare('tensorrt_detect'),
+        'config',
+        'ros2_params.yaml',
+    ])
+
     return LaunchDescription([
-        Node(package='tensorrt_detect', executable='video_node', ...),
-        Node(package='tensorrt_detect', executable='detect_node', ...),
-        Node(package='tensorrt_detect', executable='display_node', ...),
-        Node(package='tensorrt_detect', executable='pose_node', ...),
-        Node(package='tensorrt_detect', executable='map_node', ...),
+        Node(
+            package='tensorrt_detect',
+            executable='video_node',
+            name='video_node',
+            output='screen',
+            parameters=[params_file],
+        ),
+        Node(
+            package='tensorrt_detect',
+            executable='detect_node',
+            name='detect_node',
+            output='screen',
+            parameters=[params_file],
+        ),
+        Node(
+            package='tensorrt_detect',
+            executable='display_node',
+            name='display_node',
+            output='screen',
+            parameters=[params_file],
+        ),
+        Node(
+            package='tensorrt_detect',
+            executable='pose_node',
+            name='pose_node',
+            output='screen',
+            parameters=[params_file],
+        ),
+        Node(
+            package='tensorrt_detect',
+            executable='map_node',
+            name='map_node',
+            output='screen',
+            parameters=[params_file],
+        ),
     ])
 ```
 
@@ -317,25 +357,27 @@ ros2 launch tensorrt_detect detect_pipeline.launch.py
 
 ## 5.2 参数集中配置
 
-launch 文件里，每个节点的 `parameters=[{...}]` 把参数和代码分离：
+launch 文件里，通过 `parameters=[params_file]` 把参数集中到外部 YAML 文件管理，实现参数与代码的完全分离：
 
-```python
-Node(
-    package='tensorrt_detect',
-    executable='detect_node',
-    parameters=[{
-        'config_dir': '/home/delphine/rm/tensorrt10_detect/configs',
-        'input_topic': '/image_raw',
-        'output_topic': '/detected_image',
-    }],
-)
+```yaml
+# ros2_params.yaml
+detect_node:
+  ros__parameters:
+    config_dir: "/home/delphine/rm/tensorrt10_detect/configs"
+    input_topic: "/image_raw"
+    output_topic: "/detected_image"
+    publish_debug_image: true
+    debug_output_max_width: 1280
 ```
 
 这意味着：
 
-* 换视频源 → 改 launch 文件里的 `video_path`，不用改代码
-* 换话题名 → 改 launch 文件里的 `topic` 参数，不用改代码
-* 换配置目录 → 改 launch 文件里的 `config_dir`，不用改代码
+* 换视频源 → 改 `ros2_params.yaml` 里的 `video_path`，不用改代码
+* 换话题名 → 改 `ros2_params.yaml` 里的 `topic` 参数，不用改代码
+* 换配置目录 → 改 `ros2_params.yaml` 里的 `config_dir`，不用改代码
+* 改完参数后重新 `colcon build` 即可生效
+
+此外，`FindPackageShare('tensorrt_detect')` 会自动从 `ament` 包索引中找到包的安装位置，无论项目被克隆到哪个目录都能正确加载参数文件，避免了硬编码绝对路径的维护负担。
 
 ---
 

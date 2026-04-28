@@ -16,14 +16,6 @@ detect_node:
     publish_debug_image: true
     debug_output_max_width: 1280
 
-display_node:
-  ros__parameters:
-    topic: "/detected_image"
-    window_name: "Video & Radar"
-    window_width: 1920
-    window_height: 720
-    map_topic: "/map_image"
-
 pose_node:
   ros__parameters:
     config_dir: "/home/delphine/rm/tensorrt10_detect/configs"
@@ -36,3 +28,9 @@ map_node:
     input_topic: "/world_targets"
     output_image_topic: "/map_image"
     output_map_topic: "/radar_map"
+
+qt_display_node:
+  ros__parameters:
+    config_dir: "/home/delphine/rm/tensorrt10_detect/configs"
+    video_topic: "/detected_image"
+    radar_map_topic: "/radar_map"

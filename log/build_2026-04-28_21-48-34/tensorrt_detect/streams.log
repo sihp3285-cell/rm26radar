@@ -1,0 +1,56 @@
+[0.009s] Invoking command in '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect': CMAKE_PREFIX_PATH=/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect:/opt/ros/jazzy/opt/gz_math_vendor:/opt/ros/jazzy/opt/gz_utils_vendor:/opt/ros/jazzy/opt/gz_cmake_vendor:/opt/ros/jazzy CONDA_PROMPT_MODIFIER=(base) DEBUGINFOD_URLS=https://debuginfod.ubuntu.com LD_LIBRARY_PATH=/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/ros/jazzy/opt/rviz_ogre_vendor/lib:/opt/ros/jazzy/lib/x86_64-linux-gnu:/opt/ros/jazzy/opt/gz_math_vendor/lib:/opt/ros/jazzy/opt/gz_utils_vendor/lib:/opt/ros/jazzy/opt/gz_cmake_vendor/lib:/opt/ros/jazzy/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/TensorRT/TensorRT-10.2.0/lib:/usr/local/cuda-12.6/lib64:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32 PYTHONPATH=/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages:${PYTHONPATH} /usr/bin/cmake --build /home/delphine/rm/tensorrt10_detect/build/tensorrt_detect -- -j20 -l20
+[0.063s] [  0%] Built target video_node_autogen_timestamp_deps
+[0.065s] [  0%] Built target tensorrt_detect_core_autogen_timestamp_deps
+[0.095s] [  2%] Built target video_node_autogen
+[0.116s] [  5%] Automatic MOC and UIC for target tensorrt_detect_core
+[0.124s] [ 13%] Built target video_node
+[0.141s] [ 13%] Built target tensorrt_detect_core_autogen
+[0.173s] [ 44%] Built target tensorrt_detect_core
+[0.191s] [ 44%] Built target standard_autogen_timestamp_deps
+[0.192s] [ 44%] Built target pose_node_autogen_timestamp_deps
+[0.193s] [ 44%] Built target qt_display_node_autogen_timestamp_deps
+[0.193s] [ 44%] Built target map_node_autogen_timestamp_deps
+[0.193s] [ 44%] Built target detect_node_autogen_timestamp_deps
+[0.226s] [ 47%] Built target pose_node_autogen
+[0.229s] [ 50%] Built target detect_node_autogen
+[0.229s] [ 52%] Built target map_node_autogen
+[0.231s] [ 58%] Built target standard_autogen
+[0.231s] [ 58%] Automatic MOC and UIC for target qt_display_node
+[0.251s] [ 66%] Built target pose_node
+[0.255s] [ 75%] Built target standard
+[0.255s] [ 69%] Built target qt_display_node_autogen
+[0.258s] [ 83%] Built target detect_node
+[0.262s] [ 91%] Built target map_node
+[0.288s] [ 94%] Building CXX object CMakeFiles/qt_display_node.dir/src/nodes/qt_display_node.cpp.o
+[19.774s] [ 97%] Linking CXX executable qt_display_node
+[20.578s] [100%] Built target qt_display_node
+[20.590s] Invoked command in '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect' returned '0': CMAKE_PREFIX_PATH=/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect:/opt/ros/jazzy/opt/gz_math_vendor:/opt/ros/jazzy/opt/gz_utils_vendor:/opt/ros/jazzy/opt/gz_cmake_vendor:/opt/ros/jazzy CONDA_PROMPT_MODIFIER=(base) DEBUGINFOD_URLS=https://debuginfod.ubuntu.com LD_LIBRARY_PATH=/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/ros/jazzy/opt/rviz_ogre_vendor/lib:/opt/ros/jazzy/lib/x86_64-linux-gnu:/opt/ros/jazzy/opt/gz_math_vendor/lib:/opt/ros/jazzy/opt/gz_utils_vendor/lib:/opt/ros/jazzy/opt/gz_cmake_vendor/lib:/opt/ros/jazzy/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/TensorRT/TensorRT-10.2.0/lib:/usr/local/cuda-12.6/lib64:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32 PYTHONPATH=/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages:${PYTHONPATH} /usr/bin/cmake --build /home/delphine/rm/tensorrt10_detect/build/tensorrt_detect -- -j20 -l20
+[20.591s] Invoking command in '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect': CMAKE_PREFIX_PATH=/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect:/opt/ros/jazzy/opt/gz_math_vendor:/opt/ros/jazzy/opt/gz_utils_vendor:/opt/ros/jazzy/opt/gz_cmake_vendor:/opt/ros/jazzy CONDA_PROMPT_MODIFIER=(base) DEBUGINFOD_URLS=https://debuginfod.ubuntu.com LD_LIBRARY_PATH=/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/ros/jazzy/opt/rviz_ogre_vendor/lib:/opt/ros/jazzy/lib/x86_64-linux-gnu:/opt/ros/jazzy/opt/gz_math_vendor/lib:/opt/ros/jazzy/opt/gz_utils_vendor/lib:/opt/ros/jazzy/opt/gz_cmake_vendor/lib:/opt/ros/jazzy/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/TensorRT/TensorRT-10.2.0/lib:/usr/local/cuda-12.6/lib64:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32 PYTHONPATH=/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages:${PYTHONPATH} /usr/bin/cmake --install /home/delphine/rm/tensorrt10_detect/build/tensorrt_detect
+[20.601s] -- Install configuration: "RelWithDebInfo"
+[20.601s] -- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/standard
+[20.602s] -- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/detect_node
+[20.602s] -- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/video_node
+[20.602s] -- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/pose_node
+[20.602s] -- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/map_node
+[20.602s] -- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/qt_display_node
+[20.615s] -- Set non-toolchain portion of runtime path of "/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/qt_display_node" to "/home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/lib:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/ros/jazzy/lib:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/home/delphine/miniconda3/lib"
+[20.615s] -- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/launch
+[20.615s] -- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/launch/detect_pipeline.launch.py
+[20.615s] -- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/config
+[20.615s] -- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/config/ros2_params.yaml
+[20.615s] -- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/ament_index/resource_index/package_run_dependencies/tensorrt_detect
+[20.615s] -- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/ament_index/resource_index/parent_prefix_path/tensorrt_detect
+[20.615s] -- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/environment/ament_prefix_path.sh
+[20.615s] -- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/environment/ament_prefix_path.dsv
+[20.615s] -- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/environment/path.sh
+[20.615s] -- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/environment/path.dsv
+[20.615s] -- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/local_setup.bash
+[20.616s] -- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/local_setup.sh
+[20.616s] -- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/local_setup.zsh
+[20.616s] -- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/local_setup.dsv
+[20.616s] -- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/package.dsv
+[20.616s] -- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/ament_index/resource_index/packages/tensorrt_detect
+[20.616s] -- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/cmake/tensorrt_detectConfig.cmake
+[20.616s] -- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/cmake/tensorrt_detectConfig-version.cmake
+[20.616s] -- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/package.xml
+[20.617s] Invoked command in '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect' returned '0': CMAKE_PREFIX_PATH=/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect:/opt/ros/jazzy/opt/gz_math_vendor:/opt/ros/jazzy/opt/gz_utils_vendor:/opt/ros/jazzy/opt/gz_cmake_vendor:/opt/ros/jazzy CONDA_PROMPT_MODIFIER=(base) DEBUGINFOD_URLS=https://debuginfod.ubuntu.com LD_LIBRARY_PATH=/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/ros/jazzy/opt/rviz_ogre_vendor/lib:/opt/ros/jazzy/lib/x86_64-linux-gnu:/opt/ros/jazzy/opt/gz_math_vendor/lib:/opt/ros/jazzy/opt/gz_utils_vendor/lib:/opt/ros/jazzy/opt/gz_cmake_vendor/lib:/opt/ros/jazzy/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/TensorRT/TensorRT-10.2.0/lib:/usr/local/cuda-12.6/lib64:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32 PYTHONPATH=/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages:${PYTHONPATH} /usr/bin/cmake --install /home/delphine/rm/tensorrt10_detect/build/tensorrt_detect

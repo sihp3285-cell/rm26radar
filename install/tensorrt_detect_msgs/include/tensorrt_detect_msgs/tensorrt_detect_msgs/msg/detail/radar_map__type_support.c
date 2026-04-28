@@ -4,10 +4,10 @@
 
 #include <string.h>
 
-#include "rosidl_typesupport_interface/macros.h"
-#include "tensorrt_detect_msgs/msg/detail/radar_map__struct.h"
 #include "tensorrt_detect_msgs/msg/detail/radar_map__type_support.h"
+#include "tensorrt_detect_msgs/msg/detail/radar_map__struct.h"
 #include "tensorrt_detect_msgs/msg/detail/radar_map__functions.h"
+#include "rosidl_typesupport_interface/macros.h"
 
 #ifdef __cplusplus
 extern "C"

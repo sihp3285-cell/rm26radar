@@ -466,9 +466,11 @@ void scale_results(std::vector<Result>& results, float scale_x, float scale_y) c
 
 **（新版新增）** 将检测结果中的像素坐标按缩放比例映射回原图坐标。
 
-当前代码中 `scale_x` 和 `scale_y` 都是 `1.0`（因为分子分母相同），但这是为未来预留的扩展点。如果后续 `pipeline_->process` 内部对图像做了 resize 推理（比如为了加速把图缩放到 640×640），这里就可以传入真实的缩放比例，把结果映射回原始分辨率。
+当前代码中 `scale_x` 和 `scale_y` 都是 `1.0`（分子分母相同），所以 `scale_results` 实际上是**空操作**。
 
-把缩放逻辑独立成函数，代码更清晰，也方便后续维护。
+原因是：`model.cpp` 的 `postprocessing()` 已经将检测结果通过 `rx`/`ry` 映射回了**原图坐标**。因此 `pipeline_->process(frame)` 返回的 `results` 已经是原图分辨率下的坐标，不需要再做额外缩放。
+
+> **注意**：这段代码可以视为历史遗留，后续可以清理掉。`scale_results` 函数本身的设计是合理的（如果检测在 resize 后的图像上进行，确实需要反缩放），但在当前实现中由于后处理已经做了映射，所以不再需要。
 
 ---
 

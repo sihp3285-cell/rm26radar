@@ -1,0 +1,903 @@
+[0.000000] (-) TimerEvent: {}
+[0.000204] (tensorrt_detect_msgs) JobQueued: {'identifier': 'tensorrt_detect_msgs', 'dependencies': OrderedDict()}
+[0.000523] (tensorrt_detect) JobQueued: {'identifier': 'tensorrt_detect', 'dependencies': OrderedDict({'tensorrt_detect_msgs': '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs'})}
+[0.000553] (tensorrt_detect_msgs) JobStarted: {'identifier': 'tensorrt_detect_msgs'}
+[0.010888] (tensorrt_detect_msgs) JobProgress: {'identifier': 'tensorrt_detect_msgs', 'progress': 'cmake'}
+[0.011612] (tensorrt_detect_msgs) Command: {'cmd': ['/usr/bin/cmake', '/home/delphine/rm/tensorrt10_detect/src/tensorrt_detect_msgs', '-DCMAKE_BUILD_TYPE=RelWithDebInfo', '-DCMAKE_INSTALL_PREFIX=/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs'], 'cwd': '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect_msgs', 'env': OrderedDict({'GJS_DEBUG_TOPICS': 'JS ERROR;JS LOG', 'LESSOPEN': '| /usr/bin/lesspipe %s', 'VSCODE_CWD': '/home/delphine', 'VSCODE_ESM_ENTRYPOINT': 'vs/workbench/api/node/extensionHostProcess', 'CONDA_PROMPT_MODIFIER': '(base)', 'TENSORRT_PATH': '/opt/TensorRT/TensorRT-10.2.0.19', '_PYI_ARCHIVE_FILE': '/home/delphine/.config/Code/User/globalStorage/moonshot-ai.kimi-code/bin/kimi/kimi', 'USER': 'delphine', 'SNAP_COMMON': '/var/snap/code/common', 'VSCODE_NLS_CONFIG': '{"userLocale":"zh-cn","osLocale":"zh-cn","resolvedLanguage":"zh-cn","defaultMessagesFile":"/snap/code/235/usr/share/code/resources/app/out/nls.messages.json","languagePack":{"translationsConfigFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/tcf.json","messagesFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/10c8e557c8b9f9ed0a87f61f1c9a44bde731c409/nls.messages.json","corruptMarkerFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/corrupted.info"},"locale":"zh-cn","availableLanguages":{"*":"zh-cn"},"_languagePackId":"b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn","_languagePackSupport":true,"_translationsConfigFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/tcf.json","_cacheRoot":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn","_resolvedLanguagePackCoreLocation":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/10c8e557c8b9f9ed0a87f61f1c9a44bde731c409","_corruptedFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/corrupted.info"}', 'FONTCONFIG_PATH': '/etc/fonts', 'GIO_MODULE_DIR': '/home/delphine/snap/code/common/.cache/gio-modules', 'VSCODE_HANDLES_UNCAUGHT_ERRORS': 'true', 'XDG_SESSION_TYPE': 'x11', 'ALLUSERSPROFILE': '/opt/MVS/MVFG', 'SNAP_UID': '1000', 'CLUTTER_DISABLE_MIPMAPPED_TEXT': '1', 'SHLVL': '1', 'LD_LIBRARY_PATH': '/opt/MVS/lib/64:/opt/MVS/lib/32:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/opt/ros/jazzy/opt/rviz_ogre_vendor/lib:/opt/ros/jazzy/lib/x86_64-linux-gnu:/opt/ros/jazzy/opt/gz_math_vendor/lib:/opt/ros/jazzy/opt/gz_utils_vendor/lib:/opt/ros/jazzy/opt/gz_cmake_vendor/lib:/opt/ros/jazzy/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/TensorRT/TensorRT-10.2.0/lib:/usr/local/cuda-12.6/lib64:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:', 'HOME': '/home/delphine', 'CHROME_DESKTOP': 'code.desktop', 'CONDA_SHLVL': '1', 'SNAP_LIBRARY_PATH': '/var/lib/snapd/lib/gl:/var/lib/snapd/lib/gl32', 'OLDPWD': '/home/delphine/rm/tensorrt10_detect', 'DESKTOP_SESSION': 'ubuntu', 'SNAP_USER_DATA': '/home/delphine/snap/code/235', 'GTK_PATH': '/snap/code/235/usr/lib/x86_64-linux-gnu/gtk-3.0', 'VSCODE_IPC_HOOK': '/run/user/1000/vscode-93a8e15f-1.11-main.sock', 'GTK_IM_MODULE_FILE': '/home/delphine/snap/code/common/.cache/immodules/immodules.cache', 'GIO_LAUNCHED_DESKTOP_FILE': '/var/lib/snapd/desktop/applications/code_code.desktop', 'ROS_PYTHON_VERSION': '3', 'GNOME_SHELL_SESSION_MODE': 'ubuntu', 'GTK_MODULES': 'gail:atk-bridge', 'SDL_IM_MODULE': 'fcitx', '_PYI_PARENT_PROCESS_LEVEL': '1', 'COPILOT_OTEL_FILE_EXPORTER_PATH': '/dev/null', 'MANAGERPID': '4603', 'SYSTEMD_EXEC_PID': '4987', 'GSM_SKIP_SSH_AGENT_WORKAROUND': 'true', 'DBUS_SESSION_BUS_ADDRESS': 'unix:path=/run/user/1000/bus', 'SNAP_REVISION': '235', '_CONDA_ROOT': '/home/delphine/miniconda3', 'GIO_LAUNCHED_DESKTOP_FILE_PID': '6982', 'VSCODE_CRASH_REPORTER_PROCESS_TYPE': 'extensionHost', 'DEBUGINFOD_URLS': 'https://debuginfod.ubuntu.com', 'IM_CONFIG_PHASE': '1', 'VSCODE_L10N_BUNDLE_LOCATION': 'file:///home/delphine/.vscode/extensions/ms-ceintl.vscode-language-pack-zh-hans-1.110.2026041514/translations/extensions/vscode.json-language-features.i18n.json', 'COLCON_PREFIX_PATH': '/home/delphine/rm/tensorrt10_detect/install', 'APPLICATION_INSIGHTS_NO_STATSBEAT': 'true', 'ROS_DISTRO': 'jazzy', 'GTK_IM_MODULE': 'fcitx', 'LOGNAME': 'delphine', 'LD_LIBRARY_PATH_ORIG': '/opt/MVS/lib/64:/opt/MVS/lib/32:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/opt/ros/jazzy/opt/rviz_ogre_vendor/lib:/opt/ros/jazzy/lib/x86_64-linux-gnu:/opt/ros/jazzy/opt/gz_math_vendor/lib:/opt/ros/jazzy/opt/gz_utils_vendor/lib:/opt/ros/jazzy/opt/gz_cmake_vendor/lib:/opt/ros/jazzy/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/TensorRT/TensorRT-10.2.0/lib:/usr/local/cuda-12.6/lib64:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:', 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT': 'true', 'SNAP_CONTEXT': '4hthZVkfk3FmjmWELQ5WWj5SvvO2JkVAfH3laZGolRSGZZBDstYm', 'JOURNAL_STREAM': '9:32802', '_': '/usr/bin/colcon', 'ROS_VERSION': '2', 'XDG_CONFIG_DIRS_VSCODE_SNAP_ORIG': '/etc/xdg/xdg-ubuntu:/etc/xdg', 'MEMORY_PRESSURE_WATCH': '/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/session.slice/org.gnome.Shell@x11.service/memory.pressure', 'XDG_SESSION_CLASS': 'user', 'SNAP_VERSION': '10c8e557', 'XDG_DATA_DIRS_VSCODE_SNAP_ORIG': '/usr/share/ubuntu:/usr/share/gnome:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop', 'USERNAME': 'delphine', 'GNOME_DESKTOP_SESSION_ID': 'this-is-deprecated', 'SNAP_INSTANCE_NAME': 'code', 'FC_FONTATIONS': '1', 'WINDOWPATH': '2', '_PYI_LINUX_PROCESS_NAME': 'kimi', 'MVCAM_SDK_PATH': '/opt/MVS', 'PATH': '/home/delphine/.local/bin:/opt/ros/jazzy/bin:/home/delphine/.npm-global/bin:/home/delphine/miniconda3/bin:/home/delphine/miniconda3/condabin:/opt/TensorRT/TensorRT-10.2.0.19/bin:/opt/TensorRT/TensorRT-10.2.0/bin:/usr/local/cuda-12.6/bin:/usr/bin:/home/delphine/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/opt/MVS/bin', 'SESSION_MANAGER': 'local/delphine-ASUS-TUF-Gaming-F16-FX607JV-FX607JV:@/tmp/.ICE-unix/4957,unix/delphine-ASUS-TUF-Gaming-F16-FX607JV-FX607JV:/tmp/.ICE-unix/4957', 'GTK_EXE_PREFIX': '/snap/code/235/usr', 'INVOCATION_ID': 'ec5349bb6a02486d81437f2e7fdcfc2b', 'MVCAM_GENICAM_CLPROTOCOL': '/opt/MVS/lib/CLProtocol', 'XDG_MENU_PREFIX': 'gnome-', 'SNAP_DATA': '/var/snap/code/235', 'XDG_RUNTIME_DIR': '/run/user/1000', 'GDK_BACKEND': 'x11', 'DISPLAY': ':1', 'LOCPATH': '/snap/code/235/usr/lib/locale', 'LANG': 'zh_CN.UTF-8', 'XDG_CURRENT_DESKTOP': 'ubuntu:GNOME', 'XDG_DATA_HOME': '/home/delphine/snap/code/235/.local/share', 'XMODIFIERS': '@im=fcitx', 'XDG_SESSION_DESKTOP': 'ubuntu', 'XAUTHORITY': '/run/user/1000/gdm/Xauthority', 'COPILOT_OTEL_ENABLED': 'true', 'SNAP_USER_COMMON': '/home/delphine/snap/code/common', 'SSH_AUTH_SOCK': '/run/user/1000/keyring/ssh', 'GSETTINGS_SCHEMA_DIR': '/home/delphine/snap/code/235/.local/share/glib-2.0/schemas', 'SNAP_ARCH': 'amd64', 'AMENT_PREFIX_PATH': '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs:/opt/ros/jazzy', 'SNAP_COOKIE': '4hthZVkfk3FmjmWELQ5WWj5SvvO2JkVAfH3laZGolRSGZZBDstYm', 'CONDA_PYTHON_EXE': '/home/delphine/miniconda3/bin/python', 'SHELL': '/bin/bash', 'GDK_PIXBUF_MODULEDIR': '/snap/code/235/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders', 'QT_ACCESSIBILITY': '1', 'ELECTRON_RUN_AS_NODE': '1', 'GDMSESSION': 'ubuntu', 'LESSCLOSE': '/usr/bin/lesspipe %s %s', 'CONDA_DEFAULT_ENV': 'base', 'SNAP_NAME': 'code', 'FONTCONFIG_FILE': '/etc/fonts/fonts.conf', 'GDK_PIXBUF_MODULE_FILE': '/home/delphine/snap/code/common/.cache/gdk-pixbuf-loaders.cache', 'GPG_AGENT_INFO': '/run/user/1000/gnupg/S.gpg-agent:0:1', 'GJS_DEBUG_OUTPUT': 'stderr', '_CONDA_EXE': '/home/delphine/miniconda3/bin/conda', 'ROS_AUTOMATIC_DISCOVERY_RANGE': 'SUBNET', 'SNAP_LAUNCHER_ARCH_TRIPLET': 'x86_64-linux-gnu', 'QT_IM_MODULE': 'fcitx', 'PWD': '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect_msgs', 'VSCODE_CLI': '1', 'XDG_CONFIG_DIRS': '/etc/xdg/xdg-ubuntu:/etc/xdg', 'CONDA_EXE': '/home/delphine/miniconda3/bin/conda', 'SNAP_REAL_HOME': '/home/delphine', 'VSCODE_CODE_CACHE_PATH': '/home/delphine/.config/Code/CachedData/10c8e557c8b9f9ed0a87f61f1c9a44bde731c409', 'CLUTTER_IM_MODULE': 'fcitx', 'XDG_DATA_DIRS': '/home/delphine/snap/code/235/.local/share:/home/delphine/snap/code/235:/snap/code/235/usr/share:/usr/share/ubuntu:/usr/share/gnome:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop', 'SNAP_EUID': '1000', 'PYTHONPATH': '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.12/site-packages:/opt/ros/jazzy/lib/python3.12/site-packages', 'SNAP': '/snap/code/235', 'CONDA_PREFIX': '/home/delphine/miniconda3', 'COLCON': '1', 'MEMORY_PRESSURE_WRITE': 'c29tZSAyMDAwMDAgMjAwMDAwMAA=', 'ELECTRON_NO_ATTACH_CONSOLE': '1', 'CMAKE_PREFIX_PATH': '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs:/opt/ros/jazzy/opt/gz_math_vendor:/opt/ros/jazzy/opt/gz_utils_vendor:/opt/ros/jazzy/opt/gz_cmake_vendor:/opt/ros/jazzy', 'VSCODE_PID': '7076', 'MVCAM_COMMON_RUNENV': '/opt/MVS/lib', 'COPILOT_OTEL_EXPORTER_TYPE': 'file'}), 'shell': False}
+[0.074147] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- The C compiler identification is GNU 13.3.0\n'}
+[0.099845] (-) TimerEvent: {}
+[0.127387] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- The CXX compiler identification is GNU 13.3.0\n'}
+[0.148301] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Detecting C compiler ABI info\n'}
+[0.199946] (-) TimerEvent: {}
+[0.231129] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Detecting C compiler ABI info - done\n'}
+[0.237422] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Check for working C compiler: /usr/bin/cc - skipped\n'}
+[0.237949] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Detecting C compile features\n'}
+[0.238482] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Detecting C compile features - done\n'}
+[0.250995] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Detecting CXX compiler ABI info\n'}
+[0.300053] (-) TimerEvent: {}
+[0.338828] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Detecting CXX compiler ABI info - done\n'}
+[0.346418] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Check for working CXX compiler: /usr/bin/c++ - skipped\n'}
+[0.346574] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Detecting CXX compile features\n'}
+[0.346838] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Detecting CXX compile features - done\n'}
+[0.349191] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Found ament_cmake: 2.5.6 (/opt/ros/jazzy/share/ament_cmake/cmake)\n'}
+[0.400162] (-) TimerEvent: {}
+[0.453081] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Found Python3: /home/delphine/miniconda3/bin/python3 (found version "3.13.12") found components: Interpreter \n'}
+[0.500315] (-) TimerEvent: {}
+[0.544184] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Found rosidl_default_generators: 1.6.0 (/opt/ros/jazzy/share/rosidl_default_generators/cmake)\n'}
+[0.550416] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c\n'}
+[0.590854] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp\n'}
+[0.600414] (-) TimerEvent: {}
+[0.628781] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Found rosidl_adapter: 4.6.7 (/opt/ros/jazzy/share/rosidl_adapter/cmake)\n'}
+[0.631859] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Found std_msgs: 5.3.7 (/opt/ros/jazzy/share/std_msgs/cmake)\n'}
+[0.700584] (-) TimerEvent: {}
+[0.800929] (-) TimerEvent: {}
+[0.901099] (-) TimerEvent: {}
+[1.001319] (-) TimerEvent: {}
+[1.101592] (-) TimerEvent: {}
+[1.135421] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Found ament_cmake_ros: 0.12.0 (/opt/ros/jazzy/share/ament_cmake_ros/cmake)\n'}
+[1.201763] (-) TimerEvent: {}
+[1.302077] (-) TimerEvent: {}
+[1.402288] (-) TimerEvent: {}
+[1.502481] (-) TimerEvent: {}
+[1.602682] (-) TimerEvent: {}
+[1.621005] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c\n'}
+[1.702897] (-) TimerEvent: {}
+[1.803065] (-) TimerEvent: {}
+[1.903338] (-) TimerEvent: {}
+[2.003533] (-) TimerEvent: {}
+[2.047275] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp\n'}
+[2.053978] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Found python_cmake_module: 0.11.1 (/opt/ros/jazzy/share/python_cmake_module/cmake)\n'}
+[2.103729] (-) TimerEvent: {}
+[2.143962] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Found PythonExtra: /home/delphine/miniconda3/bin/python3  \n'}
+[2.203824] (-) TimerEvent: {}
+[2.304169] (-) TimerEvent: {}
+[2.404796] (-) TimerEvent: {}
+[2.504952] (-) TimerEvent: {}
+[2.605812] (-) TimerEvent: {}
+[2.620804] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Found Python3: /home/delphine/miniconda3/bin/python3 (found version "3.13.12") found components: Interpreter Development NumPy Development.Module Development.Embed \n'}
+[2.705911] (-) TimerEvent: {}
+[2.730031] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Found Python3: /home/delphine/miniconda3/bin/python3 (found version "3.13.12") found components: Interpreter \n'}
+[2.741429] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Configuring done (2.7s)\n'}
+[2.776863] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Generating done (0.0s)\n'}
+[2.786280] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Build files have been written to: /home/delphine/rm/tensorrt10_detect/build/tensorrt_detect_msgs\n'}
+[2.792140] (tensorrt_detect_msgs) CommandEnded: {'returncode': 0}
+[2.792756] (tensorrt_detect_msgs) JobProgress: {'identifier': 'tensorrt_detect_msgs', 'progress': 'build'}
+[2.792768] (tensorrt_detect_msgs) Command: {'cmd': ['/usr/bin/cmake', '--build', '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect_msgs', '--', '-j20', '-l20'], 'cwd': '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect_msgs', 'env': OrderedDict({'GJS_DEBUG_TOPICS': 'JS ERROR;JS LOG', 'LESSOPEN': '| /usr/bin/lesspipe %s', 'VSCODE_CWD': '/home/delphine', 'VSCODE_ESM_ENTRYPOINT': 'vs/workbench/api/node/extensionHostProcess', 'CONDA_PROMPT_MODIFIER': '(base)', 'TENSORRT_PATH': '/opt/TensorRT/TensorRT-10.2.0.19', '_PYI_ARCHIVE_FILE': '/home/delphine/.config/Code/User/globalStorage/moonshot-ai.kimi-code/bin/kimi/kimi', 'USER': 'delphine', 'SNAP_COMMON': '/var/snap/code/common', 'VSCODE_NLS_CONFIG': '{"userLocale":"zh-cn","osLocale":"zh-cn","resolvedLanguage":"zh-cn","defaultMessagesFile":"/snap/code/235/usr/share/code/resources/app/out/nls.messages.json","languagePack":{"translationsConfigFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/tcf.json","messagesFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/10c8e557c8b9f9ed0a87f61f1c9a44bde731c409/nls.messages.json","corruptMarkerFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/corrupted.info"},"locale":"zh-cn","availableLanguages":{"*":"zh-cn"},"_languagePackId":"b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn","_languagePackSupport":true,"_translationsConfigFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/tcf.json","_cacheRoot":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn","_resolvedLanguagePackCoreLocation":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/10c8e557c8b9f9ed0a87f61f1c9a44bde731c409","_corruptedFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/corrupted.info"}', 'FONTCONFIG_PATH': '/etc/fonts', 'GIO_MODULE_DIR': '/home/delphine/snap/code/common/.cache/gio-modules', 'VSCODE_HANDLES_UNCAUGHT_ERRORS': 'true', 'XDG_SESSION_TYPE': 'x11', 'ALLUSERSPROFILE': '/opt/MVS/MVFG', 'SNAP_UID': '1000', 'CLUTTER_DISABLE_MIPMAPPED_TEXT': '1', 'SHLVL': '1', 'LD_LIBRARY_PATH': '/opt/MVS/lib/64:/opt/MVS/lib/32:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/opt/ros/jazzy/opt/rviz_ogre_vendor/lib:/opt/ros/jazzy/lib/x86_64-linux-gnu:/opt/ros/jazzy/opt/gz_math_vendor/lib:/opt/ros/jazzy/opt/gz_utils_vendor/lib:/opt/ros/jazzy/opt/gz_cmake_vendor/lib:/opt/ros/jazzy/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/TensorRT/TensorRT-10.2.0/lib:/usr/local/cuda-12.6/lib64:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:', 'HOME': '/home/delphine', 'CHROME_DESKTOP': 'code.desktop', 'CONDA_SHLVL': '1', 'SNAP_LIBRARY_PATH': '/var/lib/snapd/lib/gl:/var/lib/snapd/lib/gl32', 'OLDPWD': '/home/delphine/rm/tensorrt10_detect', 'DESKTOP_SESSION': 'ubuntu', 'SNAP_USER_DATA': '/home/delphine/snap/code/235', 'GTK_PATH': '/snap/code/235/usr/lib/x86_64-linux-gnu/gtk-3.0', 'VSCODE_IPC_HOOK': '/run/user/1000/vscode-93a8e15f-1.11-main.sock', 'GTK_IM_MODULE_FILE': '/home/delphine/snap/code/common/.cache/immodules/immodules.cache', 'GIO_LAUNCHED_DESKTOP_FILE': '/var/lib/snapd/desktop/applications/code_code.desktop', 'ROS_PYTHON_VERSION': '3', 'GNOME_SHELL_SESSION_MODE': 'ubuntu', 'GTK_MODULES': 'gail:atk-bridge', 'SDL_IM_MODULE': 'fcitx', '_PYI_PARENT_PROCESS_LEVEL': '1', 'COPILOT_OTEL_FILE_EXPORTER_PATH': '/dev/null', 'MANAGERPID': '4603', 'SYSTEMD_EXEC_PID': '4987', 'GSM_SKIP_SSH_AGENT_WORKAROUND': 'true', 'DBUS_SESSION_BUS_ADDRESS': 'unix:path=/run/user/1000/bus', 'SNAP_REVISION': '235', '_CONDA_ROOT': '/home/delphine/miniconda3', 'GIO_LAUNCHED_DESKTOP_FILE_PID': '6982', 'VSCODE_CRASH_REPORTER_PROCESS_TYPE': 'extensionHost', 'DEBUGINFOD_URLS': 'https://debuginfod.ubuntu.com', 'IM_CONFIG_PHASE': '1', 'VSCODE_L10N_BUNDLE_LOCATION': 'file:///home/delphine/.vscode/extensions/ms-ceintl.vscode-language-pack-zh-hans-1.110.2026041514/translations/extensions/vscode.json-language-features.i18n.json', 'COLCON_PREFIX_PATH': '/home/delphine/rm/tensorrt10_detect/install', 'APPLICATION_INSIGHTS_NO_STATSBEAT': 'true', 'ROS_DISTRO': 'jazzy', 'GTK_IM_MODULE': 'fcitx', 'LOGNAME': 'delphine', 'LD_LIBRARY_PATH_ORIG': '/opt/MVS/lib/64:/opt/MVS/lib/32:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/opt/ros/jazzy/opt/rviz_ogre_vendor/lib:/opt/ros/jazzy/lib/x86_64-linux-gnu:/opt/ros/jazzy/opt/gz_math_vendor/lib:/opt/ros/jazzy/opt/gz_utils_vendor/lib:/opt/ros/jazzy/opt/gz_cmake_vendor/lib:/opt/ros/jazzy/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/TensorRT/TensorRT-10.2.0/lib:/usr/local/cuda-12.6/lib64:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:', 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT': 'true', 'SNAP_CONTEXT': '4hthZVkfk3FmjmWELQ5WWj5SvvO2JkVAfH3laZGolRSGZZBDstYm', 'JOURNAL_STREAM': '9:32802', '_': '/usr/bin/colcon', 'ROS_VERSION': '2', 'XDG_CONFIG_DIRS_VSCODE_SNAP_ORIG': '/etc/xdg/xdg-ubuntu:/etc/xdg', 'MEMORY_PRESSURE_WATCH': '/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/session.slice/org.gnome.Shell@x11.service/memory.pressure', 'XDG_SESSION_CLASS': 'user', 'SNAP_VERSION': '10c8e557', 'XDG_DATA_DIRS_VSCODE_SNAP_ORIG': '/usr/share/ubuntu:/usr/share/gnome:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop', 'USERNAME': 'delphine', 'GNOME_DESKTOP_SESSION_ID': 'this-is-deprecated', 'SNAP_INSTANCE_NAME': 'code', 'FC_FONTATIONS': '1', 'WINDOWPATH': '2', '_PYI_LINUX_PROCESS_NAME': 'kimi', 'MVCAM_SDK_PATH': '/opt/MVS', 'PATH': '/home/delphine/.local/bin:/opt/ros/jazzy/bin:/home/delphine/.npm-global/bin:/home/delphine/miniconda3/bin:/home/delphine/miniconda3/condabin:/opt/TensorRT/TensorRT-10.2.0.19/bin:/opt/TensorRT/TensorRT-10.2.0/bin:/usr/local/cuda-12.6/bin:/usr/bin:/home/delphine/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/opt/MVS/bin', 'SESSION_MANAGER': 'local/delphine-ASUS-TUF-Gaming-F16-FX607JV-FX607JV:@/tmp/.ICE-unix/4957,unix/delphine-ASUS-TUF-Gaming-F16-FX607JV-FX607JV:/tmp/.ICE-unix/4957', 'GTK_EXE_PREFIX': '/snap/code/235/usr', 'INVOCATION_ID': 'ec5349bb6a02486d81437f2e7fdcfc2b', 'MVCAM_GENICAM_CLPROTOCOL': '/opt/MVS/lib/CLProtocol', 'XDG_MENU_PREFIX': 'gnome-', 'SNAP_DATA': '/var/snap/code/235', 'XDG_RUNTIME_DIR': '/run/user/1000', 'GDK_BACKEND': 'x11', 'DISPLAY': ':1', 'LOCPATH': '/snap/code/235/usr/lib/locale', 'LANG': 'zh_CN.UTF-8', 'XDG_CURRENT_DESKTOP': 'ubuntu:GNOME', 'XDG_DATA_HOME': '/home/delphine/snap/code/235/.local/share', 'XMODIFIERS': '@im=fcitx', 'XDG_SESSION_DESKTOP': 'ubuntu', 'XAUTHORITY': '/run/user/1000/gdm/Xauthority', 'COPILOT_OTEL_ENABLED': 'true', 'SNAP_USER_COMMON': '/home/delphine/snap/code/common', 'SSH_AUTH_SOCK': '/run/user/1000/keyring/ssh', 'GSETTINGS_SCHEMA_DIR': '/home/delphine/snap/code/235/.local/share/glib-2.0/schemas', 'SNAP_ARCH': 'amd64', 'AMENT_PREFIX_PATH': '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs:/opt/ros/jazzy', 'SNAP_COOKIE': '4hthZVkfk3FmjmWELQ5WWj5SvvO2JkVAfH3laZGolRSGZZBDstYm', 'CONDA_PYTHON_EXE': '/home/delphine/miniconda3/bin/python', 'SHELL': '/bin/bash', 'GDK_PIXBUF_MODULEDIR': '/snap/code/235/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders', 'QT_ACCESSIBILITY': '1', 'ELECTRON_RUN_AS_NODE': '1', 'GDMSESSION': 'ubuntu', 'LESSCLOSE': '/usr/bin/lesspipe %s %s', 'CONDA_DEFAULT_ENV': 'base', 'SNAP_NAME': 'code', 'FONTCONFIG_FILE': '/etc/fonts/fonts.conf', 'GDK_PIXBUF_MODULE_FILE': '/home/delphine/snap/code/common/.cache/gdk-pixbuf-loaders.cache', 'GPG_AGENT_INFO': '/run/user/1000/gnupg/S.gpg-agent:0:1', 'GJS_DEBUG_OUTPUT': 'stderr', '_CONDA_EXE': '/home/delphine/miniconda3/bin/conda', 'ROS_AUTOMATIC_DISCOVERY_RANGE': 'SUBNET', 'SNAP_LAUNCHER_ARCH_TRIPLET': 'x86_64-linux-gnu', 'QT_IM_MODULE': 'fcitx', 'PWD': '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect_msgs', 'VSCODE_CLI': '1', 'XDG_CONFIG_DIRS': '/etc/xdg/xdg-ubuntu:/etc/xdg', 'CONDA_EXE': '/home/delphine/miniconda3/bin/conda', 'SNAP_REAL_HOME': '/home/delphine', 'VSCODE_CODE_CACHE_PATH': '/home/delphine/.config/Code/CachedData/10c8e557c8b9f9ed0a87f61f1c9a44bde731c409', 'CLUTTER_IM_MODULE': 'fcitx', 'XDG_DATA_DIRS': '/home/delphine/snap/code/235/.local/share:/home/delphine/snap/code/235:/snap/code/235/usr/share:/usr/share/ubuntu:/usr/share/gnome:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop', 'SNAP_EUID': '1000', 'PYTHONPATH': '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.12/site-packages:/opt/ros/jazzy/lib/python3.12/site-packages', 'SNAP': '/snap/code/235', 'CONDA_PREFIX': '/home/delphine/miniconda3', 'COLCON': '1', 'MEMORY_PRESSURE_WRITE': 'c29tZSAyMDAwMDAgMjAwMDAwMAA=', 'ELECTRON_NO_ATTACH_CONSOLE': '1', 'CMAKE_PREFIX_PATH': '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs:/opt/ros/jazzy/opt/gz_math_vendor:/opt/ros/jazzy/opt/gz_utils_vendor:/opt/ros/jazzy/opt/gz_cmake_vendor:/opt/ros/jazzy', 'VSCODE_PID': '7076', 'MVCAM_COMMON_RUNENV': '/opt/MVS/lib', 'COPILOT_OTEL_EXPORTER_TYPE': 'file'}), 'shell': False}
+[2.806127] (-) TimerEvent: {}
+[2.843970] (tensorrt_detect_msgs) StdoutLine: {'line': b'[  1%] Generating type hashes for ROS interfaces\n'}
+[2.845793] (tensorrt_detect_msgs) StdoutLine: {'line': b'[  2%] Generating Rust code for ROS interfaces\n'}
+[2.852166] (tensorrt_detect_msgs) StdoutLine: {'line': b'[  2%] Built target ament_cmake_python_copy_tensorrt_detect_msgs\n'}
+[2.906253] (-) TimerEvent: {}
+[3.006469] (-) TimerEvent: {}
+[3.064716] (tensorrt_detect_msgs) StdoutLine: {'line': b'running egg_info\n'}
+[3.075954] (tensorrt_detect_msgs) StdoutLine: {'line': b'creating tensorrt_detect_msgs.egg-info\n'}
+[3.076278] (tensorrt_detect_msgs) StdoutLine: {'line': b'writing tensorrt_detect_msgs.egg-info/PKG-INFO\n'}
+[3.076456] (tensorrt_detect_msgs) StdoutLine: {'line': b'writing dependency_links to tensorrt_detect_msgs.egg-info/dependency_links.txt\n'}
+[3.076553] (tensorrt_detect_msgs) StdoutLine: {'line': b'writing top-level names to tensorrt_detect_msgs.egg-info/top_level.txt\n'}
+[3.076638] (tensorrt_detect_msgs) StdoutLine: {'line': b"writing manifest file 'tensorrt_detect_msgs.egg-info/SOURCES.txt'\n"}
+[3.078051] (tensorrt_detect_msgs) StdoutLine: {'line': b'[  2%] Built target tensorrt_detect_msgs__rosidl_generator_type_description\n'}
+[3.090864] (tensorrt_detect_msgs) StdoutLine: {'line': b'[  4%] Generating C code for ROS interfaces\n'}
+[3.099773] (tensorrt_detect_msgs) StdoutLine: {'line': b'[  5%] Generating C++ code for ROS interfaces\n'}
+[3.104479] (tensorrt_detect_msgs) StdoutLine: {'line': b'[  5%] Built target tensorrt_detect_msgs__rs\n'}
+[3.106578] (-) TimerEvent: {}
+[3.108044] (tensorrt_detect_msgs) StdoutLine: {'line': b"reading manifest file 'tensorrt_detect_msgs.egg-info/SOURCES.txt'\n"}
+[3.108616] (tensorrt_detect_msgs) StdoutLine: {'line': b"writing manifest file 'tensorrt_detect_msgs.egg-info/SOURCES.txt'\n"}
+[3.141405] (tensorrt_detect_msgs) StdoutLine: {'line': b'[  5%] Built target ament_cmake_python_build_tensorrt_detect_msgs_egg\n'}
+[3.206787] (-) TimerEvent: {}
+[3.306985] (-) TimerEvent: {}
+[3.407149] (-) TimerEvent: {}
+[3.507339] (-) TimerEvent: {}
+[3.545977] (tensorrt_detect_msgs) StdoutLine: {'line': b'[  5%] Built target tensorrt_detect_msgs__cpp\n'}
+[3.607460] (-) TimerEvent: {}
+[3.610626] (tensorrt_detect_msgs) StdoutLine: {'line': b'[  6%] Building C object CMakeFiles/tensorrt_detect_msgs__rosidl_generator_c.dir/rosidl_generator_c/tensorrt_detect_msgs/msg/detail/world_target__functions.c.o\n'}
+[3.610866] (tensorrt_detect_msgs) StdoutLine: {'line': b'[  9%] Building C object CMakeFiles/tensorrt_detect_msgs__rosidl_generator_c.dir/rosidl_generator_c/tensorrt_detect_msgs/msg/detail/detection_box__type_support.c.o\n'}
+[3.610955] (tensorrt_detect_msgs) StdoutLine: {'line': b'[  9%] Building C object CMakeFiles/tensorrt_detect_msgs__rosidl_generator_c.dir/rosidl_generator_c/tensorrt_detect_msgs/msg/detail/detection_array__type_support.c.o\n'}
+[3.611009] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 10%] Building C object CMakeFiles/tensorrt_detect_msgs__rosidl_generator_c.dir/rosidl_generator_c/tensorrt_detect_msgs/msg/detail/world_target__type_support.c.o\n'}
+[3.611173] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 14%] Building C object CMakeFiles/tensorrt_detect_msgs__rosidl_generator_c.dir/rosidl_generator_c/tensorrt_detect_msgs/msg/detail/world_target_array__functions.c.o\n'}
+[3.611244] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 14%] Building C object CMakeFiles/tensorrt_detect_msgs__rosidl_generator_c.dir/rosidl_generator_c/tensorrt_detect_msgs/msg/detail/detection_box__description.c.o\n'}
+[3.611308] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 14%] Building C object CMakeFiles/tensorrt_detect_msgs__rosidl_generator_c.dir/rosidl_generator_c/tensorrt_detect_msgs/msg/detail/detection_box__functions.c.o\n'}
+[3.611592] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 16%] Building C object CMakeFiles/tensorrt_detect_msgs__rosidl_generator_c.dir/rosidl_generator_c/tensorrt_detect_msgs/msg/detail/radar_map__description.c.o\n'}
+[3.611856] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 17%] Building C object CMakeFiles/tensorrt_detect_msgs__rosidl_generator_c.dir/rosidl_generator_c/tensorrt_detect_msgs/msg/detail/detection_array__description.c.o\n'}
+[3.612172] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 18%] Building C object CMakeFiles/tensorrt_detect_msgs__rosidl_generator_c.dir/rosidl_generator_c/tensorrt_detect_msgs/msg/detail/detection_array__functions.c.o\n'}
+[3.612424] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 20%] Building C object CMakeFiles/tensorrt_detect_msgs__rosidl_generator_c.dir/rosidl_generator_c/tensorrt_detect_msgs/msg/detail/world_target_array__description.c.o\n'}
+[3.613210] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 21%] Building C object CMakeFiles/tensorrt_detect_msgs__rosidl_generator_c.dir/rosidl_generator_c/tensorrt_detect_msgs/msg/detail/world_target__description.c.o\n'}
+[3.613936] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 22%] Building C object CMakeFiles/tensorrt_detect_msgs__rosidl_generator_c.dir/rosidl_generator_c/tensorrt_detect_msgs/msg/detail/radar_map__type_support.c.o\n'}
+[3.614681] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 24%] Building C object CMakeFiles/tensorrt_detect_msgs__rosidl_generator_c.dir/rosidl_generator_c/tensorrt_detect_msgs/msg/detail/world_target_array__type_support.c.o\n'}
+[3.615063] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 25%] Building C object CMakeFiles/tensorrt_detect_msgs__rosidl_generator_c.dir/rosidl_generator_c/tensorrt_detect_msgs/msg/detail/radar_map__functions.c.o\n'}
+[3.707600] (-) TimerEvent: {}
+[3.732617] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 26%] Linking C shared library libtensorrt_detect_msgs__rosidl_generator_c.so\n'}
+[3.775484] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 26%] Built target tensorrt_detect_msgs__rosidl_generator_c\n'}
+[3.785972] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 28%] Generating C++ introspection for ROS interfaces\n'}
+[3.786274] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 29%] Generating C type support dispatch for ROS interfaces\n'}
+[3.786402] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 30%] Generating C++ type support dispatch for ROS interfaces\n'}
+[3.786625] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 32%] Generating C type support for eProsima Fast-RTPS\n'}
+[3.787033] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 33%] Generating C++ type support for eProsima Fast-RTPS\n'}
+[3.787878] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 34%] Generating C introspection for ROS interfaces\n'}
+[3.807781] (-) TimerEvent: {}
+[3.907986] (-) TimerEvent: {}
+[4.008227] (-) TimerEvent: {}
+[4.108419] (-) TimerEvent: {}
+[4.199196] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 36%] Building CXX object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/tensorrt_detect_msgs/msg/detection_box__type_support.cpp.o\n'}
+[4.199473] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 37%] Building CXX object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/tensorrt_detect_msgs/msg/detection_array__type_support.cpp.o\n'}
+[4.204044] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 41%] Building CXX object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/tensorrt_detect_msgs/msg/world_target_array__type_support.cpp.o\n'}
+[4.204277] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 41%] Building CXX object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/tensorrt_detect_msgs/msg/world_target__type_support.cpp.o\n'}
+[4.204366] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 41%] Building CXX object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/tensorrt_detect_msgs/msg/radar_map__type_support.cpp.o\n'}
+[4.208561] (-) TimerEvent: {}
+[4.210172] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 42%] Building CXX object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/tensorrt_detect_msgs/msg/detection_box__type_support.cpp.o\n'}
+[4.210594] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 44%] Building CXX object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/tensorrt_detect_msgs/msg/world_target__type_support.cpp.o\n'}
+[4.211886] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 45%] Building CXX object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/tensorrt_detect_msgs/msg/detection_array__type_support.cpp.o\n'}
+[4.222032] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 46%] Building CXX object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/tensorrt_detect_msgs/msg/world_target_array__type_support.cpp.o\n'}
+[4.222916] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 48%] Building CXX object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/tensorrt_detect_msgs/msg/radar_map__type_support.cpp.o\n'}
+[4.240395] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 49%] Building C object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/tensorrt_detect_msgs/msg/detail/detection_box__type_support.c.o\n'}
+[4.240948] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 50%] Building C object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/tensorrt_detect_msgs/msg/detail/world_target_array__type_support.c.o\n'}
+[4.241364] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 52%] Building C object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/tensorrt_detect_msgs/msg/detail/detection_array__type_support.c.o\n'}
+[4.242604] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 53%] Building C object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/tensorrt_detect_msgs/msg/detail/world_target__type_support.c.o\n'}
+[4.243149] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 54%] Building C object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/tensorrt_detect_msgs/msg/detail/radar_map__type_support.c.o\n'}
+[4.253956] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 56%] Building CXX object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/tensorrt_detect_msgs/msg/detail/detection_array__type_support.cpp.o\n'}
+[4.254314] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 57%] Building CXX object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/tensorrt_detect_msgs/msg/detail/world_target__type_support.cpp.o\n'}
+[4.261291] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 58%] Building CXX object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/tensorrt_detect_msgs/msg/detail/detection_box__type_support.cpp.o\n'}
+[4.285361] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 61%] Building CXX object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/tensorrt_detect_msgs/msg/detail/radar_map__type_support.cpp.o\n'}
+[4.285600] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 61%] Building CXX object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/tensorrt_detect_msgs/msg/detail/world_target_array__type_support.cpp.o\n'}
+[4.294025] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 62%] Linking CXX shared library libtensorrt_detect_msgs__rosidl_typesupport_c.so\n'}
+[4.308762] (-) TimerEvent: {}
+[4.337091] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 64%] Linking C shared library libtensorrt_detect_msgs__rosidl_typesupport_introspection_c.so\n'}
+[4.349516] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 64%] Built target tensorrt_detect_msgs__rosidl_typesupport_c\n'}
+[4.352936] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 66%] Building CXX object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/tensorrt_detect_msgs/msg/detail/dds_fastrtps/detection_array__type_support.cpp.o\n'}
+[4.353230] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 66%] Building CXX object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/tensorrt_detect_msgs/msg/detail/dds_fastrtps/detection_box__type_support.cpp.o\n'}
+[4.353472] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 68%] Building CXX object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/tensorrt_detect_msgs/msg/detail/dds_fastrtps/world_target__type_support.cpp.o\n'}
+[4.353626] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 69%] Building CXX object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/tensorrt_detect_msgs/msg/detail/dds_fastrtps/world_target_array__type_support.cpp.o\n'}
+[4.358641] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 70%] Building CXX object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/tensorrt_detect_msgs/msg/detail/dds_fastrtps/radar_map__type_support.cpp.o\n'}
+[4.385051] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 70%] Built target tensorrt_detect_msgs__rosidl_typesupport_introspection_c\n'}
+[4.408799] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 73%] Building CXX object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/tensorrt_detect_msgs/msg/detail/radar_map__type_support_c.cpp.o\n'}
+[4.409160] (-) TimerEvent: {}
+[4.409188] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 73%] Building CXX object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/tensorrt_detect_msgs/msg/detail/world_target__type_support_c.cpp.o\n'}
+[4.409285] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 74%] Building CXX object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/tensorrt_detect_msgs/msg/detail/detection_array__type_support_c.cpp.o\n'}
+[4.418031] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 77%] Building CXX object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/tensorrt_detect_msgs/msg/detail/world_target_array__type_support_c.cpp.o\n'}
+[4.418270] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 77%] Building CXX object CMakeFiles/tensorrt_detect_msgs__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/tensorrt_detect_msgs/msg/detail/detection_box__type_support_c.cpp.o\n'}
+[4.509311] (-) TimerEvent: {}
+[4.609609] (-) TimerEvent: {}
+[4.712337] (-) TimerEvent: {}
+[4.776265] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 78%] Linking CXX shared library libtensorrt_detect_msgs__rosidl_typesupport_cpp.so\n'}
+[4.812852] (-) TimerEvent: {}
+[4.845803] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 78%] Built target tensorrt_detect_msgs__rosidl_typesupport_cpp\n'}
+[4.912972] (-) TimerEvent: {}
+[4.985531] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 80%] Linking CXX shared library libtensorrt_detect_msgs__rosidl_typesupport_introspection_cpp.so\n'}
+[5.013103] (-) TimerEvent: {}
+[5.092709] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 80%] Built target tensorrt_detect_msgs__rosidl_typesupport_introspection_cpp\n'}
+[5.113201] (-) TimerEvent: {}
+[5.213502] (-) TimerEvent: {}
+[5.223460] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 81%] Linking CXX shared library libtensorrt_detect_msgs__rosidl_typesupport_fastrtps_cpp.so\n'}
+[5.275030] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 82%] Linking CXX shared library libtensorrt_detect_msgs__rosidl_typesupport_fastrtps_c.so\n'}
+[5.289489] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 82%] Built target tensorrt_detect_msgs__rosidl_typesupport_fastrtps_cpp\n'}
+[5.313613] (-) TimerEvent: {}
+[5.323279] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 82%] Built target tensorrt_detect_msgs__rosidl_typesupport_fastrtps_c\n'}
+[5.347280] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 82%] Built target tensorrt_detect_msgs\n'}
+[5.367679] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 84%] Generating Python code for ROS interfaces\n'}
+[5.413763] (-) TimerEvent: {}
+[5.513976] (-) TimerEvent: {}
+[5.614193] (-) TimerEvent: {}
+[5.714398] (-) TimerEvent: {}
+[5.814715] (-) TimerEvent: {}
+[5.904888] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 84%] Built target tensorrt_detect_msgs__py\n'}
+[5.914962] (-) TimerEvent: {}
+[5.923564] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 86%] Building C object CMakeFiles/tensorrt_detect_msgs__rosidl_generator_py.dir/rosidl_generator_py/tensorrt_detect_msgs/msg/_detection_array_s.c.o\n'}
+[5.923772] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 86%] Building C object CMakeFiles/tensorrt_detect_msgs__rosidl_generator_py.dir/rosidl_generator_py/tensorrt_detect_msgs/msg/_detection_box_s.c.o\n'}
+[5.924045] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 88%] Building C object CMakeFiles/tensorrt_detect_msgs__rosidl_generator_py.dir/rosidl_generator_py/tensorrt_detect_msgs/msg/_world_target_array_s.c.o\n'}
+[5.926420] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 89%] Building C object CMakeFiles/tensorrt_detect_msgs__rosidl_generator_py.dir/rosidl_generator_py/tensorrt_detect_msgs/msg/_world_target_s.c.o\n'}
+[5.926935] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 90%] Building C object CMakeFiles/tensorrt_detect_msgs__rosidl_generator_py.dir/rosidl_generator_py/tensorrt_detect_msgs/msg/_radar_map_s.c.o\n'}
+[6.015061] (-) TimerEvent: {}
+[6.114023] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 92%] Linking C shared library libtensorrt_detect_msgs__rosidl_generator_py.so\n'}
+[6.115125] (-) TimerEvent: {}
+[6.156197] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 92%] Built target tensorrt_detect_msgs__rosidl_generator_py\n'}
+[6.178486] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 94%] Building C object CMakeFiles/tensorrt_detect_msgs_s__rosidl_typesupport_c.dir/rosidl_generator_py/tensorrt_detect_msgs/_tensorrt_detect_msgs_s.ep.rosidl_typesupport_c.c.o\n'}
+[6.178713] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 94%] Building C object CMakeFiles/tensorrt_detect_msgs_s__rosidl_typesupport_fastrtps_c.dir/rosidl_generator_py/tensorrt_detect_msgs/_tensorrt_detect_msgs_s.ep.rosidl_typesupport_fastrtps_c.c.o\n'}
+[6.178847] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 96%] Building C object CMakeFiles/tensorrt_detect_msgs_s__rosidl_typesupport_introspection_c.dir/rosidl_generator_py/tensorrt_detect_msgs/_tensorrt_detect_msgs_s.ep.rosidl_typesupport_introspection_c.c.o\n'}
+[6.215273] (-) TimerEvent: {}
+[6.315529] (-) TimerEvent: {}
+[6.325955] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 97%] Linking C shared module rosidl_generator_py/tensorrt_detect_msgs/tensorrt_detect_msgs_s__rosidl_typesupport_fastrtps_c.so\n'}
+[6.329270] (tensorrt_detect_msgs) StdoutLine: {'line': b'[ 98%] Linking C shared module rosidl_generator_py/tensorrt_detect_msgs/tensorrt_detect_msgs_s__rosidl_typesupport_c.so\n'}
+[6.334586] (tensorrt_detect_msgs) StdoutLine: {'line': b'[100%] Linking C shared module rosidl_generator_py/tensorrt_detect_msgs/tensorrt_detect_msgs_s__rosidl_typesupport_introspection_c.so\n'}
+[6.355763] (tensorrt_detect_msgs) StdoutLine: {'line': b'[100%] Built target tensorrt_detect_msgs_s__rosidl_typesupport_fastrtps_c\n'}
+[6.357085] (tensorrt_detect_msgs) StdoutLine: {'line': b'[100%] Built target tensorrt_detect_msgs_s__rosidl_typesupport_c\n'}
+[6.367546] (tensorrt_detect_msgs) StdoutLine: {'line': b'[100%] Built target tensorrt_detect_msgs_s__rosidl_typesupport_introspection_c\n'}
+[6.377499] (tensorrt_detect_msgs) CommandEnded: {'returncode': 0}
+[6.378095] (tensorrt_detect_msgs) JobProgress: {'identifier': 'tensorrt_detect_msgs', 'progress': 'install'}
+[6.388481] (tensorrt_detect_msgs) Command: {'cmd': ['/usr/bin/cmake', '--install', '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect_msgs'], 'cwd': '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect_msgs', 'env': OrderedDict({'GJS_DEBUG_TOPICS': 'JS ERROR;JS LOG', 'LESSOPEN': '| /usr/bin/lesspipe %s', 'VSCODE_CWD': '/home/delphine', 'VSCODE_ESM_ENTRYPOINT': 'vs/workbench/api/node/extensionHostProcess', 'CONDA_PROMPT_MODIFIER': '(base)', 'TENSORRT_PATH': '/opt/TensorRT/TensorRT-10.2.0.19', '_PYI_ARCHIVE_FILE': '/home/delphine/.config/Code/User/globalStorage/moonshot-ai.kimi-code/bin/kimi/kimi', 'USER': 'delphine', 'SNAP_COMMON': '/var/snap/code/common', 'VSCODE_NLS_CONFIG': '{"userLocale":"zh-cn","osLocale":"zh-cn","resolvedLanguage":"zh-cn","defaultMessagesFile":"/snap/code/235/usr/share/code/resources/app/out/nls.messages.json","languagePack":{"translationsConfigFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/tcf.json","messagesFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/10c8e557c8b9f9ed0a87f61f1c9a44bde731c409/nls.messages.json","corruptMarkerFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/corrupted.info"},"locale":"zh-cn","availableLanguages":{"*":"zh-cn"},"_languagePackId":"b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn","_languagePackSupport":true,"_translationsConfigFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/tcf.json","_cacheRoot":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn","_resolvedLanguagePackCoreLocation":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/10c8e557c8b9f9ed0a87f61f1c9a44bde731c409","_corruptedFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/corrupted.info"}', 'FONTCONFIG_PATH': '/etc/fonts', 'GIO_MODULE_DIR': '/home/delphine/snap/code/common/.cache/gio-modules', 'VSCODE_HANDLES_UNCAUGHT_ERRORS': 'true', 'XDG_SESSION_TYPE': 'x11', 'ALLUSERSPROFILE': '/opt/MVS/MVFG', 'SNAP_UID': '1000', 'CLUTTER_DISABLE_MIPMAPPED_TEXT': '1', 'SHLVL': '1', 'LD_LIBRARY_PATH': '/opt/MVS/lib/64:/opt/MVS/lib/32:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/opt/ros/jazzy/opt/rviz_ogre_vendor/lib:/opt/ros/jazzy/lib/x86_64-linux-gnu:/opt/ros/jazzy/opt/gz_math_vendor/lib:/opt/ros/jazzy/opt/gz_utils_vendor/lib:/opt/ros/jazzy/opt/gz_cmake_vendor/lib:/opt/ros/jazzy/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/TensorRT/TensorRT-10.2.0/lib:/usr/local/cuda-12.6/lib64:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:', 'HOME': '/home/delphine', 'CHROME_DESKTOP': 'code.desktop', 'CONDA_SHLVL': '1', 'SNAP_LIBRARY_PATH': '/var/lib/snapd/lib/gl:/var/lib/snapd/lib/gl32', 'OLDPWD': '/home/delphine/rm/tensorrt10_detect', 'DESKTOP_SESSION': 'ubuntu', 'SNAP_USER_DATA': '/home/delphine/snap/code/235', 'GTK_PATH': '/snap/code/235/usr/lib/x86_64-linux-gnu/gtk-3.0', 'VSCODE_IPC_HOOK': '/run/user/1000/vscode-93a8e15f-1.11-main.sock', 'GTK_IM_MODULE_FILE': '/home/delphine/snap/code/common/.cache/immodules/immodules.cache', 'GIO_LAUNCHED_DESKTOP_FILE': '/var/lib/snapd/desktop/applications/code_code.desktop', 'ROS_PYTHON_VERSION': '3', 'GNOME_SHELL_SESSION_MODE': 'ubuntu', 'GTK_MODULES': 'gail:atk-bridge', 'SDL_IM_MODULE': 'fcitx', '_PYI_PARENT_PROCESS_LEVEL': '1', 'COPILOT_OTEL_FILE_EXPORTER_PATH': '/dev/null', 'MANAGERPID': '4603', 'SYSTEMD_EXEC_PID': '4987', 'GSM_SKIP_SSH_AGENT_WORKAROUND': 'true', 'DBUS_SESSION_BUS_ADDRESS': 'unix:path=/run/user/1000/bus', 'SNAP_REVISION': '235', '_CONDA_ROOT': '/home/delphine/miniconda3', 'GIO_LAUNCHED_DESKTOP_FILE_PID': '6982', 'VSCODE_CRASH_REPORTER_PROCESS_TYPE': 'extensionHost', 'DEBUGINFOD_URLS': 'https://debuginfod.ubuntu.com', 'IM_CONFIG_PHASE': '1', 'VSCODE_L10N_BUNDLE_LOCATION': 'file:///home/delphine/.vscode/extensions/ms-ceintl.vscode-language-pack-zh-hans-1.110.2026041514/translations/extensions/vscode.json-language-features.i18n.json', 'COLCON_PREFIX_PATH': '/home/delphine/rm/tensorrt10_detect/install', 'APPLICATION_INSIGHTS_NO_STATSBEAT': 'true', 'ROS_DISTRO': 'jazzy', 'GTK_IM_MODULE': 'fcitx', 'LOGNAME': 'delphine', 'LD_LIBRARY_PATH_ORIG': '/opt/MVS/lib/64:/opt/MVS/lib/32:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/opt/ros/jazzy/opt/rviz_ogre_vendor/lib:/opt/ros/jazzy/lib/x86_64-linux-gnu:/opt/ros/jazzy/opt/gz_math_vendor/lib:/opt/ros/jazzy/opt/gz_utils_vendor/lib:/opt/ros/jazzy/opt/gz_cmake_vendor/lib:/opt/ros/jazzy/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/TensorRT/TensorRT-10.2.0/lib:/usr/local/cuda-12.6/lib64:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:', 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT': 'true', 'SNAP_CONTEXT': '4hthZVkfk3FmjmWELQ5WWj5SvvO2JkVAfH3laZGolRSGZZBDstYm', 'JOURNAL_STREAM': '9:32802', '_': '/usr/bin/colcon', 'ROS_VERSION': '2', 'XDG_CONFIG_DIRS_VSCODE_SNAP_ORIG': '/etc/xdg/xdg-ubuntu:/etc/xdg', 'MEMORY_PRESSURE_WATCH': '/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/session.slice/org.gnome.Shell@x11.service/memory.pressure', 'XDG_SESSION_CLASS': 'user', 'SNAP_VERSION': '10c8e557', 'XDG_DATA_DIRS_VSCODE_SNAP_ORIG': '/usr/share/ubuntu:/usr/share/gnome:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop', 'USERNAME': 'delphine', 'GNOME_DESKTOP_SESSION_ID': 'this-is-deprecated', 'SNAP_INSTANCE_NAME': 'code', 'FC_FONTATIONS': '1', 'WINDOWPATH': '2', '_PYI_LINUX_PROCESS_NAME': 'kimi', 'MVCAM_SDK_PATH': '/opt/MVS', 'PATH': '/home/delphine/.local/bin:/opt/ros/jazzy/bin:/home/delphine/.npm-global/bin:/home/delphine/miniconda3/bin:/home/delphine/miniconda3/condabin:/opt/TensorRT/TensorRT-10.2.0.19/bin:/opt/TensorRT/TensorRT-10.2.0/bin:/usr/local/cuda-12.6/bin:/usr/bin:/home/delphine/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/opt/MVS/bin', 'SESSION_MANAGER': 'local/delphine-ASUS-TUF-Gaming-F16-FX607JV-FX607JV:@/tmp/.ICE-unix/4957,unix/delphine-ASUS-TUF-Gaming-F16-FX607JV-FX607JV:/tmp/.ICE-unix/4957', 'GTK_EXE_PREFIX': '/snap/code/235/usr', 'INVOCATION_ID': 'ec5349bb6a02486d81437f2e7fdcfc2b', 'MVCAM_GENICAM_CLPROTOCOL': '/opt/MVS/lib/CLProtocol', 'XDG_MENU_PREFIX': 'gnome-', 'SNAP_DATA': '/var/snap/code/235', 'XDG_RUNTIME_DIR': '/run/user/1000', 'GDK_BACKEND': 'x11', 'DISPLAY': ':1', 'LOCPATH': '/snap/code/235/usr/lib/locale', 'LANG': 'zh_CN.UTF-8', 'XDG_CURRENT_DESKTOP': 'ubuntu:GNOME', 'XDG_DATA_HOME': '/home/delphine/snap/code/235/.local/share', 'XMODIFIERS': '@im=fcitx', 'XDG_SESSION_DESKTOP': 'ubuntu', 'XAUTHORITY': '/run/user/1000/gdm/Xauthority', 'COPILOT_OTEL_ENABLED': 'true', 'SNAP_USER_COMMON': '/home/delphine/snap/code/common', 'SSH_AUTH_SOCK': '/run/user/1000/keyring/ssh', 'GSETTINGS_SCHEMA_DIR': '/home/delphine/snap/code/235/.local/share/glib-2.0/schemas', 'SNAP_ARCH': 'amd64', 'AMENT_PREFIX_PATH': '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs:/opt/ros/jazzy', 'SNAP_COOKIE': '4hthZVkfk3FmjmWELQ5WWj5SvvO2JkVAfH3laZGolRSGZZBDstYm', 'CONDA_PYTHON_EXE': '/home/delphine/miniconda3/bin/python', 'SHELL': '/bin/bash', 'GDK_PIXBUF_MODULEDIR': '/snap/code/235/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders', 'QT_ACCESSIBILITY': '1', 'ELECTRON_RUN_AS_NODE': '1', 'GDMSESSION': 'ubuntu', 'LESSCLOSE': '/usr/bin/lesspipe %s %s', 'CONDA_DEFAULT_ENV': 'base', 'SNAP_NAME': 'code', 'FONTCONFIG_FILE': '/etc/fonts/fonts.conf', 'GDK_PIXBUF_MODULE_FILE': '/home/delphine/snap/code/common/.cache/gdk-pixbuf-loaders.cache', 'GPG_AGENT_INFO': '/run/user/1000/gnupg/S.gpg-agent:0:1', 'GJS_DEBUG_OUTPUT': 'stderr', '_CONDA_EXE': '/home/delphine/miniconda3/bin/conda', 'ROS_AUTOMATIC_DISCOVERY_RANGE': 'SUBNET', 'SNAP_LAUNCHER_ARCH_TRIPLET': 'x86_64-linux-gnu', 'QT_IM_MODULE': 'fcitx', 'PWD': '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect_msgs', 'VSCODE_CLI': '1', 'XDG_CONFIG_DIRS': '/etc/xdg/xdg-ubuntu:/etc/xdg', 'CONDA_EXE': '/home/delphine/miniconda3/bin/conda', 'SNAP_REAL_HOME': '/home/delphine', 'VSCODE_CODE_CACHE_PATH': '/home/delphine/.config/Code/CachedData/10c8e557c8b9f9ed0a87f61f1c9a44bde731c409', 'CLUTTER_IM_MODULE': 'fcitx', 'XDG_DATA_DIRS': '/home/delphine/snap/code/235/.local/share:/home/delphine/snap/code/235:/snap/code/235/usr/share:/usr/share/ubuntu:/usr/share/gnome:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop', 'SNAP_EUID': '1000', 'PYTHONPATH': '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.12/site-packages:/opt/ros/jazzy/lib/python3.12/site-packages', 'SNAP': '/snap/code/235', 'CONDA_PREFIX': '/home/delphine/miniconda3', 'COLCON': '1', 'MEMORY_PRESSURE_WRITE': 'c29tZSAyMDAwMDAgMjAwMDAwMAA=', 'ELECTRON_NO_ATTACH_CONSOLE': '1', 'CMAKE_PREFIX_PATH': '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs:/opt/ros/jazzy/opt/gz_math_vendor:/opt/ros/jazzy/opt/gz_utils_vendor:/opt/ros/jazzy/opt/gz_cmake_vendor:/opt/ros/jazzy', 'VSCODE_PID': '7076', 'MVCAM_COMMON_RUNENV': '/opt/MVS/lib', 'COPILOT_OTEL_EXPORTER_TYPE': 'file'}), 'shell': False}
+[6.396034] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Install configuration: "RelWithDebInfo"\n'}
+[6.396331] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/ament_index/resource_index/rosidl_interfaces/tensorrt_detect_msgs\n'}
+[6.396455] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/msg/DetectionBox.json\n'}
+[6.396547] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/msg/DetectionArray.json\n'}
+[6.396632] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/msg/WorldTarget.json\n'}
+[6.396700] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/msg/WorldTargetArray.json\n'}
+[6.396821] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/msg/RadarMap.json\n'}
+[6.396925] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs\n'}
+[6.397026] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg\n'}
+[6.397108] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/world_target_array.h\n'}
+[6.397190] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detection_box.h\n'}
+[6.397281] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/world_target.h\n'}
+[6.397365] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/rosidl_generator_c__visibility_control.h\n'}
+[6.397450] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/radar_map.h\n'}
+[6.397553] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detection_array.h\n'}
+[6.397638] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail\n'}
+[6.397725] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_box__description.c\n'}
+[6.397849] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_box__struct.h\n'}
+[6.397948] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/radar_map__description.c\n'}
+[6.398049] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/radar_map__type_support.c\n'}
+[6.398407] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target__type_support.c\n'}
+[6.398450] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_array__type_support.c\n'}
+[6.398634] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target_array__type_support.h\n'}
+[6.398687] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target__functions.h\n'}
+[6.398787] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_box__functions.c\n'}
+[6.398881] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target_array__type_support.c\n'}
+[6.398995] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_box__type_support.c\n'}
+[6.399087] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target__type_support.h\n'}
+[6.399183] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_array__functions.h\n'}
+[6.399283] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_box__type_support.h\n'}
+[6.399378] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_array__struct.h\n'}
+[6.399476] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target__functions.c\n'}
+[6.399584] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target__description.c\n'}
+[6.399689] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_array__functions.c\n'}
+[6.399964] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_array__description.c\n'}
+[6.400261] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/radar_map__functions.h\n'}
+[6.400302] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target_array__description.c\n'}
+[6.400378] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_array__type_support.h\n'}
+[6.400424] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/radar_map__functions.c\n'}
+[6.400465] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/radar_map__type_support.h\n'}
+[6.400504] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_box__functions.h\n'}
+[6.400543] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target_array__functions.c\n'}
+[6.400595] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target_array__functions.h\n'}
+[6.400672] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target_array__struct.h\n'}
+[6.400714] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target__struct.h\n'}
+[6.400770] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/radar_map__struct.h\n'}
+[6.400851] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/environment/library_path.sh\n'}
+[6.400924] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/environment/library_path.dsv\n'}
+[6.400993] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/libtensorrt_detect_msgs__rosidl_generator_c.so\n'}
+[6.401314] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Set non-toolchain portion of runtime path of "/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/libtensorrt_detect_msgs__rosidl_generator_c.so" to ""\n'}
+[6.401436] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs\n'}
+[6.401484] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg\n'}
+[6.401526] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/rosidl_typesupport_fastrtps_c__visibility_control.h\n'}
+[6.401587] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail\n'}
+[6.401634] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_array__rosidl_typesupport_fastrtps_c.h\n'}
+[6.401700] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/radar_map__rosidl_typesupport_fastrtps_c.h\n'}
+[6.401776] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target_array__rosidl_typesupport_fastrtps_c.h\n'}
+[6.401853] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_box__rosidl_typesupport_fastrtps_c.h\n'}
+[6.401929] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target__rosidl_typesupport_fastrtps_c.h\n'}
+[6.402003] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/libtensorrt_detect_msgs__rosidl_typesupport_fastrtps_c.so\n'}
+[6.402532] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Set non-toolchain portion of runtime path of "/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/libtensorrt_detect_msgs__rosidl_typesupport_fastrtps_c.so" to ""\n'}
+[6.402660] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs\n'}
+[6.402702] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg\n'}
+[6.402761] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/rosidl_typesupport_introspection_c__visibility_control.h\n'}
+[6.402820] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail\n'}
+[6.402858] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target__rosidl_typesupport_introspection_c.h\n'}
+[6.402917] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_box__rosidl_typesupport_introspection_c.h\n'}
+[6.402957] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/radar_map__type_support.c\n'}
+[6.402995] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target__type_support.c\n'}
+[6.403029] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_array__type_support.c\n'}
+[6.403061] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target_array__type_support.c\n'}
+[6.403092] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_box__type_support.c\n'}
+[6.403122] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/radar_map__rosidl_typesupport_introspection_c.h\n'}
+[6.403185] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target_array__rosidl_typesupport_introspection_c.h\n'}
+[6.403219] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_array__rosidl_typesupport_introspection_c.h\n'}
+[6.403252] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/libtensorrt_detect_msgs__rosidl_typesupport_introspection_c.so\n'}
+[6.403316] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Set non-toolchain portion of runtime path of "/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/libtensorrt_detect_msgs__rosidl_typesupport_introspection_c.so" to ""\n'}
+[6.403357] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/libtensorrt_detect_msgs__rosidl_typesupport_c.so\n'}
+[6.403536] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Set non-toolchain portion of runtime path of "/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/libtensorrt_detect_msgs__rosidl_typesupport_c.so" to ""\n'}
+[6.403597] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs\n'}
+[6.403659] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg\n'}
+[6.403697] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detection_array.hpp\n'}
+[6.403757] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/world_target_array.hpp\n'}
+[6.403822] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail\n'}
+[6.403862] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_box__type_support.hpp\n'}
+[6.403930] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target__traits.hpp\n'}
+[6.403988] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/radar_map__struct.hpp\n'}
+[6.404051] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/radar_map__type_support.hpp\n'}
+[6.404111] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target__struct.hpp\n'}
+[6.404171] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_array__traits.hpp\n'}
+[6.404228] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target_array__builder.hpp\n'}
+[6.404287] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/radar_map__traits.hpp\n'}
+[6.404351] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_box__builder.hpp\n'}
+[6.404407] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_array__type_support.hpp\n'}
+[6.404463] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_array__struct.hpp\n'}
+[6.404519] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target__type_support.hpp\n'}
+[6.404577] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_box__traits.hpp\n'}
+[6.404632] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target_array__struct.hpp\n'}
+[6.404694] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target_array__type_support.hpp\n'}
+[6.404751] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target__builder.hpp\n'}
+[6.404827] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target_array__traits.hpp\n'}
+[6.404888] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_box__struct.hpp\n'}
+[6.404953] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/radar_map__builder.hpp\n'}
+[6.405015] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_array__builder.hpp\n'}
+[6.405071] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detection_box.hpp\n'}
+[6.405131] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/rosidl_generator_cpp__visibility_control.hpp\n'}
+[6.405180] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/world_target.hpp\n'}
+[6.405227] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/radar_map.hpp\n'}
+[6.405309] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs\n'}
+[6.405363] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg\n'}
+[6.405414] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/rosidl_typesupport_fastrtps_cpp__visibility_control.h\n'}
+[6.405471] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail\n'}
+[6.405527] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target_array__rosidl_typesupport_fastrtps_cpp.hpp\n'}
+[6.405581] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/radar_map__rosidl_typesupport_fastrtps_cpp.hpp\n'}
+[6.405621] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target__rosidl_typesupport_fastrtps_cpp.hpp\n'}
+[6.405681] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_box__rosidl_typesupport_fastrtps_cpp.hpp\n'}
+[6.405720] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/dds_fastrtps\n'}
+[6.405802] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_array__rosidl_typesupport_fastrtps_cpp.hpp\n'}
+[6.405861] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/libtensorrt_detect_msgs__rosidl_typesupport_fastrtps_cpp.so\n'}
+[6.406419] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Set non-toolchain portion of runtime path of "/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/libtensorrt_detect_msgs__rosidl_typesupport_fastrtps_cpp.so" to ""\n'}
+[6.406559] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs\n'}
+[6.406600] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg\n'}
+[6.406640] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail\n'}
+[6.406683] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target_array__rosidl_typesupport_introspection_cpp.hpp\n'}
+[6.406721] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/radar_map__rosidl_typesupport_introspection_cpp.hpp\n'}
+[6.406788] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_array__type_support.cpp\n'}
+[6.406831] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target__rosidl_typesupport_introspection_cpp.hpp\n'}
+[6.406873] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_array__rosidl_typesupport_introspection_cpp.hpp\n'}
+[6.406953] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_box__rosidl_typesupport_introspection_cpp.hpp\n'}
+[6.406997] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/radar_map__type_support.cpp\n'}
+[6.407062] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/detection_box__type_support.cpp\n'}
+[6.407103] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target_array__type_support.cpp\n'}
+[6.407160] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/include/tensorrt_detect_msgs/tensorrt_detect_msgs/msg/detail/world_target__type_support.cpp\n'}
+[6.407212] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/libtensorrt_detect_msgs__rosidl_typesupport_introspection_cpp.so\n'}
+[6.407603] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Set non-toolchain portion of runtime path of "/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/libtensorrt_detect_msgs__rosidl_typesupport_introspection_cpp.so" to ""\n'}
+[6.407714] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/libtensorrt_detect_msgs__rosidl_typesupport_cpp.so\n'}
+[6.407863] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Set non-toolchain portion of runtime path of "/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/libtensorrt_detect_msgs__rosidl_typesupport_cpp.so" to ""\n'}
+[6.407935] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/environment/pythonpath.sh\n'}
+[6.408007] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/environment/pythonpath.dsv\n'}
+[6.408072] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs-0.0.1-py3.13.egg-info\n'}
+[6.408139] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs-0.0.1-py3.13.egg-info/SOURCES.txt\n'}
+[6.408210] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs-0.0.1-py3.13.egg-info/dependency_links.txt\n'}
+[6.408272] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs-0.0.1-py3.13.egg-info/PKG-INFO\n'}
+[6.408324] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs-0.0.1-py3.13.egg-info/top_level.txt\n'}
+[6.408398] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs\n'}
+[6.408455] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/tensorrt_detect_msgs_s__rosidl_typesupport_introspection_c.so\n'}
+[6.408511] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/_tensorrt_detect_msgs_s.ep.rosidl_typesupport_introspection_c.c\n'}
+[6.408573] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/__init__.py\n'}
+[6.408618] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/tensorrt_detect_msgs_s__rosidl_typesupport_c.so\n'}
+[6.408672] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/msg\n'}
+[6.408719] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/msg/__init__.py\n'}
+[6.408778] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/msg/_detection_box_s.c\n'}
+[6.408841] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/msg/_world_target_s.c\n'}
+[6.408898] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/msg/_world_target_array.py\n'}
+[6.408958] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/msg/_world_target.py\n'}
+[6.409018] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/msg/_radar_map_s.c\n'}
+[6.409074] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/msg/_radar_map.py\n'}
+[6.409134] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/msg/_detection_box.py\n'}
+[6.409201] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/msg/_detection_array_s.c\n'}
+[6.409299] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/msg/_detection_array.py\n'}
+[6.409398] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/msg/_world_target_array_s.c\n'}
+[6.409494] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/tensorrt_detect_msgs_s__rosidl_typesupport_fastrtps_c.so\n'}
+[6.409617] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/_tensorrt_detect_msgs_s.ep.rosidl_typesupport_fastrtps_c.c\n'}
+[6.409721] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/_tensorrt_detect_msgs_s.ep.rosidl_typesupport_c.c\n'}
+[6.415618] (-) TimerEvent: {}
+[6.447019] (tensorrt_detect_msgs) StdoutLine: {'line': b"Listing '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs'...\n"}
+[6.447165] (tensorrt_detect_msgs) StdoutLine: {'line': b"Compiling '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/__init__.py'...\n"}
+[6.447204] (tensorrt_detect_msgs) StdoutLine: {'line': b"Listing '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/msg'...\n"}
+[6.447240] (tensorrt_detect_msgs) StdoutLine: {'line': b"Compiling '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/msg/__init__.py'...\n"}
+[6.447273] (tensorrt_detect_msgs) StdoutLine: {'line': b"Compiling '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/msg/_detection_array.py'...\n"}
+[6.447305] (tensorrt_detect_msgs) StdoutLine: {'line': b"Compiling '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/msg/_detection_box.py'...\n"}
+[6.447335] (tensorrt_detect_msgs) StdoutLine: {'line': b"Compiling '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/msg/_radar_map.py'...\n"}
+[6.447369] (tensorrt_detect_msgs) StdoutLine: {'line': b"Compiling '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/msg/_world_target.py'...\n"}
+[6.447400] (tensorrt_detect_msgs) StdoutLine: {'line': b"Compiling '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/msg/_world_target_array.py'...\n"}
+[6.450916] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/tensorrt_detect_msgs_s__rosidl_typesupport_fastrtps_c.so\n'}
+[6.451257] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Set non-toolchain portion of runtime path of "/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/tensorrt_detect_msgs_s__rosidl_typesupport_fastrtps_c.so" to ""\n'}
+[6.451348] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/tensorrt_detect_msgs_s__rosidl_typesupport_introspection_c.so\n'}
+[6.451390] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Set non-toolchain portion of runtime path of "/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/tensorrt_detect_msgs_s__rosidl_typesupport_introspection_c.so" to ""\n'}
+[6.451427] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/tensorrt_detect_msgs_s__rosidl_typesupport_c.so\n'}
+[6.451533] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Set non-toolchain portion of runtime path of "/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages/tensorrt_detect_msgs/tensorrt_detect_msgs_s__rosidl_typesupport_c.so" to ""\n'}
+[6.451570] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/libtensorrt_detect_msgs__rosidl_generator_py.so\n'}
+[6.451786] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Set non-toolchain portion of runtime path of "/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/libtensorrt_detect_msgs__rosidl_generator_py.so" to ""\n'}
+[6.452126] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/ament_index/resource_index/rust_packages/tensorrt_detect_msgs\n'}
+[6.452214] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/rust\n'}
+[6.452263] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/rust/build.rs\n'}
+[6.452310] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/rust/src\n'}
+[6.452352] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/rust/src/msg.rs\n'}
+[6.452393] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/rust/src/msg\n'}
+[6.452433] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/rust/src/msg/rmw.rs\n'}
+[6.452730] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/rust/src/lib.rs\n'}
+[6.453021] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/rust/Cargo.toml\n'}
+[6.453072] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/msg/DetectionBox.idl\n'}
+[6.453122] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/msg/DetectionArray.idl\n'}
+[6.453164] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/msg/WorldTarget.idl\n'}
+[6.453198] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/msg/WorldTargetArray.idl\n'}
+[6.453239] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/msg/RadarMap.idl\n'}
+[6.453279] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/msg/DetectionBox.msg\n'}
+[6.453319] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/msg/DetectionArray.msg\n'}
+[6.453353] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/msg/WorldTarget.msg\n'}
+[6.453525] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/msg/WorldTargetArray.msg\n'}
+[6.453562] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/msg/RadarMap.msg\n'}
+[6.453597] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/ament_index/resource_index/package_run_dependencies/tensorrt_detect_msgs\n'}
+[6.453632] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/ament_index/resource_index/parent_prefix_path/tensorrt_detect_msgs\n'}
+[6.453668] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/environment/ament_prefix_path.sh\n'}
+[6.453701] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/environment/ament_prefix_path.dsv\n'}
+[6.453762] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/environment/path.sh\n'}
+[6.453797] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/environment/path.dsv\n'}
+[6.453833] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/local_setup.bash\n'}
+[6.453870] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/local_setup.sh\n'}
+[6.454132] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/local_setup.zsh\n'}
+[6.454229] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/local_setup.dsv\n'}
+[6.454273] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/package.dsv\n'}
+[6.454312] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/ament_index/resource_index/packages/tensorrt_detect_msgs\n'}
+[6.454347] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake/export_tensorrt_detect_msgs__rosidl_generator_cExport.cmake\n'}
+[6.454395] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake/export_tensorrt_detect_msgs__rosidl_generator_cExport-relwithdebinfo.cmake\n'}
+[6.454431] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake/export_tensorrt_detect_msgs__rosidl_typesupport_fastrtps_cExport.cmake\n'}
+[6.454491] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake/export_tensorrt_detect_msgs__rosidl_typesupport_fastrtps_cExport-relwithdebinfo.cmake\n'}
+[6.454563] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake/tensorrt_detect_msgs__rosidl_typesupport_introspection_cExport.cmake\n'}
+[6.454627] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake/tensorrt_detect_msgs__rosidl_typesupport_introspection_cExport-relwithdebinfo.cmake\n'}
+[6.454668] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake/tensorrt_detect_msgs__rosidl_typesupport_cExport.cmake\n'}
+[6.454709] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake/tensorrt_detect_msgs__rosidl_typesupport_cExport-relwithdebinfo.cmake\n'}
+[6.454776] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake/export_tensorrt_detect_msgs__rosidl_generator_cppExport.cmake\n'}
+[6.454821] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake/export_tensorrt_detect_msgs__rosidl_typesupport_fastrtps_cppExport.cmake\n'}
+[6.454885] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake/export_tensorrt_detect_msgs__rosidl_typesupport_fastrtps_cppExport-relwithdebinfo.cmake\n'}
+[6.454960] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake/tensorrt_detect_msgs__rosidl_typesupport_introspection_cppExport.cmake\n'}
+[6.455018] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake/tensorrt_detect_msgs__rosidl_typesupport_introspection_cppExport-relwithdebinfo.cmake\n'}
+[6.455086] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake/tensorrt_detect_msgs__rosidl_typesupport_cppExport.cmake\n'}
+[6.455157] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake/tensorrt_detect_msgs__rosidl_typesupport_cppExport-relwithdebinfo.cmake\n'}
+[6.455235] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake/export_tensorrt_detect_msgs__rosidl_generator_pyExport.cmake\n'}
+[6.455303] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake/export_tensorrt_detect_msgs__rosidl_generator_pyExport-relwithdebinfo.cmake\n'}
+[6.455367] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake/rosidl_cmake-extras.cmake\n'}
+[6.455432] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake/ament_cmake_export_dependencies-extras.cmake\n'}
+[6.455503] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake/ament_cmake_export_include_directories-extras.cmake\n'}
+[6.455570] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake/ament_cmake_export_libraries-extras.cmake\n'}
+[6.455642] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake/ament_cmake_export_targets-extras.cmake\n'}
+[6.455726] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake/rosidl_cmake_export_typesupport_targets-extras.cmake\n'}
+[6.455799] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake/rosidl_cmake_export_typesupport_libraries-extras.cmake\n'}
+[6.455897] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake/tensorrt_detect_msgsConfig.cmake\n'}
+[6.455967] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake/tensorrt_detect_msgsConfig-version.cmake\n'}
+[6.456048] (tensorrt_detect_msgs) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/package.xml\n'}
+[6.457351] (tensorrt_detect_msgs) CommandEnded: {'returncode': 0}
+[6.473375] (tensorrt_detect_msgs) JobEnded: {'identifier': 'tensorrt_detect_msgs', 'rc': 0}
+[6.474144] (tensorrt_detect) JobStarted: {'identifier': 'tensorrt_detect'}
+[6.481049] (tensorrt_detect) JobProgress: {'identifier': 'tensorrt_detect', 'progress': 'cmake'}
+[6.481626] (tensorrt_detect) Command: {'cmd': ['/usr/bin/cmake', '/home/delphine/rm/tensorrt10_detect/src/tensorrt_detect', '-DCMAKE_BUILD_TYPE=RelWithDebInfo', '-DCMAKE_INSTALL_PREFIX=/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect'], 'cwd': '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect', 'env': OrderedDict({'GJS_DEBUG_TOPICS': 'JS ERROR;JS LOG', 'LESSOPEN': '| /usr/bin/lesspipe %s', 'VSCODE_CWD': '/home/delphine', 'VSCODE_ESM_ENTRYPOINT': 'vs/workbench/api/node/extensionHostProcess', 'CONDA_PROMPT_MODIFIER': '(base)', 'TENSORRT_PATH': '/opt/TensorRT/TensorRT-10.2.0.19', '_PYI_ARCHIVE_FILE': '/home/delphine/.config/Code/User/globalStorage/moonshot-ai.kimi-code/bin/kimi/kimi', 'USER': 'delphine', 'SNAP_COMMON': '/var/snap/code/common', 'VSCODE_NLS_CONFIG': '{"userLocale":"zh-cn","osLocale":"zh-cn","resolvedLanguage":"zh-cn","defaultMessagesFile":"/snap/code/235/usr/share/code/resources/app/out/nls.messages.json","languagePack":{"translationsConfigFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/tcf.json","messagesFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/10c8e557c8b9f9ed0a87f61f1c9a44bde731c409/nls.messages.json","corruptMarkerFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/corrupted.info"},"locale":"zh-cn","availableLanguages":{"*":"zh-cn"},"_languagePackId":"b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn","_languagePackSupport":true,"_translationsConfigFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/tcf.json","_cacheRoot":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn","_resolvedLanguagePackCoreLocation":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/10c8e557c8b9f9ed0a87f61f1c9a44bde731c409","_corruptedFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/corrupted.info"}', 'FONTCONFIG_PATH': '/etc/fonts', 'GIO_MODULE_DIR': '/home/delphine/snap/code/common/.cache/gio-modules', 'VSCODE_HANDLES_UNCAUGHT_ERRORS': 'true', 'XDG_SESSION_TYPE': 'x11', 'ALLUSERSPROFILE': '/opt/MVS/MVFG', 'SNAP_UID': '1000', 'CLUTTER_DISABLE_MIPMAPPED_TEXT': '1', 'SHLVL': '1', 'LD_LIBRARY_PATH': '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/ros/jazzy/opt/rviz_ogre_vendor/lib:/opt/ros/jazzy/lib/x86_64-linux-gnu:/opt/ros/jazzy/opt/gz_math_vendor/lib:/opt/ros/jazzy/opt/gz_utils_vendor/lib:/opt/ros/jazzy/opt/gz_cmake_vendor/lib:/opt/ros/jazzy/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/TensorRT/TensorRT-10.2.0/lib:/usr/local/cuda-12.6/lib64:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32', 'HOME': '/home/delphine', 'CHROME_DESKTOP': 'code.desktop', 'CONDA_SHLVL': '1', 'SNAP_LIBRARY_PATH': '/var/lib/snapd/lib/gl:/var/lib/snapd/lib/gl32', 'OLDPWD': '/home/delphine/rm/tensorrt10_detect', 'DESKTOP_SESSION': 'ubuntu', 'SNAP_USER_DATA': '/home/delphine/snap/code/235', 'GTK_PATH': '/snap/code/235/usr/lib/x86_64-linux-gnu/gtk-3.0', 'VSCODE_IPC_HOOK': '/run/user/1000/vscode-93a8e15f-1.11-main.sock', 'GTK_IM_MODULE_FILE': '/home/delphine/snap/code/common/.cache/immodules/immodules.cache', 'GIO_LAUNCHED_DESKTOP_FILE': '/var/lib/snapd/desktop/applications/code_code.desktop', 'ROS_PYTHON_VERSION': '3', 'GNOME_SHELL_SESSION_MODE': 'ubuntu', 'GTK_MODULES': 'gail:atk-bridge', 'SDL_IM_MODULE': 'fcitx', '_PYI_PARENT_PROCESS_LEVEL': '1', 'COPILOT_OTEL_FILE_EXPORTER_PATH': '/dev/null', 'MANAGERPID': '4603', 'SYSTEMD_EXEC_PID': '4987', 'GSM_SKIP_SSH_AGENT_WORKAROUND': 'true', 'DBUS_SESSION_BUS_ADDRESS': 'unix:path=/run/user/1000/bus', 'SNAP_REVISION': '235', '_CONDA_ROOT': '/home/delphine/miniconda3', 'GIO_LAUNCHED_DESKTOP_FILE_PID': '6982', 'VSCODE_CRASH_REPORTER_PROCESS_TYPE': 'extensionHost', 'DEBUGINFOD_URLS': 'https://debuginfod.ubuntu.com', 'IM_CONFIG_PHASE': '1', 'VSCODE_L10N_BUNDLE_LOCATION': 'file:///home/delphine/.vscode/extensions/ms-ceintl.vscode-language-pack-zh-hans-1.110.2026041514/translations/extensions/vscode.json-language-features.i18n.json', 'COLCON_PREFIX_PATH': '/home/delphine/rm/tensorrt10_detect/install', 'APPLICATION_INSIGHTS_NO_STATSBEAT': 'true', 'ROS_DISTRO': 'jazzy', 'GTK_IM_MODULE': 'fcitx', 'LOGNAME': 'delphine', 'LD_LIBRARY_PATH_ORIG': '/opt/MVS/lib/64:/opt/MVS/lib/32:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/opt/ros/jazzy/opt/rviz_ogre_vendor/lib:/opt/ros/jazzy/lib/x86_64-linux-gnu:/opt/ros/jazzy/opt/gz_math_vendor/lib:/opt/ros/jazzy/opt/gz_utils_vendor/lib:/opt/ros/jazzy/opt/gz_cmake_vendor/lib:/opt/ros/jazzy/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/TensorRT/TensorRT-10.2.0/lib:/usr/local/cuda-12.6/lib64:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:', 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT': 'true', 'SNAP_CONTEXT': '4hthZVkfk3FmjmWELQ5WWj5SvvO2JkVAfH3laZGolRSGZZBDstYm', 'JOURNAL_STREAM': '9:32802', '_': '/usr/bin/colcon', 'ROS_VERSION': '2', 'XDG_CONFIG_DIRS_VSCODE_SNAP_ORIG': '/etc/xdg/xdg-ubuntu:/etc/xdg', 'MEMORY_PRESSURE_WATCH': '/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/session.slice/org.gnome.Shell@x11.service/memory.pressure', 'XDG_SESSION_CLASS': 'user', 'SNAP_VERSION': '10c8e557', 'XDG_DATA_DIRS_VSCODE_SNAP_ORIG': '/usr/share/ubuntu:/usr/share/gnome:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop', 'USERNAME': 'delphine', 'GNOME_DESKTOP_SESSION_ID': 'this-is-deprecated', 'SNAP_INSTANCE_NAME': 'code', 'FC_FONTATIONS': '1', 'WINDOWPATH': '2', '_PYI_LINUX_PROCESS_NAME': 'kimi', 'MVCAM_SDK_PATH': '/opt/MVS', 'PATH': '/home/delphine/.local/bin:/opt/ros/jazzy/bin:/home/delphine/.npm-global/bin:/home/delphine/miniconda3/bin:/home/delphine/miniconda3/condabin:/opt/TensorRT/TensorRT-10.2.0.19/bin:/opt/TensorRT/TensorRT-10.2.0/bin:/usr/local/cuda-12.6/bin:/usr/bin:/home/delphine/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/opt/MVS/bin', 'SESSION_MANAGER': 'local/delphine-ASUS-TUF-Gaming-F16-FX607JV-FX607JV:@/tmp/.ICE-unix/4957,unix/delphine-ASUS-TUF-Gaming-F16-FX607JV-FX607JV:/tmp/.ICE-unix/4957', 'GTK_EXE_PREFIX': '/snap/code/235/usr', 'INVOCATION_ID': 'ec5349bb6a02486d81437f2e7fdcfc2b', 'MVCAM_GENICAM_CLPROTOCOL': '/opt/MVS/lib/CLProtocol', 'XDG_MENU_PREFIX': 'gnome-', 'SNAP_DATA': '/var/snap/code/235', 'XDG_RUNTIME_DIR': '/run/user/1000', 'GDK_BACKEND': 'x11', 'DISPLAY': ':1', 'LOCPATH': '/snap/code/235/usr/lib/locale', 'LANG': 'zh_CN.UTF-8', 'XDG_CURRENT_DESKTOP': 'ubuntu:GNOME', 'XDG_DATA_HOME': '/home/delphine/snap/code/235/.local/share', 'XMODIFIERS': '@im=fcitx', 'XDG_SESSION_DESKTOP': 'ubuntu', 'XAUTHORITY': '/run/user/1000/gdm/Xauthority', 'COPILOT_OTEL_ENABLED': 'true', 'SNAP_USER_COMMON': '/home/delphine/snap/code/common', 'SSH_AUTH_SOCK': '/run/user/1000/keyring/ssh', 'GSETTINGS_SCHEMA_DIR': '/home/delphine/snap/code/235/.local/share/glib-2.0/schemas', 'SNAP_ARCH': 'amd64', 'AMENT_PREFIX_PATH': '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs:/opt/ros/jazzy', 'SNAP_COOKIE': '4hthZVkfk3FmjmWELQ5WWj5SvvO2JkVAfH3laZGolRSGZZBDstYm', 'CONDA_PYTHON_EXE': '/home/delphine/miniconda3/bin/python', 'SHELL': '/bin/bash', 'GDK_PIXBUF_MODULEDIR': '/snap/code/235/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders', 'QT_ACCESSIBILITY': '1', 'ELECTRON_RUN_AS_NODE': '1', 'GDMSESSION': 'ubuntu', 'LESSCLOSE': '/usr/bin/lesspipe %s %s', 'CONDA_DEFAULT_ENV': 'base', 'SNAP_NAME': 'code', 'FONTCONFIG_FILE': '/etc/fonts/fonts.conf', 'GDK_PIXBUF_MODULE_FILE': '/home/delphine/snap/code/common/.cache/gdk-pixbuf-loaders.cache', 'GPG_AGENT_INFO': '/run/user/1000/gnupg/S.gpg-agent:0:1', 'GJS_DEBUG_OUTPUT': 'stderr', '_CONDA_EXE': '/home/delphine/miniconda3/bin/conda', 'ROS_AUTOMATIC_DISCOVERY_RANGE': 'SUBNET', 'SNAP_LAUNCHER_ARCH_TRIPLET': 'x86_64-linux-gnu', 'QT_IM_MODULE': 'fcitx', 'PWD': '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect', 'VSCODE_CLI': '1', 'XDG_CONFIG_DIRS': '/etc/xdg/xdg-ubuntu:/etc/xdg', 'CONDA_EXE': '/home/delphine/miniconda3/bin/conda', 'SNAP_REAL_HOME': '/home/delphine', 'VSCODE_CODE_CACHE_PATH': '/home/delphine/.config/Code/CachedData/10c8e557c8b9f9ed0a87f61f1c9a44bde731c409', 'CLUTTER_IM_MODULE': 'fcitx', 'XDG_DATA_DIRS': '/home/delphine/snap/code/235/.local/share:/home/delphine/snap/code/235:/snap/code/235/usr/share:/usr/share/ubuntu:/usr/share/gnome:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop', 'SNAP_EUID': '1000', 'PYTHONPATH': '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.12/site-packages:/opt/ros/jazzy/lib/python3.12/site-packages', 'SNAP': '/snap/code/235', 'CONDA_PREFIX': '/home/delphine/miniconda3', 'COLCON': '1', 'MEMORY_PRESSURE_WRITE': 'c29tZSAyMDAwMDAgMjAwMDAwMAA=', 'ELECTRON_NO_ATTACH_CONSOLE': '1', 'CMAKE_PREFIX_PATH': '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect:/opt/ros/jazzy/opt/gz_math_vendor:/opt/ros/jazzy/opt/gz_utils_vendor:/opt/ros/jazzy/opt/gz_cmake_vendor:/opt/ros/jazzy', 'VSCODE_PID': '7076', 'MVCAM_COMMON_RUNENV': '/opt/MVS/lib', 'COPILOT_OTEL_EXPORTER_TYPE': 'file'}), 'shell': False}
+[6.515765] (-) TimerEvent: {}
+[6.527204] (tensorrt_detect) StdoutLine: {'line': b'-- The C compiler identification is GNU 13.3.0\n'}
+[6.570074] (tensorrt_detect) StdoutLine: {'line': b'-- The CXX compiler identification is GNU 13.3.0\n'}
+[6.583438] (tensorrt_detect) StdoutLine: {'line': b'-- Detecting C compiler ABI info\n'}
+[6.615873] (-) TimerEvent: {}
+[6.654759] (tensorrt_detect) StdoutLine: {'line': b'-- Detecting C compiler ABI info - done\n'}
+[6.660969] (tensorrt_detect) StdoutLine: {'line': b'-- Check for working C compiler: /usr/bin/cc - skipped\n'}
+[6.661109] (tensorrt_detect) StdoutLine: {'line': b'-- Detecting C compile features\n'}
+[6.661420] (tensorrt_detect) StdoutLine: {'line': b'-- Detecting C compile features - done\n'}
+[6.671681] (tensorrt_detect) StdoutLine: {'line': b'-- Detecting CXX compiler ABI info\n'}
+[6.715990] (-) TimerEvent: {}
+[6.765000] (tensorrt_detect) StdoutLine: {'line': b'-- Detecting CXX compiler ABI info - done\n'}
+[6.771681] (tensorrt_detect) StdoutLine: {'line': b'-- Check for working CXX compiler: /usr/bin/c++ - skipped\n'}
+[6.772185] (tensorrt_detect) StdoutLine: {'line': b'-- Detecting CXX compile features\n'}
+[6.772412] (tensorrt_detect) StdoutLine: {'line': b'-- Detecting CXX compile features - done\n'}
+[6.775890] (tensorrt_detect) StdoutLine: {'line': b'-- Found ament_cmake: 2.5.6 (/opt/ros/jazzy/share/ament_cmake/cmake)\n'}
+[6.816078] (-) TimerEvent: {}
+[6.875518] (tensorrt_detect) StdoutLine: {'line': b'-- Found Python3: /home/delphine/miniconda3/bin/python3 (found version "3.13.12") found components: Interpreter \n'}
+[6.916321] (-) TimerEvent: {}
+[6.955487] (tensorrt_detect) StdoutLine: {'line': b'-- Found rclcpp: 28.1.18 (/opt/ros/jazzy/share/rclcpp/cmake)\n'}
+[6.986407] (tensorrt_detect) StdoutLine: {'line': b'-- Found rosidl_generator_c: 4.6.7 (/opt/ros/jazzy/share/rosidl_generator_c/cmake)\n'}
+[6.995138] (tensorrt_detect) StdoutLine: {'line': b'-- Found rosidl_generator_cpp: 4.6.7 (/opt/ros/jazzy/share/rosidl_generator_cpp/cmake)\n'}
+[7.006233] (tensorrt_detect) StdoutLine: {'line': b'-- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c\n'}
+[7.016481] (-) TimerEvent: {}
+[7.018066] (tensorrt_detect) StdoutLine: {'line': b'-- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp\n'}
+[7.092856] (tensorrt_detect) StdoutLine: {'line': b'-- Found rmw_implementation_cmake: 7.3.3 (/opt/ros/jazzy/share/rmw_implementation_cmake/cmake)\n'}
+[7.096193] (tensorrt_detect) StdoutLine: {'line': b'-- Found rmw_fastrtps_cpp: 8.4.3 (/opt/ros/jazzy/share/rmw_fastrtps_cpp/cmake)\n'}
+[7.116576] (-) TimerEvent: {}
+[7.177065] (tensorrt_detect) StdoutLine: {'line': b'-- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.13")  \n'}
+[7.196467] (tensorrt_detect) StdoutLine: {'line': b'-- Found FastRTPS: /opt/ros/jazzy/include (Required is at least version "2.13") \n'}
+[7.216758] (-) TimerEvent: {}
+[7.221703] (tensorrt_detect) StdoutLine: {'line': b"-- Using RMW implementation 'rmw_fastrtps_cpp' as default\n"}
+[7.308293] (tensorrt_detect) StdoutLine: {'line': b'-- Found sensor_msgs: 5.3.7 (/opt/ros/jazzy/share/sensor_msgs/cmake)\n'}
+[7.316930] (-) TimerEvent: {}
+[7.367612] (tensorrt_detect) StdoutLine: {'line': b'-- Found cv_bridge: 4.1.0 (/opt/ros/jazzy/share/cv_bridge/cmake)\n'}
+[7.378991] (tensorrt_detect) StdoutLine: {'line': b'-- Found tensorrt_detect_msgs: 0.0.1 (/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake)\n'}
+[7.393664] (tensorrt_detect) StdoutLine: {'line': b'-- Found OpenCV: /usr (found version "4.6.0") \n'}
+[7.416076] (tensorrt_detect) StdoutLine: {'line': b'-- Found CUDAToolkit: /usr/include (found version "12.0.140") \n'}
+[7.416970] (-) TimerEvent: {}
+[7.422749] (tensorrt_detect) StdoutLine: {'line': b'-- Performing Test CMAKE_HAVE_LIBC_PTHREAD\n'}
+[7.506798] (tensorrt_detect) StdoutLine: {'line': b'-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success\n'}
+[7.508145] (tensorrt_detect) StdoutLine: {'line': b'-- Found Threads: TRUE  \n'}
+[7.517205] (-) TimerEvent: {}
+[7.590882] (tensorrt_detect) StderrLine: {'line': b'CMake Deprecation Warning at /home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/lib/cmake/Open3D/Open3DConfig.cmake:18 (cmake_policy):\n'}
+[7.591073] (tensorrt_detect) StderrLine: {'line': b'  The OLD behavior for policy CMP0072 will be removed from a future version\n'}
+[7.591120] (tensorrt_detect) StderrLine: {'line': b'  of CMake.\n'}
+[7.591158] (tensorrt_detect) StderrLine: {'line': b'\n'}
+[7.591188] (tensorrt_detect) StderrLine: {'line': b'  The cmake-policies(7) manual explains that the OLD behaviors of all\n'}
+[7.591217] (tensorrt_detect) StderrLine: {'line': b'  policies are deprecated and that a policy should be set to OLD only under\n'}
+[7.591249] (tensorrt_detect) StderrLine: {'line': b'  specific short-term circumstances.  Projects should be ported to the NEW\n'}
+[7.591282] (tensorrt_detect) StderrLine: {'line': b'  behavior and not rely on setting a policy to OLD.\n'}
+[7.591310] (tensorrt_detect) StderrLine: {'line': b'Call Stack (most recent call first):\n'}
+[7.591338] (tensorrt_detect) StderrLine: {'line': b'  CMakeLists.txt:28 (find_package)\n'}
+[7.591367] (tensorrt_detect) StderrLine: {'line': b'\n'}
+[7.591395] (tensorrt_detect) StderrLine: {'line': b'\n'}
+[7.593642] (tensorrt_detect) StdoutLine: {'line': b'-- Found Open3D: /home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/lib/cmake/Open3D/Open3DConfig.cmake (found version "0.19.0") \n'}
+[7.617335] (-) TimerEvent: {}
+[7.694951] (tensorrt_detect) StdoutLine: {'line': b'-- Configuring done (1.2s)\n'}
+[7.717435] (-) TimerEvent: {}
+[7.793908] (tensorrt_detect) StdoutLine: {'line': b'-- Generating done (0.0s)\n'}
+[7.808345] (tensorrt_detect) StdoutLine: {'line': b'-- Build files have been written to: /home/delphine/rm/tensorrt10_detect/build/tensorrt_detect\n'}
+[7.817571] (-) TimerEvent: {}
+[7.822487] (tensorrt_detect) CommandEnded: {'returncode': 0}
+[7.823223] (tensorrt_detect) JobProgress: {'identifier': 'tensorrt_detect', 'progress': 'build'}
+[7.823539] (tensorrt_detect) Command: {'cmd': ['/usr/bin/cmake', '--build', '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect', '--', '-j20', '-l20'], 'cwd': '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect', 'env': OrderedDict({'GJS_DEBUG_TOPICS': 'JS ERROR;JS LOG', 'LESSOPEN': '| /usr/bin/lesspipe %s', 'VSCODE_CWD': '/home/delphine', 'VSCODE_ESM_ENTRYPOINT': 'vs/workbench/api/node/extensionHostProcess', 'CONDA_PROMPT_MODIFIER': '(base)', 'TENSORRT_PATH': '/opt/TensorRT/TensorRT-10.2.0.19', '_PYI_ARCHIVE_FILE': '/home/delphine/.config/Code/User/globalStorage/moonshot-ai.kimi-code/bin/kimi/kimi', 'USER': 'delphine', 'SNAP_COMMON': '/var/snap/code/common', 'VSCODE_NLS_CONFIG': '{"userLocale":"zh-cn","osLocale":"zh-cn","resolvedLanguage":"zh-cn","defaultMessagesFile":"/snap/code/235/usr/share/code/resources/app/out/nls.messages.json","languagePack":{"translationsConfigFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/tcf.json","messagesFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/10c8e557c8b9f9ed0a87f61f1c9a44bde731c409/nls.messages.json","corruptMarkerFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/corrupted.info"},"locale":"zh-cn","availableLanguages":{"*":"zh-cn"},"_languagePackId":"b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn","_languagePackSupport":true,"_translationsConfigFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/tcf.json","_cacheRoot":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn","_resolvedLanguagePackCoreLocation":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/10c8e557c8b9f9ed0a87f61f1c9a44bde731c409","_corruptedFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/corrupted.info"}', 'FONTCONFIG_PATH': '/etc/fonts', 'GIO_MODULE_DIR': '/home/delphine/snap/code/common/.cache/gio-modules', 'VSCODE_HANDLES_UNCAUGHT_ERRORS': 'true', 'XDG_SESSION_TYPE': 'x11', 'ALLUSERSPROFILE': '/opt/MVS/MVFG', 'SNAP_UID': '1000', 'CLUTTER_DISABLE_MIPMAPPED_TEXT': '1', 'SHLVL': '1', 'LD_LIBRARY_PATH': '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/ros/jazzy/opt/rviz_ogre_vendor/lib:/opt/ros/jazzy/lib/x86_64-linux-gnu:/opt/ros/jazzy/opt/gz_math_vendor/lib:/opt/ros/jazzy/opt/gz_utils_vendor/lib:/opt/ros/jazzy/opt/gz_cmake_vendor/lib:/opt/ros/jazzy/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/TensorRT/TensorRT-10.2.0/lib:/usr/local/cuda-12.6/lib64:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32', 'HOME': '/home/delphine', 'CHROME_DESKTOP': 'code.desktop', 'CONDA_SHLVL': '1', 'SNAP_LIBRARY_PATH': '/var/lib/snapd/lib/gl:/var/lib/snapd/lib/gl32', 'OLDPWD': '/home/delphine/rm/tensorrt10_detect', 'DESKTOP_SESSION': 'ubuntu', 'SNAP_USER_DATA': '/home/delphine/snap/code/235', 'GTK_PATH': '/snap/code/235/usr/lib/x86_64-linux-gnu/gtk-3.0', 'VSCODE_IPC_HOOK': '/run/user/1000/vscode-93a8e15f-1.11-main.sock', 'GTK_IM_MODULE_FILE': '/home/delphine/snap/code/common/.cache/immodules/immodules.cache', 'GIO_LAUNCHED_DESKTOP_FILE': '/var/lib/snapd/desktop/applications/code_code.desktop', 'ROS_PYTHON_VERSION': '3', 'GNOME_SHELL_SESSION_MODE': 'ubuntu', 'GTK_MODULES': 'gail:atk-bridge', 'SDL_IM_MODULE': 'fcitx', '_PYI_PARENT_PROCESS_LEVEL': '1', 'COPILOT_OTEL_FILE_EXPORTER_PATH': '/dev/null', 'MANAGERPID': '4603', 'SYSTEMD_EXEC_PID': '4987', 'GSM_SKIP_SSH_AGENT_WORKAROUND': 'true', 'DBUS_SESSION_BUS_ADDRESS': 'unix:path=/run/user/1000/bus', 'SNAP_REVISION': '235', '_CONDA_ROOT': '/home/delphine/miniconda3', 'GIO_LAUNCHED_DESKTOP_FILE_PID': '6982', 'VSCODE_CRASH_REPORTER_PROCESS_TYPE': 'extensionHost', 'DEBUGINFOD_URLS': 'https://debuginfod.ubuntu.com', 'IM_CONFIG_PHASE': '1', 'VSCODE_L10N_BUNDLE_LOCATION': 'file:///home/delphine/.vscode/extensions/ms-ceintl.vscode-language-pack-zh-hans-1.110.2026041514/translations/extensions/vscode.json-language-features.i18n.json', 'COLCON_PREFIX_PATH': '/home/delphine/rm/tensorrt10_detect/install', 'APPLICATION_INSIGHTS_NO_STATSBEAT': 'true', 'ROS_DISTRO': 'jazzy', 'GTK_IM_MODULE': 'fcitx', 'LOGNAME': 'delphine', 'LD_LIBRARY_PATH_ORIG': '/opt/MVS/lib/64:/opt/MVS/lib/32:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/opt/ros/jazzy/opt/rviz_ogre_vendor/lib:/opt/ros/jazzy/lib/x86_64-linux-gnu:/opt/ros/jazzy/opt/gz_math_vendor/lib:/opt/ros/jazzy/opt/gz_utils_vendor/lib:/opt/ros/jazzy/opt/gz_cmake_vendor/lib:/opt/ros/jazzy/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/TensorRT/TensorRT-10.2.0/lib:/usr/local/cuda-12.6/lib64:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:', 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT': 'true', 'SNAP_CONTEXT': '4hthZVkfk3FmjmWELQ5WWj5SvvO2JkVAfH3laZGolRSGZZBDstYm', 'JOURNAL_STREAM': '9:32802', '_': '/usr/bin/colcon', 'ROS_VERSION': '2', 'XDG_CONFIG_DIRS_VSCODE_SNAP_ORIG': '/etc/xdg/xdg-ubuntu:/etc/xdg', 'MEMORY_PRESSURE_WATCH': '/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/session.slice/org.gnome.Shell@x11.service/memory.pressure', 'XDG_SESSION_CLASS': 'user', 'SNAP_VERSION': '10c8e557', 'XDG_DATA_DIRS_VSCODE_SNAP_ORIG': '/usr/share/ubuntu:/usr/share/gnome:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop', 'USERNAME': 'delphine', 'GNOME_DESKTOP_SESSION_ID': 'this-is-deprecated', 'SNAP_INSTANCE_NAME': 'code', 'FC_FONTATIONS': '1', 'WINDOWPATH': '2', '_PYI_LINUX_PROCESS_NAME': 'kimi', 'MVCAM_SDK_PATH': '/opt/MVS', 'PATH': '/home/delphine/.local/bin:/opt/ros/jazzy/bin:/home/delphine/.npm-global/bin:/home/delphine/miniconda3/bin:/home/delphine/miniconda3/condabin:/opt/TensorRT/TensorRT-10.2.0.19/bin:/opt/TensorRT/TensorRT-10.2.0/bin:/usr/local/cuda-12.6/bin:/usr/bin:/home/delphine/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/opt/MVS/bin', 'SESSION_MANAGER': 'local/delphine-ASUS-TUF-Gaming-F16-FX607JV-FX607JV:@/tmp/.ICE-unix/4957,unix/delphine-ASUS-TUF-Gaming-F16-FX607JV-FX607JV:/tmp/.ICE-unix/4957', 'GTK_EXE_PREFIX': '/snap/code/235/usr', 'INVOCATION_ID': 'ec5349bb6a02486d81437f2e7fdcfc2b', 'MVCAM_GENICAM_CLPROTOCOL': '/opt/MVS/lib/CLProtocol', 'XDG_MENU_PREFIX': 'gnome-', 'SNAP_DATA': '/var/snap/code/235', 'XDG_RUNTIME_DIR': '/run/user/1000', 'GDK_BACKEND': 'x11', 'DISPLAY': ':1', 'LOCPATH': '/snap/code/235/usr/lib/locale', 'LANG': 'zh_CN.UTF-8', 'XDG_CURRENT_DESKTOP': 'ubuntu:GNOME', 'XDG_DATA_HOME': '/home/delphine/snap/code/235/.local/share', 'XMODIFIERS': '@im=fcitx', 'XDG_SESSION_DESKTOP': 'ubuntu', 'XAUTHORITY': '/run/user/1000/gdm/Xauthority', 'COPILOT_OTEL_ENABLED': 'true', 'SNAP_USER_COMMON': '/home/delphine/snap/code/common', 'SSH_AUTH_SOCK': '/run/user/1000/keyring/ssh', 'GSETTINGS_SCHEMA_DIR': '/home/delphine/snap/code/235/.local/share/glib-2.0/schemas', 'SNAP_ARCH': 'amd64', 'AMENT_PREFIX_PATH': '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs:/opt/ros/jazzy', 'SNAP_COOKIE': '4hthZVkfk3FmjmWELQ5WWj5SvvO2JkVAfH3laZGolRSGZZBDstYm', 'CONDA_PYTHON_EXE': '/home/delphine/miniconda3/bin/python', 'SHELL': '/bin/bash', 'GDK_PIXBUF_MODULEDIR': '/snap/code/235/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders', 'QT_ACCESSIBILITY': '1', 'ELECTRON_RUN_AS_NODE': '1', 'GDMSESSION': 'ubuntu', 'LESSCLOSE': '/usr/bin/lesspipe %s %s', 'CONDA_DEFAULT_ENV': 'base', 'SNAP_NAME': 'code', 'FONTCONFIG_FILE': '/etc/fonts/fonts.conf', 'GDK_PIXBUF_MODULE_FILE': '/home/delphine/snap/code/common/.cache/gdk-pixbuf-loaders.cache', 'GPG_AGENT_INFO': '/run/user/1000/gnupg/S.gpg-agent:0:1', 'GJS_DEBUG_OUTPUT': 'stderr', '_CONDA_EXE': '/home/delphine/miniconda3/bin/conda', 'ROS_AUTOMATIC_DISCOVERY_RANGE': 'SUBNET', 'SNAP_LAUNCHER_ARCH_TRIPLET': 'x86_64-linux-gnu', 'QT_IM_MODULE': 'fcitx', 'PWD': '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect', 'VSCODE_CLI': '1', 'XDG_CONFIG_DIRS': '/etc/xdg/xdg-ubuntu:/etc/xdg', 'CONDA_EXE': '/home/delphine/miniconda3/bin/conda', 'SNAP_REAL_HOME': '/home/delphine', 'VSCODE_CODE_CACHE_PATH': '/home/delphine/.config/Code/CachedData/10c8e557c8b9f9ed0a87f61f1c9a44bde731c409', 'CLUTTER_IM_MODULE': 'fcitx', 'XDG_DATA_DIRS': '/home/delphine/snap/code/235/.local/share:/home/delphine/snap/code/235:/snap/code/235/usr/share:/usr/share/ubuntu:/usr/share/gnome:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop', 'SNAP_EUID': '1000', 'PYTHONPATH': '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.12/site-packages:/opt/ros/jazzy/lib/python3.12/site-packages', 'SNAP': '/snap/code/235', 'CONDA_PREFIX': '/home/delphine/miniconda3', 'COLCON': '1', 'MEMORY_PRESSURE_WRITE': 'c29tZSAyMDAwMDAgMjAwMDAwMAA=', 'ELECTRON_NO_ATTACH_CONSOLE': '1', 'CMAKE_PREFIX_PATH': '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect:/opt/ros/jazzy/opt/gz_math_vendor:/opt/ros/jazzy/opt/gz_utils_vendor:/opt/ros/jazzy/opt/gz_cmake_vendor:/opt/ros/jazzy', 'VSCODE_PID': '7076', 'MVCAM_COMMON_RUNENV': '/opt/MVS/lib', 'COPILOT_OTEL_EXPORTER_TYPE': 'file'}), 'shell': False}
+[7.880101] (tensorrt_detect) StdoutLine: {'line': b'[  0%] Built target video_node_autogen_timestamp_deps\n'}
+[7.884108] (tensorrt_detect) StdoutLine: {'line': b'[  0%] Built target display_node_autogen_timestamp_deps\n'}
+[7.885907] (tensorrt_detect) StdoutLine: {'line': b'[  0%] Built target tensorrt_detect_core_autogen_timestamp_deps\n'}
+[7.903449] (tensorrt_detect) StdoutLine: {'line': b'[  8%] Automatic MOC and UIC for target video_node\n'}
+[7.903596] (tensorrt_detect) StdoutLine: {'line': b'[  8%] Automatic MOC and UIC for target display_node\n'}
+[7.903647] (tensorrt_detect) StdoutLine: {'line': b'[  8%] Automatic MOC and UIC for target tensorrt_detect_core\n'}
+[7.917667] (-) TimerEvent: {}
+[7.949584] (tensorrt_detect) StdoutLine: {'line': b'[  8%] Built target tensorrt_detect_core_autogen\n'}
+[7.950562] (tensorrt_detect) StdoutLine: {'line': b'[  8%] Built target video_node_autogen\n'}
+[7.956581] (tensorrt_detect) StdoutLine: {'line': b'[  8%] Built target display_node_autogen\n'}
+[7.971099] (tensorrt_detect) StdoutLine: {'line': b'[ 16%] Building CXX object CMakeFiles/video_node.dir/src/nodes/video_node.cpp.o\n'}
+[7.971580] (tensorrt_detect) StdoutLine: {'line': b'[ 16%] Building CXX object CMakeFiles/tensorrt_detect_core.dir/src/core/model.cpp.o\n'}
+[7.971902] (tensorrt_detect) StdoutLine: {'line': b'[ 16%] Building CXX object CMakeFiles/tensorrt_detect_core.dir/src/core/pipeline.cpp.o\n'}
+[7.972006] (tensorrt_detect) StdoutLine: {'line': b'[ 19%] Building CXX object CMakeFiles/tensorrt_detect_core.dir/src/config/ConfigManager.cpp.o\n'}
+[7.972099] (tensorrt_detect) StdoutLine: {'line': b'[ 25%] Building CXX object CMakeFiles/tensorrt_detect_core.dir/src/core/raycaster.cpp.o\n'}
+[7.972185] (tensorrt_detect) StdoutLine: {'line': b'[ 25%] Building CXX object CMakeFiles/video_node.dir/video_node_autogen/mocs_compilation.cpp.o\n'}
+[7.972398] (tensorrt_detect) StdoutLine: {'line': b'[ 27%] Building CXX object CMakeFiles/tensorrt_detect_core.dir/src/core/radarmap.cpp.o\n'}
+[7.972556] (tensorrt_detect) StdoutLine: {'line': b'[ 30%] Building CXX object CMakeFiles/tensorrt_detect_core.dir/tensorrt_detect_core_autogen/mocs_compilation.cpp.o\n'}
+[7.972874] (tensorrt_detect) StdoutLine: {'line': b'[ 33%] Building CXX object CMakeFiles/tensorrt_detect_core.dir/src/visualization/draw.cpp.o\n'}
+[7.972982] (tensorrt_detect) StdoutLine: {'line': b'[ 36%] Building CXX object CMakeFiles/tensorrt_detect_core.dir/src/visualization/ui.cpp.o\n'}
+[7.973222] (tensorrt_detect) StdoutLine: {'line': b'[ 41%] Building CXX object CMakeFiles/tensorrt_detect_core.dir/src/core/posesolver.cpp.o\n'}
+[7.973313] (tensorrt_detect) StdoutLine: {'line': b'[ 41%] Building CXX object CMakeFiles/tensorrt_detect_core.dir/src/core/mouseback.cpp.o\n'}
+[7.985105] (tensorrt_detect) StdoutLine: {'line': b'[ 44%] Building CXX object CMakeFiles/display_node.dir/src/nodes/display_node.cpp.o\n'}
+[7.985934] (tensorrt_detect) StdoutLine: {'line': b'[ 47%] Building CXX object CMakeFiles/display_node.dir/display_node_autogen/mocs_compilation.cpp.o\n'}
+[8.017797] (-) TimerEvent: {}
+[8.118043] (-) TimerEvent: {}
+[8.218302] (-) TimerEvent: {}
+[8.318578] (-) TimerEvent: {}
+[8.418835] (-) TimerEvent: {}
+[8.519165] (-) TimerEvent: {}
+[8.619531] (-) TimerEvent: {}
+[8.719850] (-) TimerEvent: {}
+[8.820088] (-) TimerEvent: {}
+[8.920337] (-) TimerEvent: {}
+[9.020640] (-) TimerEvent: {}
+[9.120961] (-) TimerEvent: {}
+[9.221190] (-) TimerEvent: {}
+[9.321445] (-) TimerEvent: {}
+[9.421683] (-) TimerEvent: {}
+[9.521921] (-) TimerEvent: {}
+[9.622158] (-) TimerEvent: {}
+[9.722427] (-) TimerEvent: {}
+[9.822660] (-) TimerEvent: {}
+[9.922878] (-) TimerEvent: {}
+[10.023143] (-) TimerEvent: {}
+[10.123415] (-) TimerEvent: {}
+[10.223658] (-) TimerEvent: {}
+[10.323908] (-) TimerEvent: {}
+[10.424184] (-) TimerEvent: {}
+[10.524410] (-) TimerEvent: {}
+[10.624662] (-) TimerEvent: {}
+[10.724917] (-) TimerEvent: {}
+[10.825143] (-) TimerEvent: {}
+[10.925585] (-) TimerEvent: {}
+[11.025861] (-) TimerEvent: {}
+[11.126067] (-) TimerEvent: {}
+[11.226322] (-) TimerEvent: {}
+[11.326661] (-) TimerEvent: {}
+[11.426794] (-) TimerEvent: {}
+[11.526965] (-) TimerEvent: {}
+[11.627262] (-) TimerEvent: {}
+[11.727465] (-) TimerEvent: {}
+[11.827642] (-) TimerEvent: {}
+[11.927833] (-) TimerEvent: {}
+[12.028027] (-) TimerEvent: {}
+[12.128217] (-) TimerEvent: {}
+[12.228405] (-) TimerEvent: {}
+[12.328593] (-) TimerEvent: {}
+[12.428838] (-) TimerEvent: {}
+[12.529045] (-) TimerEvent: {}
+[12.629237] (-) TimerEvent: {}
+[12.729461] (-) TimerEvent: {}
+[12.829637] (-) TimerEvent: {}
+[12.929873] (-) TimerEvent: {}
+[13.030061] (-) TimerEvent: {}
+[13.130311] (-) TimerEvent: {}
+[13.230504] (-) TimerEvent: {}
+[13.330706] (-) TimerEvent: {}
+[13.430944] (-) TimerEvent: {}
+[13.531147] (-) TimerEvent: {}
+[13.631360] (-) TimerEvent: {}
+[13.731667] (-) TimerEvent: {}
+[13.832038] (-) TimerEvent: {}
+[13.932390] (-) TimerEvent: {}
+[14.032721] (-) TimerEvent: {}
+[14.133021] (-) TimerEvent: {}
+[14.233245] (-) TimerEvent: {}
+[14.333451] (-) TimerEvent: {}
+[14.433704] (-) TimerEvent: {}
+[14.534054] (-) TimerEvent: {}
+[14.634230] (-) TimerEvent: {}
+[14.734566] (-) TimerEvent: {}
+[14.834839] (-) TimerEvent: {}
+[14.935115] (-) TimerEvent: {}
+[15.035364] (-) TimerEvent: {}
+[15.135615] (-) TimerEvent: {}
+[15.235874] (-) TimerEvent: {}
+[15.336065] (-) TimerEvent: {}
+[15.436256] (-) TimerEvent: {}
+[15.536452] (-) TimerEvent: {}
+[15.636719] (-) TimerEvent: {}
+[15.737007] (-) TimerEvent: {}
+[15.837192] (-) TimerEvent: {}
+[15.937371] (-) TimerEvent: {}
+[16.037599] (-) TimerEvent: {}
+[16.137794] (-) TimerEvent: {}
+[16.237978] (-) TimerEvent: {}
+[16.338237] (-) TimerEvent: {}
+[16.438546] (-) TimerEvent: {}
+[16.538845] (-) TimerEvent: {}
+[16.639033] (-) TimerEvent: {}
+[16.739207] (-) TimerEvent: {}
+[16.839427] (-) TimerEvent: {}
+[16.939685] (-) TimerEvent: {}
+[17.039944] (-) TimerEvent: {}
+[17.140208] (-) TimerEvent: {}
+[17.240452] (-) TimerEvent: {}
+[17.340764] (-) TimerEvent: {}
+[17.440916] (-) TimerEvent: {}
+[17.470062] (tensorrt_detect) StdoutLine: {'line': b'[ 50%] Linking CXX static library libtensorrt_detect_core.a\n'}
+[17.541019] (-) TimerEvent: {}
+[17.620527] (tensorrt_detect) StdoutLine: {'line': b'[ 50%] Built target tensorrt_detect_core\n'}
+[17.641153] (-) TimerEvent: {}
+[17.643196] (tensorrt_detect) StdoutLine: {'line': b'[ 50%] Built target map_node_autogen_timestamp_deps\n'}
+[17.643534] (tensorrt_detect) StdoutLine: {'line': b'[ 50%] Built target pose_node_autogen_timestamp_deps\n'}
+[17.643642] (tensorrt_detect) StdoutLine: {'line': b'[ 50%] Built target standard_autogen_timestamp_deps\n'}
+[17.645421] (tensorrt_detect) StdoutLine: {'line': b'[ 50%] Built target detect_node_autogen_timestamp_deps\n'}
+[17.664491] (tensorrt_detect) StdoutLine: {'line': b'[ 52%] Automatic MOC and UIC for target detect_node\n'}
+[17.665653] (tensorrt_detect) StdoutLine: {'line': b'[ 55%] Automatic MOC and UIC for target standard\n'}
+[17.666488] (tensorrt_detect) StdoutLine: {'line': b'[ 58%] Automatic MOC and UIC for target map_node\n'}
+[17.667551] (tensorrt_detect) StdoutLine: {'line': b'[ 61%] Automatic MOC and UIC for target pose_node\n'}
+[17.702929] (tensorrt_detect) StdoutLine: {'line': b'[ 61%] Built target standard_autogen\n'}
+[17.703194] (tensorrt_detect) StdoutLine: {'line': b'[ 61%] Built target detect_node_autogen\n'}
+[17.708840] (tensorrt_detect) StdoutLine: {'line': b'[ 61%] Built target map_node_autogen\n'}
+[17.712669] (tensorrt_detect) StdoutLine: {'line': b'[ 61%] Built target pose_node_autogen\n'}
+[17.722609] (tensorrt_detect) StdoutLine: {'line': b'[ 66%] Building CXX object CMakeFiles/standard.dir/standard_autogen/mocs_compilation.cpp.o\n'}
+[17.722908] (tensorrt_detect) StdoutLine: {'line': b'[ 66%] Building CXX object CMakeFiles/detect_node.dir/src/nodes/detect_node.cpp.o\n'}
+[17.725441] (tensorrt_detect) StdoutLine: {'line': b'[ 69%] Building CXX object CMakeFiles/detect_node.dir/detect_node_autogen/mocs_compilation.cpp.o\n'}
+[17.725952] (tensorrt_detect) StdoutLine: {'line': b'[ 72%] Building CXX object CMakeFiles/standard.dir/apps/standalone_main.cpp.o\n'}
+[17.727775] (tensorrt_detect) StdoutLine: {'line': b'[ 75%] Building CXX object CMakeFiles/map_node.dir/map_node_autogen/mocs_compilation.cpp.o\n'}
+[17.730802] (tensorrt_detect) StdoutLine: {'line': b'[ 77%] Building CXX object CMakeFiles/map_node.dir/src/nodes/map_node.cpp.o\n'}
+[17.731070] (tensorrt_detect) StdoutLine: {'line': b'[ 83%] Building CXX object CMakeFiles/pose_node.dir/src/nodes/pose_node.cpp.o\n'}
+[17.731287] (tensorrt_detect) StdoutLine: {'line': b'[ 83%] Building CXX object CMakeFiles/pose_node.dir/pose_node_autogen/mocs_compilation.cpp.o\n'}
+[17.741317] (-) TimerEvent: {}
+[17.841620] (-) TimerEvent: {}
+[17.941844] (-) TimerEvent: {}
+[18.042119] (-) TimerEvent: {}
+[18.142526] (-) TimerEvent: {}
+[18.242849] (-) TimerEvent: {}
+[18.343054] (-) TimerEvent: {}
+[18.443265] (-) TimerEvent: {}
+[18.543759] (-) TimerEvent: {}
+[18.644088] (-) TimerEvent: {}
+[18.739847] (tensorrt_detect) StdoutLine: {'line': b'[ 86%] Linking CXX executable video_node\n'}
+[18.744262] (-) TimerEvent: {}
+[18.844489] (-) TimerEvent: {}
+[18.944718] (-) TimerEvent: {}
+[19.044962] (-) TimerEvent: {}
+[19.145169] (-) TimerEvent: {}
+[19.245381] (-) TimerEvent: {}
+[19.345613] (-) TimerEvent: {}
+[19.445848] (-) TimerEvent: {}
+[19.546212] (-) TimerEvent: {}
+[19.599834] (tensorrt_detect) StdoutLine: {'line': b'[ 86%] Built target video_node\n'}
+[19.646325] (-) TimerEvent: {}
+[19.746544] (-) TimerEvent: {}
+[19.846861] (-) TimerEvent: {}
+[19.947090] (-) TimerEvent: {}
+[20.047355] (-) TimerEvent: {}
+[20.147658] (-) TimerEvent: {}
+[20.247889] (-) TimerEvent: {}
+[20.348102] (-) TimerEvent: {}
+[20.448312] (-) TimerEvent: {}
+[20.548563] (-) TimerEvent: {}
+[20.648782] (-) TimerEvent: {}
+[20.748980] (-) TimerEvent: {}
+[20.849206] (-) TimerEvent: {}
+[20.949409] (-) TimerEvent: {}
+[21.049639] (-) TimerEvent: {}
+[21.149826] (-) TimerEvent: {}
+[21.250065] (-) TimerEvent: {}
+[21.350323] (-) TimerEvent: {}
+[21.450606] (-) TimerEvent: {}
+[21.550876] (-) TimerEvent: {}
+[21.651079] (-) TimerEvent: {}
+[21.736558] (tensorrt_detect) StdoutLine: {'line': b'[ 88%] Linking CXX executable standard\n'}
+[21.751208] (-) TimerEvent: {}
+[21.851487] (-) TimerEvent: {}
+[21.951802] (-) TimerEvent: {}
+[22.052055] (-) TimerEvent: {}
+[22.152289] (-) TimerEvent: {}
+[22.252545] (-) TimerEvent: {}
+[22.352804] (-) TimerEvent: {}
+[22.453042] (-) TimerEvent: {}
+[22.553274] (-) TimerEvent: {}
+[22.579242] (tensorrt_detect) StdoutLine: {'line': b'[ 88%] Built target standard\n'}
+[22.653413] (-) TimerEvent: {}
+[22.753623] (-) TimerEvent: {}
+[22.853826] (-) TimerEvent: {}
+[22.954033] (-) TimerEvent: {}
+[23.054322] (-) TimerEvent: {}
+[23.154573] (-) TimerEvent: {}
+[23.254798] (-) TimerEvent: {}
+[23.355072] (-) TimerEvent: {}
+[23.455332] (-) TimerEvent: {}
+[23.555585] (-) TimerEvent: {}
+[23.655842] (-) TimerEvent: {}
+[23.756111] (-) TimerEvent: {}
+[23.856431] (-) TimerEvent: {}
+[23.956630] (-) TimerEvent: {}
+[24.056817] (-) TimerEvent: {}
+[24.157037] (-) TimerEvent: {}
+[24.257276] (-) TimerEvent: {}
+[24.357584] (-) TimerEvent: {}
+[24.457878] (-) TimerEvent: {}
+[24.558139] (-) TimerEvent: {}
+[24.658388] (-) TimerEvent: {}
+[24.758661] (-) TimerEvent: {}
+[24.858895] (-) TimerEvent: {}
+[24.959115] (-) TimerEvent: {}
+[24.981095] (tensorrt_detect) StdoutLine: {'line': b'[ 91%] Linking CXX executable display_node\n'}
+[25.059340] (-) TimerEvent: {}
+[25.159658] (-) TimerEvent: {}
+[25.259903] (-) TimerEvent: {}
+[25.360118] (-) TimerEvent: {}
+[25.460372] (-) TimerEvent: {}
+[25.560716] (-) TimerEvent: {}
+[25.589281] (tensorrt_detect) StdoutLine: {'line': b'[ 91%] Built target display_node\n'}
+[25.660917] (-) TimerEvent: {}
+[25.761107] (-) TimerEvent: {}
+[25.861366] (-) TimerEvent: {}
+[25.961672] (-) TimerEvent: {}
+[26.061867] (-) TimerEvent: {}
+[26.162053] (-) TimerEvent: {}
+[26.262305] (-) TimerEvent: {}
+[26.362560] (-) TimerEvent: {}
+[26.462785] (-) TimerEvent: {}
+[26.563089] (-) TimerEvent: {}
+[26.663318] (-) TimerEvent: {}
+[26.763542] (-) TimerEvent: {}
+[26.863874] (-) TimerEvent: {}
+[26.964064] (-) TimerEvent: {}
+[27.064278] (-) TimerEvent: {}
+[27.164490] (-) TimerEvent: {}
+[27.264665] (-) TimerEvent: {}
+[27.364826] (-) TimerEvent: {}
+[27.465014] (-) TimerEvent: {}
+[27.565221] (-) TimerEvent: {}
+[27.665461] (-) TimerEvent: {}
+[27.765711] (-) TimerEvent: {}
+[27.865934] (-) TimerEvent: {}
+[27.966117] (-) TimerEvent: {}
+[28.066333] (-) TimerEvent: {}
+[28.166543] (-) TimerEvent: {}
+[28.266840] (-) TimerEvent: {}
+[28.367040] (-) TimerEvent: {}
+[28.467240] (-) TimerEvent: {}
+[28.567418] (-) TimerEvent: {}
+[28.667656] (-) TimerEvent: {}
+[28.767865] (-) TimerEvent: {}
+[28.868186] (-) TimerEvent: {}
+[28.968381] (-) TimerEvent: {}
+[29.068596] (-) TimerEvent: {}
+[29.168807] (-) TimerEvent: {}
+[29.269203] (-) TimerEvent: {}
+[29.369411] (-) TimerEvent: {}
+[29.469567] (-) TimerEvent: {}
+[29.569833] (-) TimerEvent: {}
+[29.669994] (-) TimerEvent: {}
+[29.770277] (-) TimerEvent: {}
+[29.870564] (-) TimerEvent: {}
+[29.970783] (-) TimerEvent: {}
+[30.070989] (-) TimerEvent: {}
+[30.171192] (-) TimerEvent: {}
+[30.271402] (-) TimerEvent: {}
+[30.371654] (-) TimerEvent: {}
+[30.471953] (-) TimerEvent: {}
+[30.572146] (-) TimerEvent: {}
+[30.672364] (-) TimerEvent: {}
+[30.772547] (-) TimerEvent: {}
+[30.872898] (-) TimerEvent: {}
+[30.973229] (-) TimerEvent: {}
+[31.073468] (-) TimerEvent: {}
+[31.173645] (-) TimerEvent: {}
+[31.273808] (-) TimerEvent: {}
+[31.374006] (-) TimerEvent: {}
+[31.474189] (-) TimerEvent: {}
+[31.574445] (-) TimerEvent: {}
+[31.674701] (-) TimerEvent: {}
+[31.774938] (-) TimerEvent: {}
+[31.875105] (-) TimerEvent: {}
+[31.975280] (-) TimerEvent: {}
+[32.075492] (-) TimerEvent: {}
+[32.175751] (-) TimerEvent: {}
+[32.275937] (-) TimerEvent: {}
+[32.376116] (-) TimerEvent: {}
+[32.476412] (-) TimerEvent: {}
+[32.576604] (-) TimerEvent: {}
+[32.676886] (-) TimerEvent: {}
+[32.777121] (-) TimerEvent: {}
+[32.877333] (-) TimerEvent: {}
+[32.977538] (-) TimerEvent: {}
+[33.077822] (-) TimerEvent: {}
+[33.178011] (-) TimerEvent: {}
+[33.278260] (-) TimerEvent: {}
+[33.378496] (-) TimerEvent: {}
+[33.478717] (-) TimerEvent: {}
+[33.531026] (tensorrt_detect) StdoutLine: {'line': b'[ 94%] Linking CXX executable pose_node\n'}
+[33.578830] (-) TimerEvent: {}
+[33.679043] (-) TimerEvent: {}
+[33.779247] (-) TimerEvent: {}
+[33.879477] (-) TimerEvent: {}
+[33.973707] (tensorrt_detect) StdoutLine: {'line': b'[ 94%] Built target pose_node\n'}
+[33.979640] (-) TimerEvent: {}
+[34.079986] (-) TimerEvent: {}
+[34.180250] (-) TimerEvent: {}
+[34.280524] (-) TimerEvent: {}
+[34.380866] (-) TimerEvent: {}
+[34.481180] (-) TimerEvent: {}
+[34.581346] (-) TimerEvent: {}
+[34.681546] (-) TimerEvent: {}
+[34.781839] (-) TimerEvent: {}
+[34.882046] (-) TimerEvent: {}
+[34.982250] (-) TimerEvent: {}
+[35.082528] (-) TimerEvent: {}
+[35.182728] (-) TimerEvent: {}
+[35.283040] (-) TimerEvent: {}
+[35.383201] (-) TimerEvent: {}
+[35.483362] (-) TimerEvent: {}
+[35.583536] (-) TimerEvent: {}
+[35.683709] (-) TimerEvent: {}
+[35.783962] (-) TimerEvent: {}
+[35.796361] (tensorrt_detect) StdoutLine: {'line': b'[ 97%] Linking CXX executable detect_node\n'}
+[35.884159] (-) TimerEvent: {}
+[35.984421] (-) TimerEvent: {}
+[36.084645] (-) TimerEvent: {}
+[36.184902] (-) TimerEvent: {}
+[36.285250] (-) TimerEvent: {}
+[36.344579] (tensorrt_detect) StdoutLine: {'line': b'[ 97%] Built target detect_node\n'}
+[36.385341] (-) TimerEvent: {}
+[36.485503] (-) TimerEvent: {}
+[36.585696] (-) TimerEvent: {}
+[36.620190] (tensorrt_detect) StdoutLine: {'line': b'[100%] Linking CXX executable map_node\n'}
+[36.685914] (-) TimerEvent: {}
+[36.786066] (-) TimerEvent: {}
+[36.886289] (-) TimerEvent: {}
+[36.986489] (-) TimerEvent: {}
+[37.086729] (-) TimerEvent: {}
+[37.126884] (tensorrt_detect) StdoutLine: {'line': b'[100%] Built target map_node\n'}
+[37.137537] (tensorrt_detect) CommandEnded: {'returncode': 0}
+[37.138404] (tensorrt_detect) JobProgress: {'identifier': 'tensorrt_detect', 'progress': 'install'}
+[37.138430] (tensorrt_detect) Command: {'cmd': ['/usr/bin/cmake', '--install', '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect'], 'cwd': '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect', 'env': OrderedDict({'GJS_DEBUG_TOPICS': 'JS ERROR;JS LOG', 'LESSOPEN': '| /usr/bin/lesspipe %s', 'VSCODE_CWD': '/home/delphine', 'VSCODE_ESM_ENTRYPOINT': 'vs/workbench/api/node/extensionHostProcess', 'CONDA_PROMPT_MODIFIER': '(base)', 'TENSORRT_PATH': '/opt/TensorRT/TensorRT-10.2.0.19', '_PYI_ARCHIVE_FILE': '/home/delphine/.config/Code/User/globalStorage/moonshot-ai.kimi-code/bin/kimi/kimi', 'USER': 'delphine', 'SNAP_COMMON': '/var/snap/code/common', 'VSCODE_NLS_CONFIG': '{"userLocale":"zh-cn","osLocale":"zh-cn","resolvedLanguage":"zh-cn","defaultMessagesFile":"/snap/code/235/usr/share/code/resources/app/out/nls.messages.json","languagePack":{"translationsConfigFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/tcf.json","messagesFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/10c8e557c8b9f9ed0a87f61f1c9a44bde731c409/nls.messages.json","corruptMarkerFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/corrupted.info"},"locale":"zh-cn","availableLanguages":{"*":"zh-cn"},"_languagePackId":"b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn","_languagePackSupport":true,"_translationsConfigFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/tcf.json","_cacheRoot":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn","_resolvedLanguagePackCoreLocation":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/10c8e557c8b9f9ed0a87f61f1c9a44bde731c409","_corruptedFile":"/home/delphine/.config/Code/clp/b3d577d0e0e421f69f6e9379a6ee9c57.zh-cn/corrupted.info"}', 'FONTCONFIG_PATH': '/etc/fonts', 'GIO_MODULE_DIR': '/home/delphine/snap/code/common/.cache/gio-modules', 'VSCODE_HANDLES_UNCAUGHT_ERRORS': 'true', 'XDG_SESSION_TYPE': 'x11', 'ALLUSERSPROFILE': '/opt/MVS/MVFG', 'SNAP_UID': '1000', 'CLUTTER_DISABLE_MIPMAPPED_TEXT': '1', 'SHLVL': '1', 'LD_LIBRARY_PATH': '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/ros/jazzy/opt/rviz_ogre_vendor/lib:/opt/ros/jazzy/lib/x86_64-linux-gnu:/opt/ros/jazzy/opt/gz_math_vendor/lib:/opt/ros/jazzy/opt/gz_utils_vendor/lib:/opt/ros/jazzy/opt/gz_cmake_vendor/lib:/opt/ros/jazzy/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/TensorRT/TensorRT-10.2.0/lib:/usr/local/cuda-12.6/lib64:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32', 'HOME': '/home/delphine', 'CHROME_DESKTOP': 'code.desktop', 'CONDA_SHLVL': '1', 'SNAP_LIBRARY_PATH': '/var/lib/snapd/lib/gl:/var/lib/snapd/lib/gl32', 'OLDPWD': '/home/delphine/rm/tensorrt10_detect', 'DESKTOP_SESSION': 'ubuntu', 'SNAP_USER_DATA': '/home/delphine/snap/code/235', 'GTK_PATH': '/snap/code/235/usr/lib/x86_64-linux-gnu/gtk-3.0', 'VSCODE_IPC_HOOK': '/run/user/1000/vscode-93a8e15f-1.11-main.sock', 'GTK_IM_MODULE_FILE': '/home/delphine/snap/code/common/.cache/immodules/immodules.cache', 'GIO_LAUNCHED_DESKTOP_FILE': '/var/lib/snapd/desktop/applications/code_code.desktop', 'ROS_PYTHON_VERSION': '3', 'GNOME_SHELL_SESSION_MODE': 'ubuntu', 'GTK_MODULES': 'gail:atk-bridge', 'SDL_IM_MODULE': 'fcitx', '_PYI_PARENT_PROCESS_LEVEL': '1', 'COPILOT_OTEL_FILE_EXPORTER_PATH': '/dev/null', 'MANAGERPID': '4603', 'SYSTEMD_EXEC_PID': '4987', 'GSM_SKIP_SSH_AGENT_WORKAROUND': 'true', 'DBUS_SESSION_BUS_ADDRESS': 'unix:path=/run/user/1000/bus', 'SNAP_REVISION': '235', '_CONDA_ROOT': '/home/delphine/miniconda3', 'GIO_LAUNCHED_DESKTOP_FILE_PID': '6982', 'VSCODE_CRASH_REPORTER_PROCESS_TYPE': 'extensionHost', 'DEBUGINFOD_URLS': 'https://debuginfod.ubuntu.com', 'IM_CONFIG_PHASE': '1', 'VSCODE_L10N_BUNDLE_LOCATION': 'file:///home/delphine/.vscode/extensions/ms-ceintl.vscode-language-pack-zh-hans-1.110.2026041514/translations/extensions/vscode.json-language-features.i18n.json', 'COLCON_PREFIX_PATH': '/home/delphine/rm/tensorrt10_detect/install', 'APPLICATION_INSIGHTS_NO_STATSBEAT': 'true', 'ROS_DISTRO': 'jazzy', 'GTK_IM_MODULE': 'fcitx', 'LOGNAME': 'delphine', 'LD_LIBRARY_PATH_ORIG': '/opt/MVS/lib/64:/opt/MVS/lib/32:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/opt/ros/jazzy/opt/rviz_ogre_vendor/lib:/opt/ros/jazzy/lib/x86_64-linux-gnu:/opt/ros/jazzy/opt/gz_math_vendor/lib:/opt/ros/jazzy/opt/gz_utils_vendor/lib:/opt/ros/jazzy/opt/gz_cmake_vendor/lib:/opt/ros/jazzy/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/TensorRT/TensorRT-10.2.0/lib:/usr/local/cuda-12.6/lib64:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:', 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT': 'true', 'SNAP_CONTEXT': '4hthZVkfk3FmjmWELQ5WWj5SvvO2JkVAfH3laZGolRSGZZBDstYm', 'JOURNAL_STREAM': '9:32802', '_': '/usr/bin/colcon', 'ROS_VERSION': '2', 'XDG_CONFIG_DIRS_VSCODE_SNAP_ORIG': '/etc/xdg/xdg-ubuntu:/etc/xdg', 'MEMORY_PRESSURE_WATCH': '/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/session.slice/org.gnome.Shell@x11.service/memory.pressure', 'XDG_SESSION_CLASS': 'user', 'SNAP_VERSION': '10c8e557', 'XDG_DATA_DIRS_VSCODE_SNAP_ORIG': '/usr/share/ubuntu:/usr/share/gnome:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop', 'USERNAME': 'delphine', 'GNOME_DESKTOP_SESSION_ID': 'this-is-deprecated', 'SNAP_INSTANCE_NAME': 'code', 'FC_FONTATIONS': '1', 'WINDOWPATH': '2', '_PYI_LINUX_PROCESS_NAME': 'kimi', 'MVCAM_SDK_PATH': '/opt/MVS', 'PATH': '/home/delphine/.local/bin:/opt/ros/jazzy/bin:/home/delphine/.npm-global/bin:/home/delphine/miniconda3/bin:/home/delphine/miniconda3/condabin:/opt/TensorRT/TensorRT-10.2.0.19/bin:/opt/TensorRT/TensorRT-10.2.0/bin:/usr/local/cuda-12.6/bin:/usr/bin:/home/delphine/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/opt/MVS/bin', 'SESSION_MANAGER': 'local/delphine-ASUS-TUF-Gaming-F16-FX607JV-FX607JV:@/tmp/.ICE-unix/4957,unix/delphine-ASUS-TUF-Gaming-F16-FX607JV-FX607JV:/tmp/.ICE-unix/4957', 'GTK_EXE_PREFIX': '/snap/code/235/usr', 'INVOCATION_ID': 'ec5349bb6a02486d81437f2e7fdcfc2b', 'MVCAM_GENICAM_CLPROTOCOL': '/opt/MVS/lib/CLProtocol', 'XDG_MENU_PREFIX': 'gnome-', 'SNAP_DATA': '/var/snap/code/235', 'XDG_RUNTIME_DIR': '/run/user/1000', 'GDK_BACKEND': 'x11', 'DISPLAY': ':1', 'LOCPATH': '/snap/code/235/usr/lib/locale', 'LANG': 'zh_CN.UTF-8', 'XDG_CURRENT_DESKTOP': 'ubuntu:GNOME', 'XDG_DATA_HOME': '/home/delphine/snap/code/235/.local/share', 'XMODIFIERS': '@im=fcitx', 'XDG_SESSION_DESKTOP': 'ubuntu', 'XAUTHORITY': '/run/user/1000/gdm/Xauthority', 'COPILOT_OTEL_ENABLED': 'true', 'SNAP_USER_COMMON': '/home/delphine/snap/code/common', 'SSH_AUTH_SOCK': '/run/user/1000/keyring/ssh', 'GSETTINGS_SCHEMA_DIR': '/home/delphine/snap/code/235/.local/share/glib-2.0/schemas', 'SNAP_ARCH': 'amd64', 'AMENT_PREFIX_PATH': '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs:/opt/ros/jazzy', 'SNAP_COOKIE': '4hthZVkfk3FmjmWELQ5WWj5SvvO2JkVAfH3laZGolRSGZZBDstYm', 'CONDA_PYTHON_EXE': '/home/delphine/miniconda3/bin/python', 'SHELL': '/bin/bash', 'GDK_PIXBUF_MODULEDIR': '/snap/code/235/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders', 'QT_ACCESSIBILITY': '1', 'ELECTRON_RUN_AS_NODE': '1', 'GDMSESSION': 'ubuntu', 'LESSCLOSE': '/usr/bin/lesspipe %s %s', 'CONDA_DEFAULT_ENV': 'base', 'SNAP_NAME': 'code', 'FONTCONFIG_FILE': '/etc/fonts/fonts.conf', 'GDK_PIXBUF_MODULE_FILE': '/home/delphine/snap/code/common/.cache/gdk-pixbuf-loaders.cache', 'GPG_AGENT_INFO': '/run/user/1000/gnupg/S.gpg-agent:0:1', 'GJS_DEBUG_OUTPUT': 'stderr', '_CONDA_EXE': '/home/delphine/miniconda3/bin/conda', 'ROS_AUTOMATIC_DISCOVERY_RANGE': 'SUBNET', 'SNAP_LAUNCHER_ARCH_TRIPLET': 'x86_64-linux-gnu', 'QT_IM_MODULE': 'fcitx', 'PWD': '/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect', 'VSCODE_CLI': '1', 'XDG_CONFIG_DIRS': '/etc/xdg/xdg-ubuntu:/etc/xdg', 'CONDA_EXE': '/home/delphine/miniconda3/bin/conda', 'SNAP_REAL_HOME': '/home/delphine', 'VSCODE_CODE_CACHE_PATH': '/home/delphine/.config/Code/CachedData/10c8e557c8b9f9ed0a87f61f1c9a44bde731c409', 'CLUTTER_IM_MODULE': 'fcitx', 'XDG_DATA_DIRS': '/home/delphine/snap/code/235/.local/share:/home/delphine/snap/code/235:/snap/code/235/usr/share:/usr/share/ubuntu:/usr/share/gnome:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop', 'SNAP_EUID': '1000', 'PYTHONPATH': '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.13/site-packages:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib/python3.12/site-packages:/opt/ros/jazzy/lib/python3.12/site-packages', 'SNAP': '/snap/code/235', 'CONDA_PREFIX': '/home/delphine/miniconda3', 'COLCON': '1', 'MEMORY_PRESSURE_WRITE': 'c29tZSAyMDAwMDAgMjAwMDAwMAA=', 'ELECTRON_NO_ATTACH_CONSOLE': '1', 'CMAKE_PREFIX_PATH': '/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect:/opt/ros/jazzy/opt/gz_math_vendor:/opt/ros/jazzy/opt/gz_utils_vendor:/opt/ros/jazzy/opt/gz_cmake_vendor:/opt/ros/jazzy', 'VSCODE_PID': '7076', 'MVCAM_COMMON_RUNENV': '/opt/MVS/lib', 'COPILOT_OTEL_EXPORTER_TYPE': 'file'}), 'shell': False}
+[37.143360] (tensorrt_detect) StdoutLine: {'line': b'-- Install configuration: "RelWithDebInfo"\n'}
+[37.143523] (tensorrt_detect) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/standard\n'}
+[37.148076] (tensorrt_detect) StdoutLine: {'line': b'-- Set non-toolchain portion of runtime path of "/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/standard" to "/home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/lib:/opt/TensorRT/TensorRT-10.2.0.19/lib:/home/delphine/miniconda3/lib"\n'}
+[37.148193] (tensorrt_detect) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/detect_node\n'}
+[37.155211] (tensorrt_detect) StdoutLine: {'line': b'-- Set non-toolchain portion of runtime path of "/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/detect_node" to "/home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/lib:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/ros/jazzy/lib:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/home/delphine/miniconda3/lib"\n'}
+[37.155333] (tensorrt_detect) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/display_node\n'}
+[37.160211] (tensorrt_detect) StdoutLine: {'line': b'-- Set non-toolchain portion of runtime path of "/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/display_node" to "/home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/lib:/opt/ros/jazzy/lib"\n'}
+[37.160370] (tensorrt_detect) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/video_node\n'}
+[37.163296] (tensorrt_detect) StdoutLine: {'line': b'-- Set non-toolchain portion of runtime path of "/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/video_node" to "/home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/lib:/opt/ros/jazzy/lib"\n'}
+[37.163439] (tensorrt_detect) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/pose_node\n'}
+[37.171641] (tensorrt_detect) StdoutLine: {'line': b'-- Set non-toolchain portion of runtime path of "/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/pose_node" to "/home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/lib:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/ros/jazzy/lib:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/home/delphine/miniconda3/lib"\n'}
+[37.171789] (tensorrt_detect) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/map_node\n'}
+[37.179206] (tensorrt_detect) StdoutLine: {'line': b'-- Set non-toolchain portion of runtime path of "/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/map_node" to "/home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/lib:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/ros/jazzy/lib:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/home/delphine/miniconda3/lib"\n'}
+[37.179375] (tensorrt_detect) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/launch\n'}
+[37.179442] (tensorrt_detect) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/launch/detect_pipeline.launch.py\n'}
+[37.179805] (tensorrt_detect) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/config\n'}
+[37.179916] (tensorrt_detect) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/config/ros2_params.yaml\n'}
+[37.180332] (tensorrt_detect) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/ament_index/resource_index/package_run_dependencies/tensorrt_detect\n'}
+[37.180484] (tensorrt_detect) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/ament_index/resource_index/parent_prefix_path/tensorrt_detect\n'}
+[37.180574] (tensorrt_detect) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/environment/ament_prefix_path.sh\n'}
+[37.180680] (tensorrt_detect) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/environment/ament_prefix_path.dsv\n'}
+[37.180817] (tensorrt_detect) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/environment/path.sh\n'}
+[37.181143] (tensorrt_detect) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/environment/path.dsv\n'}
+[37.181271] (tensorrt_detect) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/local_setup.bash\n'}
+[37.181352] (tensorrt_detect) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/local_setup.sh\n'}
+[37.181395] (tensorrt_detect) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/local_setup.zsh\n'}
+[37.181435] (tensorrt_detect) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/local_setup.dsv\n'}
+[37.181497] (tensorrt_detect) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/package.dsv\n'}
+[37.181534] (tensorrt_detect) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/ament_index/resource_index/packages/tensorrt_detect\n'}
+[37.181589] (tensorrt_detect) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/cmake/tensorrt_detectConfig.cmake\n'}
+[37.181645] (tensorrt_detect) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/cmake/tensorrt_detectConfig-version.cmake\n'}
+[37.181704] (tensorrt_detect) StdoutLine: {'line': b'-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/package.xml\n'}
+[37.182921] (tensorrt_detect) CommandEnded: {'returncode': 0}
+[37.186923] (-) TimerEvent: {}
+[37.190214] (tensorrt_detect) JobEnded: {'identifier': 'tensorrt_detect', 'rc': 0}
+[37.190545] (-) EventReactorShutdown: {}

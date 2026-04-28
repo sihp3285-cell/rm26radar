@@ -1,0 +1,137 @@
+-- The C compiler identification is GNU 13.3.0
+-- The CXX compiler identification is GNU 13.3.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found ament_cmake: 2.5.6 (/opt/ros/jazzy/share/ament_cmake/cmake)
+-- Found Python3: /home/delphine/miniconda3/bin/python3 (found version "3.13.12") found components: Interpreter 
+-- Found rclcpp: 28.1.18 (/opt/ros/jazzy/share/rclcpp/cmake)
+-- Found rosidl_generator_c: 4.6.7 (/opt/ros/jazzy/share/rosidl_generator_c/cmake)
+-- Found rosidl_generator_cpp: 4.6.7 (/opt/ros/jazzy/share/rosidl_generator_cpp/cmake)
+-- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+-- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+-- Found rmw_implementation_cmake: 7.3.3 (/opt/ros/jazzy/share/rmw_implementation_cmake/cmake)
+-- Found rmw_fastrtps_cpp: 8.4.3 (/opt/ros/jazzy/share/rmw_fastrtps_cpp/cmake)
+-- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.13")  
+-- Found FastRTPS: /opt/ros/jazzy/include (Required is at least version "2.13") 
+-- Using RMW implementation 'rmw_fastrtps_cpp' as default
+-- Found sensor_msgs: 5.3.7 (/opt/ros/jazzy/share/sensor_msgs/cmake)
+-- Found cv_bridge: 4.1.0 (/opt/ros/jazzy/share/cv_bridge/cmake)
+-- Found tensorrt_detect_msgs: 0.0.1 (/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake)
+-- Found OpenCV: /usr (found version "4.6.0") 
+-- Found CUDAToolkit: /usr/include (found version "12.0.140") 
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE  
+CMake Deprecation Warning at /home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/lib/cmake/Open3D/Open3DConfig.cmake:18 (cmake_policy):
+  The OLD behavior for policy CMP0072 will be removed from a future version
+  of CMake.
+
+  The cmake-policies(7) manual explains that the OLD behaviors of all
+  policies are deprecated and that a policy should be set to OLD only under
+  specific short-term circumstances.  Projects should be ported to the NEW
+  behavior and not rely on setting a policy to OLD.
+Call Stack (most recent call first):
+  CMakeLists.txt:28 (find_package)
+
+
+-- Found Open3D: /home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/lib/cmake/Open3D/Open3DConfig.cmake (found version "0.19.0") 
+-- Configuring done (1.2s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/delphine/rm/tensorrt10_detect/build/tensorrt_detect
+[  0%] Built target video_node_autogen_timestamp_deps
+[  0%] Built target display_node_autogen_timestamp_deps
+[  0%] Built target tensorrt_detect_core_autogen_timestamp_deps
+[  8%] Automatic MOC and UIC for target video_node
+[  8%] Automatic MOC and UIC for target display_node
+[  8%] Automatic MOC and UIC for target tensorrt_detect_core
+[  8%] Built target tensorrt_detect_core_autogen
+[  8%] Built target video_node_autogen
+[  8%] Built target display_node_autogen
+[ 16%] Building CXX object CMakeFiles/video_node.dir/src/nodes/video_node.cpp.o
+[ 16%] Building CXX object CMakeFiles/tensorrt_detect_core.dir/src/core/model.cpp.o
+[ 16%] Building CXX object CMakeFiles/tensorrt_detect_core.dir/src/core/pipeline.cpp.o
+[ 19%] Building CXX object CMakeFiles/tensorrt_detect_core.dir/src/config/ConfigManager.cpp.o
+[ 25%] Building CXX object CMakeFiles/tensorrt_detect_core.dir/src/core/raycaster.cpp.o
+[ 25%] Building CXX object CMakeFiles/video_node.dir/video_node_autogen/mocs_compilation.cpp.o
+[ 27%] Building CXX object CMakeFiles/tensorrt_detect_core.dir/src/core/radarmap.cpp.o
+[ 30%] Building CXX object CMakeFiles/tensorrt_detect_core.dir/tensorrt_detect_core_autogen/mocs_compilation.cpp.o
+[ 33%] Building CXX object CMakeFiles/tensorrt_detect_core.dir/src/visualization/draw.cpp.o
+[ 36%] Building CXX object CMakeFiles/tensorrt_detect_core.dir/src/visualization/ui.cpp.o
+[ 41%] Building CXX object CMakeFiles/tensorrt_detect_core.dir/src/core/posesolver.cpp.o
+[ 41%] Building CXX object CMakeFiles/tensorrt_detect_core.dir/src/core/mouseback.cpp.o
+[ 44%] Building CXX object CMakeFiles/display_node.dir/src/nodes/display_node.cpp.o
+[ 47%] Building CXX object CMakeFiles/display_node.dir/display_node_autogen/mocs_compilation.cpp.o
+[ 50%] Linking CXX static library libtensorrt_detect_core.a
+[ 50%] Built target tensorrt_detect_core
+[ 50%] Built target map_node_autogen_timestamp_deps
+[ 50%] Built target pose_node_autogen_timestamp_deps
+[ 50%] Built target standard_autogen_timestamp_deps
+[ 50%] Built target detect_node_autogen_timestamp_deps
+[ 52%] Automatic MOC and UIC for target detect_node
+[ 55%] Automatic MOC and UIC for target standard
+[ 58%] Automatic MOC and UIC for target map_node
+[ 61%] Automatic MOC and UIC for target pose_node
+[ 61%] Built target standard_autogen
+[ 61%] Built target detect_node_autogen
+[ 61%] Built target map_node_autogen
+[ 61%] Built target pose_node_autogen
+[ 66%] Building CXX object CMakeFiles/standard.dir/standard_autogen/mocs_compilation.cpp.o
+[ 66%] Building CXX object CMakeFiles/detect_node.dir/src/nodes/detect_node.cpp.o
+[ 69%] Building CXX object CMakeFiles/detect_node.dir/detect_node_autogen/mocs_compilation.cpp.o
+[ 72%] Building CXX object CMakeFiles/standard.dir/apps/standalone_main.cpp.o
+[ 75%] Building CXX object CMakeFiles/map_node.dir/map_node_autogen/mocs_compilation.cpp.o
+[ 77%] Building CXX object CMakeFiles/map_node.dir/src/nodes/map_node.cpp.o
+[ 83%] Building CXX object CMakeFiles/pose_node.dir/src/nodes/pose_node.cpp.o
+[ 83%] Building CXX object CMakeFiles/pose_node.dir/pose_node_autogen/mocs_compilation.cpp.o
+[ 86%] Linking CXX executable video_node
+[ 86%] Built target video_node
+[ 88%] Linking CXX executable standard
+[ 88%] Built target standard
+[ 91%] Linking CXX executable display_node
+[ 91%] Built target display_node
+[ 94%] Linking CXX executable pose_node
+[ 94%] Built target pose_node
+[ 97%] Linking CXX executable detect_node
+[ 97%] Built target detect_node
+[100%] Linking CXX executable map_node
+[100%] Built target map_node
+-- Install configuration: "RelWithDebInfo"
+-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/standard
+-- Set non-toolchain portion of runtime path of "/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/standard" to "/home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/lib:/opt/TensorRT/TensorRT-10.2.0.19/lib:/home/delphine/miniconda3/lib"
+-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/detect_node
+-- Set non-toolchain portion of runtime path of "/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/detect_node" to "/home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/lib:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/ros/jazzy/lib:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/home/delphine/miniconda3/lib"
+-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/display_node
+-- Set non-toolchain portion of runtime path of "/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/display_node" to "/home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/lib:/opt/ros/jazzy/lib"
+-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/video_node
+-- Set non-toolchain portion of runtime path of "/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/video_node" to "/home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/lib:/opt/ros/jazzy/lib"
+-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/pose_node
+-- Set non-toolchain portion of runtime path of "/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/pose_node" to "/home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/lib:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/ros/jazzy/lib:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/home/delphine/miniconda3/lib"
+-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/map_node
+-- Set non-toolchain portion of runtime path of "/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/lib/tensorrt_detect/map_node" to "/home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/lib:/opt/TensorRT/TensorRT-10.2.0.19/lib:/opt/ros/jazzy/lib:/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/lib:/home/delphine/miniconda3/lib"
+-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/launch
+-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/launch/detect_pipeline.launch.py
+-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/config
+-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/config/ros2_params.yaml
+-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/ament_index/resource_index/package_run_dependencies/tensorrt_detect
+-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/ament_index/resource_index/parent_prefix_path/tensorrt_detect
+-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/environment/ament_prefix_path.sh
+-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/environment/ament_prefix_path.dsv
+-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/environment/path.sh
+-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/environment/path.dsv
+-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/local_setup.bash
+-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/local_setup.sh
+-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/local_setup.zsh
+-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/local_setup.dsv
+-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/package.dsv
+-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/ament_index/resource_index/packages/tensorrt_detect
+-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/cmake/tensorrt_detectConfig.cmake
+-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/cmake/tensorrt_detectConfig-version.cmake
+-- Installing: /home/delphine/rm/tensorrt10_detect/install/tensorrt_detect/share/tensorrt_detect/package.xml
