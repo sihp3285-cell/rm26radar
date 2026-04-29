@@ -36,14 +36,19 @@ void RadarMap::calibrate2(float race_length, float race_width, int map_width, in
 cv::Point2f RadarMap::worldtomap(const cv::Point2f& worldPoint)const
 {
     cv::Point2f mapPoint;
-    mapPoint.x = worldPoint.x * scale_x + offset_x;
-    mapPoint.y = worldPoint.y * scale_y + offset_y;
+    float wx = flip_team_ ? -worldPoint.x : worldPoint.x;
+    float wy = flip_team_ ? -worldPoint.y : worldPoint.y;
+    mapPoint.x = wx * scale_x + offset_x;
+    mapPoint.y = wy * scale_y + offset_y;
     return mapPoint;
 }
 
 cv::Mat RadarMap::drawMap(const std::vector<Mappoint>& mappoints,const std::vector<std::string>& classNames)const
 {
     cv::Mat frame = map.clone();
+    if (flip_team_) {
+        cv::rotate(frame, frame, cv::ROTATE_180);
+    }
     for (const auto& mappoint : mappoints)
     {
         cv::Point pt(static_cast<int>(mappoint.map_point.x), 

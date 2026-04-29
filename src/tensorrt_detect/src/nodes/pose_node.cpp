@@ -1,6 +1,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <std_msgs/msg/header.hpp>
+#include <std_srvs/srv/trigger.hpp>
 #include <opencv2/opencv.hpp>
 #include <yaml-cpp/yaml.h>
 #include <filesystem>
@@ -24,53 +25,18 @@ public:
         this->declare_parameter<std::string>("input_topic", "/armor_detections");
         this->declare_parameter<std::string>("output_topic", "/world_targets");
 
-        std::string config_dir = this->get_parameter("config_dir").as_string();
+        config_dir_ = this->get_parameter("config_dir").as_string();
         input_topic_ = this->get_parameter("input_topic").as_string();
         output_topic_ = this->get_parameter("output_topic").as_string();
 
-        RCLCPP_INFO(this->get_logger(), "配置目录: %s", config_dir.c_str());
+        RCLCPP_INFO(this->get_logger(), "配置目录: %s", config_dir_.c_str());
         RCLCPP_INFO(this->get_logger(), "订阅话题: %s", input_topic_.c_str());
         RCLCPP_INFO(this->get_logger(), "发布话题: %s", output_topic_.c_str());
 
-        cfg_ = std::make_unique<Config>(config_dir);
+        cfg_ = std::make_unique<Config>(config_dir_);
         pose_solver_ = std::make_unique<PoseSolver>(cfg_->camera.cameraMatrix, cfg_->camera.distCoeffs);
 
-        if (cfg_->calib.valid) {
-            pose_solver_->setExtrinsic(cfg_->calib.R, cfg_->calib.T);
-            RCLCPP_INFO(this->get_logger(), "成功从 Config 加载校准结果，已设置外参");
-        } else {
-            std::filesystem::path configDir = std::filesystem::path(config_dir);
-            std::string calibPath = (configDir / "calib_result.yaml").string();
-            if (std::filesystem::exists(calibPath)) {
-                try {
-                    YAML::Node node = YAML::LoadFile(calibPath);
-                    if (node["r"].IsSequence() && node["t"].IsSequence()) {
-                        std::vector<double> r_data = node["r"].as<std::vector<double>>();
-                        std::vector<double> t_data = node["t"].as<std::vector<double>>();
-                        if (r_data.size() == 9 && t_data.size() == 3) {
-                            cv::Mat R(3, 3, CV_64F);
-                            cv::Mat T(3, 1, CV_64F);
-                            for (int i = 0; i < 9; ++i) {
-                                R.at<double>(i / 3, i % 3) = r_data[i];
-                            }
-                            for (int i = 0; i < 3; ++i) {
-                                T.at<double>(i, 0) = t_data[i];
-                            }
-                            pose_solver_->setExtrinsic(R, T);
-                            RCLCPP_INFO(this->get_logger(), "成功加载校准结果，已设置外参");
-                        } else {
-                            RCLCPP_WARN(this->get_logger(), "校准文件数据维度不匹配");
-                        }
-                    } else {
-                        RCLCPP_WARN(this->get_logger(), "校准文件格式错误，缺少 r 或 t 数据");
-                    }
-                } catch (const std::exception& e) {
-                    RCLCPP_ERROR(this->get_logger(), "加载校准文件失败: %s", e.what());
-                }
-            } else {
-                RCLCPP_WARN(this->get_logger(), "未找到校准文件: %s", calibPath.c_str());
-            }
-        }
+        loadCalibrationAtStartup();
 
         if (!cfg_->camera.meshPath.empty()) {
             bool mesh_ok = pose_solver_->getRaycaster().loadingMesh(cfg_->camera.meshPath);
@@ -89,12 +55,131 @@ public:
             input_topic_, 10,
             std::bind(&PoseNode::armor_callback, this, std::placeholders::_1));
 
-        RCLCPP_INFO(this->get_logger(), "PoseNode 初始化完成，等待检测结果输入...");
+        reload_service_ = this->create_service<std_srvs::srv::Trigger>(
+            "/pose_node/reload_calibration",
+            std::bind(&PoseNode::reloadCalibration, this,
+                      std::placeholders::_1, std::placeholders::_2));
+
+        if (is_calibrated_) {
+            RCLCPP_INFO(this->get_logger(), "PoseNode 初始化完成，标定已就绪");
+        } else {
+            RCLCPP_WARN(this->get_logger(), "PoseNode 初始化完成，等待标定...");
+        }
     }
 
 private:
+    void loadCalibrationAtStartup()
+    {
+        if (cfg_->calib.valid) {
+            pose_solver_->setExtrinsic(cfg_->calib.R, cfg_->calib.T);
+            is_calibrated_ = true;
+            RCLCPP_INFO(this->get_logger(), "成功从 Config 加载校准结果，已设置外参");
+            return;
+        }
+
+        std::filesystem::path configDir = std::filesystem::path(config_dir_);
+        std::string calibPath = (configDir / "calib_result.yaml").string();
+        if (!std::filesystem::exists(calibPath)) {
+            RCLCPP_WARN(this->get_logger(), "未找到校准文件: %s", calibPath.c_str());
+            return;
+        }
+
+        try {
+            YAML::Node node = YAML::LoadFile(calibPath);
+            if (!node["r"].IsSequence() || !node["t"].IsSequence()) {
+                RCLCPP_WARN(this->get_logger(), "校准文件格式错误，缺少 r 或 t 数据");
+                return;
+            }
+
+            std::vector<double> r_data = node["r"].as<std::vector<double>>();
+            std::vector<double> t_data = node["t"].as<std::vector<double>>();
+            if (r_data.size() != 9 || t_data.size() != 3) {
+                RCLCPP_WARN(this->get_logger(), "校准文件数据维度不匹配");
+                return;
+            }
+
+            cv::Mat R(3, 3, CV_64F);
+            cv::Mat T(3, 1, CV_64F);
+            for (int i = 0; i < 9; ++i) {
+                R.at<double>(i / 3, i % 3) = r_data[i];
+            }
+            for (int i = 0; i < 3; ++i) {
+                T.at<double>(i, 0) = t_data[i];
+            }
+
+            pose_solver_->setExtrinsic(R, T);
+            is_calibrated_ = true;
+            RCLCPP_INFO(this->get_logger(), "成功从 %s 加载校准结果，已设置外参", calibPath.c_str());
+        } catch (const std::exception& e) {
+            RCLCPP_ERROR(this->get_logger(), "加载校准文件失败: %s", e.what());
+        }
+    }
+
+    void reloadCalibration(const std_srvs::srv::Trigger::Request::SharedPtr /*request*/,
+                           std_srvs::srv::Trigger::Response::SharedPtr response)
+    {
+        RCLCPP_INFO(this->get_logger(), "收到重载校准请求...");
+
+        std::filesystem::path configDir = std::filesystem::path(config_dir_);
+        std::string calibPath = (configDir / "calib_result.yaml").string();
+
+        if (!std::filesystem::exists(calibPath)) {
+            response->success = false;
+            response->message = "Calibration file not found: " + calibPath;
+            RCLCPP_ERROR(this->get_logger(), "%s", response->message.c_str());
+            return;
+        }
+
+        try {
+            YAML::Node node = YAML::LoadFile(calibPath);
+            if (!node["r"].IsSequence() || !node["t"].IsSequence()) {
+                response->success = false;
+                response->message = "Invalid calibration file format";
+                RCLCPP_WARN(this->get_logger(), "%s", response->message.c_str());
+                return;
+            }
+
+            std::vector<double> r_data = node["r"].as<std::vector<double>>();
+            std::vector<double> t_data = node["t"].as<std::vector<double>>();
+            if (r_data.size() != 9 || t_data.size() != 3) {
+                response->success = false;
+                response->message = "Calibration data dimension mismatch";
+                RCLCPP_WARN(this->get_logger(), "%s", response->message.c_str());
+                return;
+            }
+
+            cv::Mat R(3, 3, CV_64F);
+            cv::Mat T(3, 1, CV_64F);
+            for (int i = 0; i < 9; ++i) {
+                R.at<double>(i / 3, i % 3) = r_data[i];
+            }
+            for (int i = 0; i < 3; ++i) {
+                T.at<double>(i, 0) = t_data[i];
+            }
+
+            pose_solver_->setExtrinsic(R, T);
+            is_calibrated_ = true;
+            response->success = true;
+            response->message = "Calibration reloaded successfully";
+            RCLCPP_INFO(this->get_logger(), "pose_node 已重载校准结果，标定就绪");
+        } catch (const std::exception& e) {
+            response->success = false;
+            response->message = std::string("Failed to reload: ") + e.what();
+            RCLCPP_ERROR(this->get_logger(), "重载校准失败: %s", e.what());
+        }
+    }
+
     void armor_callback(const tensorrt_detect_msgs::msg::DetectionArray::SharedPtr msg)
     {
+        if (!is_calibrated_) {
+            RCLCPP_WARN_THROTTLE(
+                this->get_logger(),
+                *this->get_clock(),
+                5000,
+                "标定未就绪，跳过世界坐标计算。请先完成标定。");
+            return;
+        }
+
         try {
             auto world_msg = std::make_shared<tensorrt_detect_msgs::msg::WorldTargetArray>();
             world_msg->header = msg->header;
@@ -150,12 +235,15 @@ private:
 
     std::unique_ptr<Config> cfg_;
     std::unique_ptr<PoseSolver> pose_solver_;
+    bool is_calibrated_ = false;
 
+    std::string config_dir_;
     std::string input_topic_;
     std::string output_topic_;
 
     rclcpp::Subscription<tensorrt_detect_msgs::msg::DetectionArray>::SharedPtr armor_sub_;
     rclcpp::Publisher<tensorrt_detect_msgs::msg::WorldTargetArray>::SharedPtr world_pub_;
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reload_service_;
 };
 
 int main(int argc, char** argv)

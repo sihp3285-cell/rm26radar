@@ -17,7 +17,13 @@
 │  video_node │ ──────────────────→ │ detect_node │
 │  (传感器层)  │                     │  (算法核心层) │
 └─────────────┘                     └──────┬──────┘
-                                           │
+    ↑                                      │
+    │      /video_node/set_pause           │
+    │           (服务)                     │
+┌───┴─────────┐                            │
+│calibrate_node│                            │
+│  (标定控制层) │                            │
+└─────────────┘                            │
                           ┌────────────────┼────────────────┐
                           │                │                │
                           ↓                ↓                ↓
@@ -25,28 +31,30 @@
                           │                │                │
                           ↓                ↓                │
                    ┌─────────────┐   ┌─────────────┐       │
-                   │ display_node│   │  pose_node  │       │
-                   │ (可视化末端) │   │ (几何变换层) │       │
+                   │ qt_display  │   │  pose_node  │       │
+                   │   _node     │   │ (几何变换层) │       │
                    └─────────────┘   └──────┬──────┘       │
-                                            │              │
-                                            ↓              │
-                                     /world_targets        │
-                                            │              │
-                                            ↓              │
-                                     ┌─────────────┐       │
-                                     │   map_node  │       │
-                                     │ (汇聚输出层) │       │
-                                     └──────┬──────┘       │
-                                            │              │
-                          ┌─────────────────┼──────────────┘
-                          │                 │
-                          ↓                 ↓
-                   /map_image        /radar_map
-                          │                 │
+                          ↑                 │              │
+                          │                 ↓              │
+                   /flip_team        /world_targets        │
+                          │                 │              │
+                          │                 ↓              │
+                          │          ┌─────────────┐       │
+                          │          │   map_node  │       │
+                          │          │ (汇聚输出层) │       │
+                          │          └──────┬──────┘       │
+                          │                 │              │
+                          └─────────────────┼──────────────┘
+                                            │
+                          ┌─────────────────┼────────────────┐
+                          │                 │                │
+                          ↓                 ↓                ↓
+                   /map_image        /radar_map       /pose_node/reload_calibration
+                          │                 │                (服务)
                           ↓                 ↓
                    ┌─────────────┐    ┌─────────────┐
-                   │display_node │    │ qt_display  │
-                   │   / Qt      │    │   _node     │
+                   │ qt_display  │    │ (决策节点)   │
+                   │   _node     │    │             │
                    └─────────────┘    └─────────────┘
 ```
 
@@ -54,7 +62,7 @@
 
 # 二、分层架构设计思想
 
-你的系统可以自然地分成四层：
+你的系统可以自然地分成五层：
 
 ## 2.1 传感器层（Sensor Layer）
 
@@ -122,22 +130,30 @@
 
 ---
 
-## 2.5 可视化末端层（Visualization Layer）
+## 2.5 标定控制层（Calibration Control Layer）
 
-**节点**：`display_node`、`qt_display_node`
+**节点**：`calibrate_node`
 
-**职责**：把图像数据呈现给人类。
+**职责**：相机外参的手动标定与自动标定。
+
+* 启动时自动检测 `calib_result.yaml` 是否有效
+* 无效时自动进入手动标定流程（临时订阅 `/image_raw` 获取一帧，弹出 OpenCV 交互窗口收集标定点）
+* 计算 PnP 外参和重投影误差，误差过大时强制重新标定
+* 标定结果保存到 `calib_result.yaml` 后，通过 `/pose_node/reload_calibration` 服务通知 `pose_node` 重新加载
+* 标定过程中通过 `/video_node/set_pause` 服务暂停/恢复视频，避免标定窗口弹出时视频继续播放
+* 同时提供 `/calibration/start` 服务，支持用户手动触发重新标定
+
+## 2.6 可视化末端层（Visualization Layer）
+
+**节点**：`qt_display_node`
+
+**职责**：把图像数据呈现给人类，并提供交互控制。
 
 | 节点 | 技术栈 | 订阅话题 | 特点 |
 |------|--------|---------|------|
-| `display_node` | OpenCV `cv::imshow` | `/detected_image`、`/map_image` | 轻量、简单、跨平台 |
-| `qt_display_node` | Qt5 + ROS2 | `/detected_image`、`/map_image` | 界面美观、支持 Qt 动画和样式表 |
+| `qt_display_node` | Qt5 + ROS2 | `/detected_image`、`/map_image` | 界面美观、支持 Qt 样式表、底部状态栏、阵营切换按钮 |
 
-两个节点**二选一**启动即可：
-* `display_node` 适合调试和快速验证，代码简洁
-* `qt_display_node` 适合正式展示，UI 更现代化
-
-它们都是**纯消费者**，不发布任何话题。存在与否不影响上游节点运行。
+`qt_display_node` 不仅是消费者，还发布 `/flip_team`（`std_msgs/Bool`）话题，用于控制 `map_node` 的红蓝方阵营视角翻转。这是系统中**唯一的人机交互入口**。
 
 ---
 
@@ -145,14 +161,18 @@
 
 ## 3.1 话题一览表
 
-| 话题名 | 消息类型 | 发布者 | 订阅者 | 作用 |
-|--------|---------|--------|--------|------|
-| `/image_raw` | `sensor_msgs/Image` | video_node | detect_node | 原始图像 |
-| `/detected_image` | `sensor_msgs/Image` | detect_node | display_node / qt_display_node | 带检测框的可视化图 |
+| 话题/服务名 | 类型 | 发布者/服务器 | 订阅者/客户端 | 作用 |
+|------------|------|--------------|--------------|------|
+| `/image_raw` | `sensor_msgs/Image` | video_node | detect_node / calibrate_node | 原始图像 |
+| `/detected_image` | `sensor_msgs/Image` | detect_node | qt_display_node | 带检测框的可视化图 |
 | `/armor_detections` | `DetectionArray` | detect_node | pose_node | 结构化检测结果 |
 | `/world_targets` | `WorldTargetArray` | pose_node | map_node | 世界坐标目标 |
-| `/map_image` | `sensor_msgs/Image` | map_node | display_node / qt_display_node | 小地图图像 |
+| `/map_image` | `sensor_msgs/Image` | map_node | qt_display_node | 小地图图像 |
 | `/radar_map` | `RadarMap` | map_node | (决策节点) | 结构化雷达数据 |
+| `/flip_team` | `std_msgs/Bool` | qt_display_node | map_node | 红蓝方阵营视角切换 |
+| `/calibration/start` | `std_srvs/Trigger` (Service) | calibrate_node | (用户/脚本) | 手动触发标定 |
+| `/pose_node/reload_calibration` | `std_srvs/Trigger` (Service) | pose_node | calibrate_node | 标定完成后通知重载 |
+| `/video_node/set_pause` | `std_srvs/SetBool` (Service) | video_node | calibrate_node | 暂停/恢复视频播放 |
 
 ---
 
@@ -324,13 +344,6 @@ def generate_launch_description():
         ),
         Node(
             package='tensorrt_detect',
-            executable='display_node',
-            name='display_node',
-            output='screen',
-            parameters=[params_file],
-        ),
-        Node(
-            package='tensorrt_detect',
             executable='pose_node',
             name='pose_node',
             output='screen',
@@ -343,6 +356,20 @@ def generate_launch_description():
             output='screen',
             parameters=[params_file],
         ),
+        Node(
+            package='tensorrt_detect',
+            executable='calibrate_node',
+            name='calibrate_node',
+            output='screen',
+            parameters=[params_file],
+        ),
+        Node(
+            package='tensorrt_detect',
+            executable='qt_display_node',
+            name='qt_display_node',
+            output='screen',
+            parameters=[params_file],
+        ),
     ])
 ```
 
@@ -350,7 +377,7 @@ def generate_launch_description():
 
 ## 5.1 Launch 文件的价值
 
-没有 launch 文件时，你需要开 5 个终端，分别运行 5 个节点。每个节点还要手动 source ROS2 环境。
+没有 launch 文件时，你需要开 6 个终端，分别运行 6 个节点。每个节点还要手动 source ROS2 环境。
 
 有了 launch 文件，一行命令启动整个系统：
 
@@ -574,6 +601,22 @@ ros2 bag play my_bag
 ```
 
 因为数据流完全通过话题，`ros2 bag` 可以无缝录制和回放整个系统，方便离线调试算法。
+
+## 8.5 标定流程的自动化扩展
+
+当前 `calibrate_node` 已支持：
+
+* 启动时自动检测标定文件有效性
+* 手动 `/calibration/start` 触发标定
+* 重投影误差自动校验（阈值 10px）
+* 标定完成后自动 reload `pose_node`
+* 标定期间自动暂停/恢复视频
+
+未来可扩展：
+
+* 自动标定点检测：用角点检测或 ArUco 标定板替代手动点击
+* 多相机联合标定：同时标定多个相机的相对位姿
+* 在线重标定：检测到重投影误差漂移时自动触发重新标定
 
 ---
 

@@ -10,9 +10,11 @@
 #include <QCloseEvent>
 #include <QMutex>
 #include <QMutexLocker>
+#include <QPushButton>
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
+#include <std_msgs/msg/bool.hpp>
 #include <cv_bridge/cv_bridge.hpp>
 #include <opencv2/opencv.hpp>
 
@@ -52,13 +54,43 @@ public:
 
         main_layout->addLayout(content_layout, 1);
 
-        // 底部状态栏
+        // 底部：状态栏 + 阵营切换按钮
+        auto *bottom_layout = new QHBoxLayout();
+        bottom_layout->setSpacing(8);
+
         status_label_ = new QLabel("FPS: --  |  Delay: -- ms", this);
         status_label_->setStyleSheet(
             "color: #00ff88; background-color: #0d0d0d; font-size: 14px; "
             "font-family: 'Microsoft YaHei', 'Consolas', monospace; "
             "padding: 6px 12px; border-radius: 4px;");
-        main_layout->addWidget(status_label_);
+        bottom_layout->addWidget(status_label_, 1);
+
+        team_button_ = new QPushButton("红方视角", this);
+        team_button_->setCheckable(true);
+        team_button_->setCursor(Qt::PointingHandCursor);
+        team_button_->setStyleSheet(
+            "QPushButton {"
+            "  background-color: #cc0000;"
+            "  color: white;"
+            "  font-size: 14px;"
+            "  font-weight: bold;"
+            "  font-family: 'Microsoft YaHei', 'Consolas', monospace;"
+            "  padding: 6px 20px;"
+            "  border-radius: 4px;"
+            "  border: none;"
+            "}"
+            "QPushButton:hover { background-color: #aa0000; }"
+            "QPushButton:checked {"
+            "  background-color: #0066cc;"
+            "}"
+            "QPushButton:checked:hover { background-color: #0055aa; }");
+        connect(team_button_, &QPushButton::toggled, this, [this](bool checked) {
+            team_button_->setText(checked ? "蓝方视角" : "红方视角");
+            if (team_flip_cb_) team_flip_cb_(checked);
+        });
+        bottom_layout->addWidget(team_button_);
+
+        main_layout->addLayout(bottom_layout);
 
         setWindowTitle("TensorRT Detect Qt Display");
         resize(1280, 720);
@@ -105,6 +137,7 @@ protected:
 
 public:
     void setCloseCallback(std::function<void()> cb) { close_cb_ = std::move(cb); }
+    void setTeamFlipCallback(std::function<void(bool)> cb) { team_flip_cb_ = std::move(cb); }
 
 private:
     void updateFromNode();  // 实现在 QtDisplayNode 定义之后
@@ -112,8 +145,10 @@ private:
     QLabel *video_label_{nullptr};
     QLabel *map_label_{nullptr};
     QLabel *status_label_{nullptr};
+    QPushButton *team_button_{nullptr};
     QtDisplayNode *node_{nullptr};
     std::function<void()> close_cb_;
+    std::function<void(bool)> team_flip_cb_;
 
     static QPixmap cvMatToQPixmap(const cv::Mat &cv_img)
     {
@@ -184,6 +219,17 @@ public:
                     RCLCPP_ERROR(this->get_logger(), "地图 cv_bridge 失败: %s", e.what());
                 }
             });
+
+        // 发布阵营翻转话题
+        team_flip_pub_ = this->create_publisher<std_msgs::msg::Bool>("/flip_team", rclcpp::QoS(1).reliable());
+    }
+
+    void publishTeamFlip(bool is_blue_team)
+    {
+        std_msgs::msg::Bool msg;
+        msg.data = is_blue_team;
+        team_flip_pub_->publish(msg);
+        RCLCPP_INFO(this->get_logger(), "发布阵营切换: %s", is_blue_team ? "蓝方视角" : "红方视角");
     }
 
     // 供 DisplayWindow 在主线程调用，安全取出最新数据
@@ -205,6 +251,7 @@ private:
 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr video_sub_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr map_sub_;
+    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr team_flip_pub_;
 
     cv::Mat latest_frame_;
     cv::Mat latest_map_;
@@ -244,6 +291,9 @@ int main(int argc, char *argv[])
     window.setNode(node.get());
     window.setCloseCallback([]() {
         if (rclcpp::ok()) rclcpp::shutdown();
+    });
+    window.setTeamFlipCallback([node](bool is_blue_team) {
+        node->publishTeamFlip(is_blue_team);
     });
 
     // Qt 定时器在主线程驱动 UI 刷新（30 FPS）

@@ -37,6 +37,7 @@ display_node
 #include <sensor_msgs/msg/image.hpp>
 #include <cv_bridge/cv_bridge.hpp>
 #include <std_msgs/msg/header.hpp>
+#include <std_msgs/msg/bool.hpp>
 #include <opencv2/opencv.hpp>
 
 #include "tensorrt_detect_msgs/msg/world_target_array.hpp"
@@ -131,6 +132,7 @@ this->declare_parameter<std::string>("config_dir",
 this->declare_parameter<std::string>("input_topic", "/world_targets");
 this->declare_parameter<std::string>("output_image_topic", "/map_image");
 this->declare_parameter<std::string>("output_map_topic", "/radar_map");
+this->declare_parameter<bool>("flip_team", false);
 ```
 
 ---
@@ -156,6 +158,17 @@ this->declare_parameter<std::string>("output_map_topic", "/radar_map");
 ### `output_map_topic`
 
 默认 `/radar_map`。发布结构化雷达地图数据，供决策系统或通信模块使用。
+
+---
+
+### `flip_team`
+
+默认 `false`。控制阵营视角翻转：
+
+* `false` → 红方视角（不翻转）
+* `true` → 蓝方视角（坐标和底图翻转 180°）
+
+该参数可通过 launch 文件预设，也可在运行时通过 `/flip_team` 话题动态切换。
 
 ---
 
@@ -224,14 +237,21 @@ if (!radar_map_->m_isCalibrated) {
 
 ---
 
-# 七、创建两个 Publisher
+# 七、创建 Publisher 和 Subscriber
 
 ```cpp
 image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(output_image_topic_, rclcpp::QoS(1));
 radar_map_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::RadarMap>(output_map_topic_, 10);
+
+flip_team_sub_ = this->create_subscription<std_msgs::msg::Bool>(
+    "/flip_team", rclcpp::QoS(1),
+    [this](const std_msgs::msg::Bool::SharedPtr msg) {
+        flip_team_ = msg->data;
+        radar_map_->setFlipTeam(flip_team_);
+    });
 ```
 
-和 `detect_node` 一样，`map_node` 也采用**一输入、双输出**模式：
+`map_node` 采用**一输入、双输出 + 动态控制**模式：
 
 | Publisher | 类型 | 话题 | QoS | 给谁用 |
 |-----------|------|------|-----|--------|
@@ -240,7 +260,20 @@ radar_map_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::RadarMap>(out
 
 ---
 
-# 八、创建 Subscriber
+### `/flip_team` 订阅
+
+`map_node` 订阅 `qt_display_node` 发布的 `/flip_team`（`std_msgs/Bool`）话题：
+
+* `msg->data == false` → 红方视角
+* `msg->data == true` → 蓝方视角
+
+收到消息后，调用 `radar_map_->setFlipTeam()` 实时更新 `RadarMap` 的内部状态。后续所有 `worldtomap()` 调用和 `drawMap()` 绘制都会自动应用新的阵营视角。
+
+这是系统中**运行时动态配置**的典型案例：用户点击 Qt 界面按钮 → 发布 Bool 消息 → `map_node` 收到后即时切换视角 → 下一张地图图像就是翻转后的。
+
+---
+
+# 八、创建 Subscriber（数据输入）
 
 ```cpp
 target_sub_ = this->create_subscription<tensorrt_detect_msgs::msg::WorldTargetArray>(

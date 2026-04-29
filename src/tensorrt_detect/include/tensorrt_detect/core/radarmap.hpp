@@ -20,6 +20,7 @@ class RadarMap
     float scale_y;
     float offset_x;
     float offset_y;
+    bool flip_team_ = false;
     bool isCalibrated() const { return m_isCalibrated; }    
 
     public:
@@ -28,6 +29,8 @@ class RadarMap
     void calibrate2(float race_length, float race_width, int map_width, int map_height);
     cv::Point2f worldtomap(const cv::Point2f& worldPoint)const;
     cv::Mat drawMap(const std::vector<Mappoint>& mappoints,const std::vector<std::string>& classNames)const;
+    void setFlipTeam(bool flip) { flip_team_ = flip; }
+    bool getFlipTeam() const { return flip_team_; }
 
 };
 #endif

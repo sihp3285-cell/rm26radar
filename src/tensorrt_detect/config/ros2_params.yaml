@@ -41,3 +41,12 @@ qt_display_node:
   ros__parameters:
     video_topic: "/detected_image"
     map_image_topic: "/map_image"
+
+calibrate_node:
+  ros__parameters:
+    config_dir: "/home/delphine/rm/tensorrt10_detect/configs"
+    image_topic: "/image_raw"
+    calib_result_path: "/home/delphine/rm/tensorrt10_detect/configs/calib_result.yaml"
+    reprojection_threshold: 10.0
+    auto_calibrate: true
+    auto_calibrate_delay_sec: 2

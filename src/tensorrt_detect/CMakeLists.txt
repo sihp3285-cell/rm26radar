@@ -16,6 +16,7 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 find_package(tensorrt_detect_msgs REQUIRED)
 
 # --- 修正 Open3D 查找方式 ---
@@ -105,6 +106,7 @@ ament_target_dependencies(video_node
     sensor_msgs
     cv_bridge
     std_msgs
+    std_srvs
 )
 
 target_link_libraries(video_node pthread ${OpenCV_LIBS})
@@ -133,6 +135,7 @@ ament_target_dependencies(pose_node
     sensor_msgs
     cv_bridge
     std_msgs
+    std_srvs
     tensorrt_detect_msgs
 )
 
@@ -150,6 +153,23 @@ ament_target_dependencies(map_node
 )
 
 target_link_libraries(map_node tensorrt_detect_core)
+
+# ========== ROS2 节点：calibrate_node ==========
+add_executable(calibrate_node src/nodes/calibrate_node.cpp)
+
+ament_target_dependencies(calibrate_node
+    rclcpp
+    sensor_msgs
+    cv_bridge
+    std_msgs
+    std_srvs
+)
+
+target_link_libraries(calibrate_node
+    tensorrt_detect_core
+)
+
+target_include_directories(calibrate_node PRIVATE ${COMMON_INCLUDE_DIRS})
 
 # ========== ROS2 节点：qt_display_node ==========
 add_executable(qt_display_node src/nodes/qt_display_node.cpp)
@@ -175,6 +195,7 @@ install(TARGETS
     video_node
     pose_node
     map_node
+    calibrate_node
     qt_display_node
     DESTINATION lib/${PROJECT_NAME}
 )

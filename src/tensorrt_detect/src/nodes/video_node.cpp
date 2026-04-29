@@ -2,7 +2,9 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <cv_bridge/cv_bridge.hpp>
 #include <std_msgs/msg/header.hpp>
+#include <std_srvs/srv/set_bool.hpp>
 #include <opencv2/opencv.hpp>
+#include <atomic>
 
 class VideoNode : public rclcpp::Node
 {
@@ -35,12 +37,26 @@ public:
             std::chrono::milliseconds(interval_ms),
             std::bind(&VideoNode::timer_callback, this));
 
+        pause_service_ = this->create_service<std_srvs::srv::SetBool>(
+            "/video_node/set_pause",
+            [this](const std_srvs::srv::SetBool::Request::SharedPtr request,
+                   std_srvs::srv::SetBool::Response::SharedPtr response) {
+                is_paused_ = request->data;
+                response->success = true;
+                response->message = request->data ? "视频已暂停" : "视频已恢复";
+                RCLCPP_INFO(this->get_logger(), "%s", response->message.c_str());
+            });
+
         RCLCPP_INFO(this->get_logger(), "VideoNode 初始化完成，开始发布视频帧");
     }
 
 private:
     void timer_callback()
     {
+        if (is_paused_.load()) {
+            return;
+        }
+
         cv::Mat frame;
         if (!cap_.read(frame)) {
             RCLCPP_WARN(this->get_logger(), "视频播放结束，重新回到开头");
@@ -62,8 +78,10 @@ private:
     std::string topic_name_;
     int fps_setting_;
 
+    std::atomic<bool> is_paused_{false};
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_pub_;
     rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr pause_service_;
 };
 
 int main(int argc, char** argv)
@@ -74,4 +92,3 @@ int main(int argc, char** argv)
     rclcpp::shutdown();
     return 0;
 }
-

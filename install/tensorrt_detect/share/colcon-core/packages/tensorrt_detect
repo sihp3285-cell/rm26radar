@@ -1,1 +1,1 @@
-cv_bridge:rclcpp:sensor_msgs:std_msgs:tensorrt_detect_msgs
+cv_bridge:rclcpp:sensor_msgs:std_msgs:std_srvs:tensorrt_detect_msgs

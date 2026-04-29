@@ -2,6 +2,7 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <cv_bridge/cv_bridge.hpp>
 #include <std_msgs/msg/header.hpp>
+#include <std_msgs/msg/bool.hpp>
 #include <opencv2/opencv.hpp>
 
 #include "tensorrt_detect_msgs/msg/world_target_array.hpp"
@@ -21,11 +22,13 @@ public:
         this->declare_parameter<std::string>("input_topic", "/world_targets");
         this->declare_parameter<std::string>("output_image_topic", "/map_image");
         this->declare_parameter<std::string>("output_map_topic", "/radar_map");
+        this->declare_parameter<bool>("flip_team", false);
 
         std::string config_dir = this->get_parameter("config_dir").as_string();
         input_topic_ = this->get_parameter("input_topic").as_string();
         output_image_topic_ = this->get_parameter("output_image_topic").as_string();
         output_map_topic_ = this->get_parameter("output_map_topic").as_string();
+        flip_team_ = this->get_parameter("flip_team").as_bool();
 
         RCLCPP_INFO(this->get_logger(), "配置目录: %s", config_dir.c_str());
         RCLCPP_INFO(this->get_logger(), "订阅话题: %s", input_topic_.c_str());
@@ -39,6 +42,7 @@ public:
             cfg_->map.race_size[1],
             cfg_->map.map_size[0],
             cfg_->map.map_size[1]);
+        radar_map_->setFlipTeam(flip_team_);
 
         if (!radar_map_->m_isCalibrated) {
             RCLCPP_ERROR(this->get_logger(), "RadarMap 校准失败，请检查 map.yaml 配置");
@@ -48,6 +52,16 @@ public:
 
         image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(output_image_topic_, rclcpp::QoS(1));
         radar_map_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::RadarMap>(output_map_topic_, 10);
+
+        flip_team_sub_ = this->create_subscription<std_msgs::msg::Bool>(
+            "/flip_team", rclcpp::QoS(1),
+            [this](const std_msgs::msg::Bool::SharedPtr msg) {
+                flip_team_ = msg->data;
+                if (radar_map_) {
+                    radar_map_->setFlipTeam(flip_team_);
+                }
+                RCLCPP_INFO(this->get_logger(), "阵营视角已切换为: %s", flip_team_ ? "蓝方" : "红方");
+            });
 
         target_sub_ = this->create_subscription<tensorrt_detect_msgs::msg::WorldTargetArray>(
             input_topic_, 10,
@@ -135,8 +149,10 @@ private:
         }
     }
 
+    bool flip_team_ = false;
     std::unique_ptr<Config> cfg_;
     std::unique_ptr<RadarMap> radar_map_;
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr flip_team_sub_;
 
     std::string input_topic_;
     std::string output_image_topic_;

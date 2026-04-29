@@ -51,6 +51,14 @@ def generate_launch_description():
 
         Node(
             package='tensorrt_detect',
+            executable='calibrate_node',
+            name='calibrate_node',
+            output='screen',
+            parameters=[params_file],
+        ),
+
+        Node(
+            package='tensorrt_detect',
             executable='qt_display_node',
             name='qt_display_node',
             output='screen',
