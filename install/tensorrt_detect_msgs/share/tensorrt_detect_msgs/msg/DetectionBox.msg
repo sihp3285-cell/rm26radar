@@ -1,14 +1,1 @@
-int32 idx
-float32 confidence
-int32 x
-int32 y
-int32 width
-int32 height
-int32 armor_color
-int32 car_x
-int32 car_y
-int32 car_width
-int32 car_height
-float32 world_x
-float32 world_y
-float32 fps
+/home/delphine/rm/tensorrt10_detect/src/tensorrt_detect_msgs/msg/DetectionBox.msg

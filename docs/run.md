@@ -39,7 +39,7 @@ source install/setup.bash
 
 ## 三、启动方式（推荐：Launch 文件）
 
-项目提供了一键启动的 launch 文件，会同时拉起全部 5 个节点：
+项目提供了一键启动的 launch 文件，会同时拉起全部节点：
 
 ```bash
 cd /home/delphine/rm/tensorrt10_detect
@@ -49,7 +49,9 @@ source install/setup.bash
 ros2 launch tensorrt_detect detect_pipeline.launch.py
 ```
 
-按 `Q` 或 `ESC` 可退出 `display_node` 的显示窗口，`launch` 会随之停止所有节点。
+默认启动 `qt_display_node`（Qt5 界面）。按窗口右上角的关闭按钮可退出，launch 会随之停止所有节点。
+
+> **注意**：`display_node`（OpenCV 窗口）和 `qt_display_node`（Qt 窗口）**不能同时启动**，因为两个都会创建 GUI 窗口且功能重叠。launch 文件中默认启动 `qt_display_node`。如果需要切换回 `display_node`，请修改 `detect_pipeline.launch.py`。
 
 ---
 
@@ -83,8 +85,10 @@ src/tensorrt_detect/config/ros2_params.yaml
 | video_node | `fps` | `30` | 发布帧率 |
 | detect_node | `publish_debug_image` | `true` | 是否发布带框调试图像 |
 | detect_node | `debug_output_max_width` | `1280` | 调试图像最大宽度 |
-| display_node | `window_width` | `1920` | 显示窗口宽度 |
-| display_node | `window_height` | `720` | 显示窗口高度 |
+| display_node | `window_width` | `1920` | 显示窗口宽度（OpenCV 版本） |
+| display_node | `window_height` | `720` | 显示窗口高度（OpenCV 版本） |
+| qt_display_node | `video_topic` | `/detected_image` | 视频图像话题 |
+| qt_display_node | `map_image_topic` | `/map_image` | 地图图像话题 |
 
 ---
 
@@ -124,12 +128,20 @@ source install/setup.bash
 ros2 run tensorrt_detect map_node
 ```
 
-**终端 5 —— 显示：**
+**终端 5 —— 显示（OpenCV 版本）：**
 ```bash
 cd /home/delphine/rm/tensorrt10_detect
 source /opt/ros/jazzy/setup.bash
 source install/setup.bash
 ros2 run tensorrt_detect display_node
+```
+
+**终端 5 —— 显示（Qt5 版本，推荐）：**
+```bash
+cd /home/delphine/rm/tensorrt10_detect
+source /opt/ros/jazzy/setup.bash
+source install/setup.bash
+ros2 run tensorrt_detect qt_display_node
 ```
 
 > 手动启动时，话题名必须和 launch 文件中的契约一致，节点才能互相发现。

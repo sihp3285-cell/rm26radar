@@ -412,7 +412,7 @@ t: [t1, t2, t3]
 
             cv::Point2f wp = poseSolver.middletoworld(result.car_box);
             cv::Point2f mp = radarMap.worldtomap(wp);
-            mappoints.push_back({mp, "", result.idx, result.armorColor});
+            mappoints.push_back({mp, "", result.idx, result.armorColor, result.isDead});
         }
 ```
 
@@ -444,7 +444,7 @@ mp（地图像素坐标）
 mappoints.push_back({mp, "", result.idx, result.armorColor});
 ```
 
-`label` 传空字符串，`drawMap` 内部会根据 `teamId` 和 `classIdx` 自动生成。
+`label` 传空字符串，`drawMap` 内部会根据 `isDead` 和 `classIdx` 以及 `classNames` 自动生成。
 
 ---
 

@@ -10,13 +10,14 @@
 
 struct Result
 {
-    int idx;  
-    float confidence; 
+    int idx = 0;  
+    float confidence = 0.0f; 
     cv::Rect box; 
-    int armorColor;
-    cv::Rect car_box;
-    cv::Point2f worldPoint;
+    int armorColor = 0;
+    cv::Rect car_box{};
+    cv::Point2f worldPoint{};
     float fps = 0.0f;
+    bool isDead = false;
 };
 
 

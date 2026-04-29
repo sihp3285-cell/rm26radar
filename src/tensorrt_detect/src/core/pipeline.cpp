@@ -1,5 +1,6 @@
 #include "pipeline.hpp"
 #include "ConfigManager.hpp"
+#include "robot_id.hpp"
 
 
 DetectPipeline::DetectPipeline(Config& cfg)
@@ -49,8 +50,14 @@ std::vector<Result> DetectPipeline::runArmorDetect(const cv::Mat& frame,
             armor.box.y += roi.y;
             armor.car_box = det.box;
 
-            armor.idx = 1;
-            armor.armorColor = raw_id;
+            constexpr int DEAD_ARMOR_ID = 0;
+            armor.idx = robot_id::ARMOR;
+            armor.isDead = (raw_id == DEAD_ARMOR_ID);
+            if (armor.isDead) {
+                armor.armorColor = robot_id::UNKNOWN;
+            } else {
+                armor.armorColor = raw_id;
+            }
 
             armor.worldPoint = cv::Point2f(det.box.x + det.box.width  / 2.0f,
                                            det.box.y + det.box.height / 2.0f);
@@ -65,8 +72,8 @@ void DetectPipeline::runClassify(const cv::Mat& frame, std::vector<Result>& dete
     const cv::Rect imgBound(0, 0, frame.cols, frame.rows); // 定义边界
 
     for (auto& armor : detections) {
-        if (armor.armorColor == 0) {
-            armor.idx = 1; 
+        if (armor.isDead) {
+            armor.idx = robot_id::ARMOR;
             continue;
         }
 

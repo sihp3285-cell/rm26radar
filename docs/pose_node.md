@@ -389,16 +389,49 @@ for (const auto& det : msg->detections) {
     tensorrt_detect_msgs::msg::WorldTarget target;
     target.idx = det.idx;
     target.class_id = det.idx;
-    target.team_id = det.armor_color;
+    target.is_dead = det.is_dead;
     target.score = det.confidence;
     target.valid = true;
     target.bbox_x = det.x;
     target.bbox_y = det.y;
     target.bbox_w = det.width;
     target.bbox_h = det.height;
+
+    if (det.is_dead) {
+        target.team_id = robot_id::UNKNOWN;
+    } else {
+        target.team_id = det.armor_color;
+    }
 ```
 
 先把 `DetectionBox` 里的基础字段复制到 `WorldTarget`。这些字段不经过任何变换，原样传递。
+
+---
+
+### `is_dead` 的处理
+
+```cpp
+    target.is_dead = det.is_dead;
+```
+
+死亡状态从上游 `detect_node` 原样传递，**不经过任何变换**。
+
+---
+
+### `team_id` 的赋值逻辑
+
+```cpp
+    if (det.is_dead) {
+        target.team_id = robot_id::UNKNOWN;
+    } else {
+        target.team_id = det.armor_color;
+    }
+```
+
+* **死亡装甲板**（`is_dead == true`）：`team_id` 显式设为 `UNKNOWN`（0）。死亡车辆没有队伍归属。
+* **存活装甲板**（`is_dead == false`）：`team_id` 从 `armor_color` 复制，表示红方（1）或蓝方（2）。
+
+> 原始代码直接写 `target.team_id = det.armor_color`，导致死亡装甲板（`armor_color` 被设为 0）的 `team_id` 也是 0。虽然结果一样，但语义不清晰。现在通过显式的 `if/else` 区分，下游节点一看就知道 `UNKNOWN` 可能是因为死亡，也可能是因为颜色未识别。
 
 ---
 

@@ -337,6 +337,8 @@ for (const auto& target : msg->targets) {
 
 在小地图上，我们只关心具体的机器人（R1、R2、R3、R4、哨兵），不关心模糊的"这是一辆车"的检测结果。所以过滤掉 CAR，保证地图上只显示有明确身份的目标。
 
+> 注意：`detect_node` 已经在发布 `/armor_detections` 时过滤掉了 CAR，所以这里理论上不会收到 CAR。这个过滤是**防御性检查**，防止未来代码变更导致意外数据进入地图绘制。
+
 ---
 
 # 十三、世界坐标 → 地图坐标
@@ -377,13 +379,23 @@ Mappoint mp;
 mp.map_point = map_pt;
 mp.label = "";
 mp.classIdx = target.class_id;
-mp.teamId = target.team_id;
+mp.armorColor = target.team_id;
+mp.isDead = target.is_dead;
 mappoints.push_back(mp);
 ```
 
-`label` 传空字符串，因为 `drawMap` 内部会根据 `classIdx` 和 `teamId` 自己计算标签（如 "red3"、"blueS"）。
+`label` 传空字符串，因为 `drawMap` 内部会根据 `classIdx` 和 `isDead` 自己计算标签（如 `"dead"`、`"1"`、`"s"`）。
 
 这和 `standalone_main.cpp` 里的做法保持一致。
+
+---
+
+### `armorColor` 和 `isDead`
+
+* `armorColor = target.team_id`：颜色/队伍信息（红/蓝/未知）
+* `isDead = target.is_dead`：死亡状态标志
+
+两者分离传递，确保 `drawMap` 能正确区分死亡装甲板（画黑色 `"dead"`）和未分类存活装甲板。
 
 ---
 
@@ -399,7 +411,7 @@ if (target.class_id >= robot_id::R1 && target.class_id <= robot_id::R4) {
     idx = 5; // 哨兵放在索引 5
 }
 
-if (idx >= 0 && idx < 6) {
+if (!target.is_dead && idx >= 0 && idx < 6) {
     if (target.team_id == robot_id::BLUE) {
         radar_msg->blue_x[idx] = map_pt.x;
         radar_msg->blue_y[idx] = map_pt.y;
@@ -425,6 +437,20 @@ if (idx >= 0 && idx < 6) {
 | 6 (S) | 哨兵 | 5 |
 
 注意索引 4（5号机器人）在这个项目里没有使用。
+
+---
+
+### 死亡装甲板不填入 RadarMap
+
+```cpp
+if (!target.is_dead && idx >= 0 && idx < 6) {
+```
+
+**死亡装甲板不填入 `RadarMap` 的红蓝数组**。
+
+原因：`RadarMap` 消息格式只有 `blue_x/blue_y` 和 `red_x/red_y` 两个数组，没有专门存放死亡车辆的位置。死亡装甲板只在 `/map_image` 上显示为黑色圆点，不进入结构化雷达数据。
+
+这是消息格式限制导致的合理取舍：如果后续需要把死亡车辆位置发给下位机，可以扩展 `RadarMap` 消息定义（比如加一个 `dead_x/dead_y` 数组）。
 
 ---
 
@@ -474,8 +500,8 @@ image_pub_->publish(*out_msg);
 
 `RadarMap` 在地图底图上绘制所有目标点：
 
-* 用 `teamId` 决定颜色（红/蓝）
-* 用 `classIdx` 决定标签（1/2/3/4/S）
+* 用 `isDead` 和 `armorColor` 决定颜色（死亡=黑，红=红，蓝=蓝，未知=青）
+* 用 `isDead` 和 `classIdx` 决定标签（死亡=`"dead"`，存活=类别名）
 * 在 `map_point` 位置画圆点和文字
 
 ---

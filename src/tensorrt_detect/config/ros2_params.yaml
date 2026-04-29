@@ -36,3 +36,8 @@ map_node:
     input_topic: "/world_targets"
     output_image_topic: "/map_image"
     output_map_topic: "/radar_map"
+
+qt_display_node:
+  ros__parameters:
+    video_topic: "/detected_image"
+    map_image_topic: "/map_image"

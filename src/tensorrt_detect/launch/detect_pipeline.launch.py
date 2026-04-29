@@ -31,15 +31,6 @@ def generate_launch_description():
             parameters=[params_file],
         ),
 
-        # 显示节点：水平拼接 /detected_image 和 /map_image 做可视化
-        Node(
-            package='tensorrt_detect',
-            executable='display_node',
-            name='display_node',
-            output='screen',
-            parameters=[params_file],
-        ),
-
         # 位姿解算节点：将检测结果转换到世界坐标
         Node(
             package='tensorrt_detect',
@@ -57,4 +48,12 @@ def generate_launch_description():
             output='screen',
             parameters=[params_file],
         ),
+
+        Node(
+            package='tensorrt_detect',
+            executable='qt_display_node',
+            name='qt_display_node',
+            output='screen',
+            parameters=[params_file],
+        )
     ])

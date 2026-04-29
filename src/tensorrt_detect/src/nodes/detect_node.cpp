@@ -9,6 +9,7 @@
 #include "ConfigManager.hpp"
 #include "pipeline.hpp"
 #include "draw.hpp"
+#include "robot_id.hpp"
 
 class DetectNode : public rclcpp::Node
 {
@@ -97,6 +98,10 @@ private:
             armor_msg->detections.reserve(results.size());
 
             for (const auto& res : results) {
+                if (res.idx == robot_id::CAR) {
+                    continue;
+                }
+
                 tensorrt_detect_msgs::msg::DetectionBox box;
                 box.idx         = res.idx;
                 box.confidence  = res.confidence;
@@ -105,6 +110,7 @@ private:
                 box.width       = res.box.width;
                 box.height      = res.box.height;
                 box.armor_color = res.armorColor;
+                box.is_dead     = res.isDead;
                 box.car_x       = res.car_box.x;
                 box.car_y       = res.car_box.y;
                 box.car_width   = res.car_box.width;

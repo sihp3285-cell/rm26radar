@@ -16,11 +16,6 @@
 #include <cv_bridge/cv_bridge.hpp>
 #include <opencv2/opencv.hpp>
 
-#include "tensorrt_detect_msgs/msg/radar_map.hpp"
-#include "ConfigManager.hpp"
-#include "radarmap.hpp"
-#include "robot_id.hpp"
-
 class QtDisplayNode;
 
 /**
@@ -135,7 +130,7 @@ private:
 };
 
 /**
- * @brief ROS2 节点：订阅图像和地图坐标，驱动 Qt 窗口刷新
+ * @brief ROS2 节点：订阅图像和地图图像，驱动 Qt 窗口刷新
  */
 class QtDisplayNode : public rclcpp::Node
 {
@@ -143,33 +138,14 @@ public:
     explicit QtDisplayNode(DisplayWindow *window)
         : Node("qt_display_node"), window_(window)
     {
-        this->declare_parameter<std::string>("config_dir",
-            "/home/delphine/rm/tensorrt10_detect/configs");
         this->declare_parameter<std::string>("video_topic", "/detected_image");
-        this->declare_parameter<std::string>("radar_map_topic", "/radar_map");
+        this->declare_parameter<std::string>("map_image_topic", "/map_image");
 
-        std::string config_dir = this->get_parameter("config_dir").as_string();
         video_topic_ = this->get_parameter("video_topic").as_string();
-        radar_map_topic_ = this->get_parameter("radar_map_topic").as_string();
+        map_image_topic_ = this->get_parameter("map_image_topic").as_string();
 
-        RCLCPP_INFO(this->get_logger(), "QtDisplayNode 配置目录: %s", config_dir.c_str());
         RCLCPP_INFO(this->get_logger(), "视频话题: %s", video_topic_.c_str());
-        RCLCPP_INFO(this->get_logger(), "地图话题: %s", radar_map_topic_.c_str());
-
-        // 加载配置，初始化 RadarMap（用于根据坐标重新绘制地图，只显示兵种）
-        cfg_ = std::make_unique<Config>(config_dir);
-        radar_map_ = std::make_unique<RadarMap>(cfg_->map.mapPath, cfg_->map.isFlip);
-        radar_map_->calibrate2(
-            cfg_->map.race_size[0],
-            cfg_->map.race_size[1],
-            cfg_->map.map_size[0],
-            cfg_->map.map_size[1]);
-
-        if (!radar_map_->m_isCalibrated) {
-            RCLCPP_ERROR(this->get_logger(), "RadarMap 校准失败");
-        } else {
-            RCLCPP_INFO(this->get_logger(), "RadarMap 校准完成");
-        }
+        RCLCPP_INFO(this->get_logger(), "地图图像话题: %s", map_image_topic_.c_str());
 
         // 订阅检测图像
         video_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
@@ -196,37 +172,17 @@ public:
                 }
             });
 
-        // 订阅 RadarMap 坐标消息（而非地图图像），以便自己绘制并优化文字
-        radar_sub_ = this->create_subscription<tensorrt_detect_msgs::msg::RadarMap>(
-            radar_map_topic_, 10,
-            [this](const tensorrt_detect_msgs::msg::RadarMap::SharedPtr msg) {
-                std::vector<Mappoint> mappoints;
-
-                auto add_points = [&](const float xs[6],
-                                      const float ys[6],
-                                      int team_id) {
-                    for (size_t i = 0; i < 6; ++i) {
-                        if (xs[i] == 0.0f && ys[i] == 0.0f) continue;  // 未检测到
-                        Mappoint mp;
-                        mp.map_point = cv::Point2f(xs[i], ys[i]);
-                        mp.label = "";
-                        mp.teamId = team_id;
-                        // 索引 0~3 对应 R1~R4，索引 4 对应 DEAD，索引 5 对应 S
-                        if (i < 4) mp.classIdx = robot_id::R1 + static_cast<int>(i);
-                        else if (i == 4) mp.classIdx = robot_id::DEAD;
-                        else if (i == 5) mp.classIdx = robot_id::S;
-                        else continue;
-                        mappoints.push_back(mp);
-                    }
-                };
-
-                add_points(msg->blue_x.data(), msg->blue_y.data(), robot_id::BLUE);
-                add_points(msg->red_x.data(), msg->red_y.data(), robot_id::RED);
-
-                cv::Mat map_frame = radar_map_->drawMap(mappoints, cfg_->model.classNames, true);
-
-                QMutexLocker lock(&mutex_);
-                latest_map_ = map_frame.clone();
+        // 订阅地图图像消息（直接显示，与 standalone 模式一致）
+        map_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
+            map_image_topic_, rclcpp::QoS(1),
+            [this](const sensor_msgs::msg::Image::SharedPtr msg) {
+                try {
+                    auto cv_ptr = cv_bridge::toCvCopy(msg, "bgr8");
+                    QMutexLocker lock(&mutex_);
+                    latest_map_ = cv_ptr->image.clone();
+                } catch (const cv_bridge::Exception &e) {
+                    RCLCPP_ERROR(this->get_logger(), "地图 cv_bridge 失败: %s", e.what());
+                }
             });
     }
 
@@ -245,13 +201,10 @@ private:
     QMutex mutex_;
 
     std::string video_topic_;
-    std::string radar_map_topic_;
+    std::string map_image_topic_;
 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr video_sub_;
-    rclcpp::Subscription<tensorrt_detect_msgs::msg::RadarMap>::SharedPtr radar_sub_;
-
-    std::unique_ptr<Config> cfg_;
-    std::unique_ptr<RadarMap> radar_map_;
+    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr map_sub_;
 
     cv::Mat latest_frame_;
     cv::Mat latest_map_;
@@ -279,7 +232,6 @@ int main(int argc, char *argv[])
     rclcpp::init(argc, argv);
     QApplication app(argc, argv);
 
-    // 全局暗色样式
     app.setStyleSheet(R"(
         QMainWindow { background-color: #2b2b2b; }
         QWidget { background-color: #2b2b2b; }

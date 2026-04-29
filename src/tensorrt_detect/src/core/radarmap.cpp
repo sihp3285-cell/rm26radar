@@ -31,8 +31,6 @@ void RadarMap::calibrate2(float race_length, float race_width, int map_width, in
     offset_y = actual_map_height / 2.0f;
 
     m_isCalibrated = true;
-    
-
 }
 
 cv::Point2f RadarMap::worldtomap(const cv::Point2f& worldPoint)const
@@ -42,6 +40,7 @@ cv::Point2f RadarMap::worldtomap(const cv::Point2f& worldPoint)const
     mapPoint.y = worldPoint.y * scale_y + offset_y;
     return mapPoint;
 }
+
 cv::Mat RadarMap::drawMap(const std::vector<Mappoint>& mappoints,const std::vector<std::string>& classNames)const
 {
     cv::Mat frame = map.clone();
@@ -49,19 +48,33 @@ cv::Mat RadarMap::drawMap(const std::vector<Mappoint>& mappoints,const std::vect
     {
         cv::Point pt(static_cast<int>(mappoint.map_point.x), 
                      static_cast<int>(mappoint.map_point.y));
-
-        cv::Scalar drawColor = robot_id::getTeamColor(mappoint.teamId);
-        int baseRadius = 4;
-        int strokeSize = 1;
+        cv::Scalar drawColor;
+        if (mappoint.isDead) {
+            drawColor = cv::Scalar(0, 0, 0);
+        } else if (mappoint.armorColor == robot_id::RED) {
+            drawColor = cv::Scalar(0, 0, 255);
+        } else if (mappoint.armorColor == robot_id::BLUE) {
+            drawColor = cv::Scalar(255, 0, 0);
+        } else {
+            drawColor = cv::Scalar(0, 255, 255);
+        }
+        int baseRadius = 6;
+        int strokeSize = 2;
         cv::circle(frame, pt, baseRadius + strokeSize, cv::Scalar(255, 255, 255), -1, cv::LINE_AA);
         cv::circle(frame, pt, baseRadius, drawColor, -1, cv::LINE_AA);
         
-        std::string label = robot_id::getRobotLabel(mappoint.teamId, mappoint.classIdx);
+        std::string label;
+        if (mappoint.isDead) {
+            label = "dead";
+        } else if (mappoint.classIdx >= 0 && mappoint.classIdx < classNames.size()) {
+            label = classNames[mappoint.classIdx];
+        }
+
         if (!label.empty())
         {
             cv::Point textPt(pt.x + 10, pt.y - 10);
-            cv::putText(frame, label, textPt, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 5, cv::LINE_AA);
-            cv::putText(frame, label, textPt, cv::FONT_HERSHEY_SIMPLEX, 0.5, drawColor, 2, cv::LINE_AA);
+            cv::putText(frame, label, textPt, cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 255, 255), 5, cv::LINE_AA);
+            cv::putText(frame, label, textPt, cv::FONT_HERSHEY_SIMPLEX, 0.8, drawColor, 2, cv::LINE_AA);
         }
     }
     return frame;

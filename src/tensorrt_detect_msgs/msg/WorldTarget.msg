@@ -2,7 +2,7 @@ int32 idx
 int32 class_id
 int32 team_id
 float32 score
-
+bool is_dead
 bool valid
 
 float32 world_x

@@ -11,6 +11,7 @@
 #include "tensorrt_detect_msgs/msg/detection_box.hpp"
 #include "ConfigManager.hpp"
 #include "posesolver.hpp"
+#include "robot_id.hpp"
 
 
 class PoseNode : public rclcpp::Node
@@ -102,13 +103,19 @@ private:
                 tensorrt_detect_msgs::msg::WorldTarget target;
                 target.idx = det.idx;
                 target.class_id = det.idx;
-                target.team_id = det.armor_color;
+                target.is_dead = det.is_dead;
                 target.score = det.confidence;
                 target.valid = true;
                 target.bbox_x = det.x;
                 target.bbox_y = det.y;
                 target.bbox_w = det.width;
                 target.bbox_h = det.height;
+
+                if (det.is_dead) {
+                    target.team_id = robot_id::UNKNOWN;
+                } else {
+                    target.team_id = det.armor_color;
+                }
 
                 cv::Rect car_box(det.car_x, det.car_y, det.car_width, det.car_height);
                 if (car_box.width > 0 && car_box.height > 0) {

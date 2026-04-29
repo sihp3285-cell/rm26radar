@@ -5,6 +5,7 @@ int32 y
 int32 width
 int32 height
 int32 armor_color
+bool is_dead
 int32 car_x
 int32 car_y
 int32 car_width

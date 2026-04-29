@@ -197,7 +197,7 @@ int main(int argc, char const *argv[])
             
             cv::Point2f wp  = poseSolver.middletoworld(result.car_box);
             cv::Point2f mp  = radarMap.worldtomap(wp);
-            mappoints.push_back({mp, "", result.idx, result.armorColor});
+            mappoints.push_back({mp, "", result.idx, result.armorColor, result.isDead});
         }
     
 

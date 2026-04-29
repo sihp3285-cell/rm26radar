@@ -393,17 +393,27 @@ armor.car_box = det.box;
 
 ---
 
-#### `idx` 和 `armorColor`
+#### `idx`、`armorColor` 和 `isDead`
 
 ```cpp
-armor.idx = 1;           // 固定为 1（ARMOR 类别）
-armor.armorColor = raw_id;  // 保留模型原始输出作为颜色/队伍 ID
+constexpr int DEAD_ARMOR_ID = 0;  // 装甲板检测模型中死亡装甲板的原始类别 ID
+
+armor.idx = robot_id::ARMOR;      // 固定为 ARMOR 类别（1）
+armor.isDead = (raw_id == DEAD_ARMOR_ID);
+if (armor.isDead) {
+    armor.armorColor = robot_id::UNKNOWN;  // 死亡装甲板颜色标记为未知
+} else {
+    armor.armorColor = raw_id;             // 存活装甲板保留原始颜色/队伍 ID
+}
 ```
 
-这里做了一个**语义转换**：
+这里做了**关键的语义分离**：
 
-* `idx` 是类别索引。第二阶段模型只检测装甲板，所以统一设为 `1`（`robot_id::ARMOR`）
-* `armorColor` 存储的是模型输出的原始类别。对于装甲板检测模型，这个原始输出通常代表**颜色/队伍**（红/蓝）
+* `idx` 是类别索引。第二阶段模型只检测装甲板，所以统一设为 `robot_id::ARMOR`（1）
+* `isDead` 是**独立的死亡状态标志**。如果二层模型输出 `raw_id == 0`，表示检测到的是**死亡装甲板**
+* `armorColor` 现在**只表示颜色/队伍**（红/蓝），不再和死亡状态混用。死亡装甲板的颜色被显式设为 `UNKNOWN`（0）
+
+> 为什么要分离 `isDead` 和 `armorColor`？因为原始代码把 `armorColor == 0` 同时当作"未知颜色"和"死亡装甲板"两种语义，导致下游节点（如地图绘制）无法区分。现在死亡状态由独立的 `bool isDead` 承载，逻辑更清晰。
 
 ---
 
@@ -427,8 +437,8 @@ void DetectPipeline::runClassify(const cv::Mat& frame, std::vector<Result>& dete
     const cv::Rect imgBound(0, 0, frame.cols, frame.rows);
 
     for (auto& armor : detections) {
-        if (armor.armorColor == 0) {
-            armor.idx = 1;
+        if (armor.isDead) {
+            armor.idx = robot_id::ARMOR;
             continue;
         }
 
@@ -461,16 +471,18 @@ for (auto& armor : detections) {
 
 ---
 
-### 颜色过滤
+### 死亡装甲板过滤
 
 ```cpp
-        if (armor.armorColor == 0) {
-            armor.idx = 1;
+        if (armor.isDead) {
+            armor.idx = robot_id::ARMOR;
             continue;
         }
 ```
 
-如果 `armorColor == 0`（`robot_id::UNKNOWN`），表示这个装甲板的队伍/颜色无法确定，跳过分类，直接标记为未分类装甲板（`idx = 1`）。
+如果 `armor.isDead == true`，表示这是**死亡装甲板**，不进入第三层分类模型，直接保持 `idx = robot_id::ARMOR`（1）。
+
+这与原始代码的行为一致——死亡装甲板在第二层结束，不消耗分类模型的推理资源。但判断条件从 `armorColor == 0` 改成了显式的 `isDead`，避免了语义混淆。
 
 ---
 

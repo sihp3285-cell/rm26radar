@@ -37,7 +37,8 @@ struct Mappoint
     cv::Point2f map_point;  // 地图像素坐标
     std::string label;      // 显示标签
     int classIdx;           // 类别索引
-    int teamId;             // 队伍 ID
+    int armorColor;         // 装甲颜色 / 队伍 ID
+    bool isDead = false;    // 死亡装甲板标志
 };
 ```
 
@@ -48,11 +49,14 @@ struct Mappoint
 | 字段 | 含义 |
 |------|------|
 | `map_point` | 目标在小地图上的像素坐标 `(x, y)` |
-| `label` | 文字标签。实际代码中传空字符串，`drawMap` 内部根据 `classIdx` 和 `teamId` 重新生成 |
-| `classIdx` | 类别索引（R1=2, R2=3, ..., S=6） |
-| `teamId` | 队伍 ID（RED=1, BLUE=2） |
+| `label` | 文字标签。实际代码中传空字符串，`drawMap` 内部根据 `classIdx` 和 `isDead` 重新生成 |
+| `classIdx` | 类别索引（ARMOR=1, R1=2, R2=3, ..., S=6） |
+| `armorColor` | 装甲颜色 / 队伍 ID（UNKNOWN=0, RED=1, BLUE=2） |
+| `isDead` | 死亡装甲板标志。`true` 时地图显示黑色圆点和 `"dead"` 标签 |
 
 `Mappoint` 是 `RadarMap` 模块的内部数据结构，连接了 `map_node` 和 `drawMap()`。
+
+> 历史变更：早期版本使用 `teamId` 字段，并通过 `robot_id::getTeamColor/getRobotLabel` 生成颜色和标签。后来还原为原始设计，直接使用 `armorColor` 判断颜色，同时新增 `isDead` 字段专门处理死亡装甲板显示。
 
 ---
 
@@ -325,29 +329,40 @@ cv::Mat RadarMap::drawMap(const std::vector<Mappoint>& mappoints,
 ### 获取绘制颜色
 
 ```cpp
-        cv::Scalar drawColor = robot_id::getTeamColor(mappoint.teamId);
+        cv::Scalar drawColor;
+        if (mappoint.isDead) {
+            drawColor = cv::Scalar(0, 0, 0);          // 黑色（死亡）
+        } else if (mappoint.armorColor == robot_id::RED) {
+            drawColor = cv::Scalar(0, 0, 255);        // 红色
+        } else if (mappoint.armorColor == robot_id::BLUE) {
+            drawColor = cv::Scalar(255, 0, 0);        // 蓝色
+        } else {
+            drawColor = cv::Scalar(0, 255, 255);      // 青色（未知）
+        }
 ```
 
-从 `robot_id.hpp` 获取队伍颜色：
+颜色由 `isDead` 和 `armorColor` 共同决定：
 
-* RED → `(0, 0, 255)`（BGR 红色）
-* BLUE → `(255, 0, 0)`（BGR 蓝色）
+* **死亡** → 黑色
+* **红色** → `(0, 0, 255)`（BGR 红色）
+* **蓝色** → `(255, 0, 0)`（BGR 蓝色）
+* **未知** → `(0, 255, 255)`（青色）
 
 ---
 
 ### 绘制圆点
 
 ```cpp
-        int baseRadius = 4;
-        int strokeSize = 1;
+        int baseRadius = 6;
+        int strokeSize = 2;
         cv::circle(frame, pt, baseRadius + strokeSize, cv::Scalar(255, 255, 255), -1, cv::LINE_AA);
         cv::circle(frame, pt, baseRadius, drawColor, -1, cv::LINE_AA);
 ```
 
 画两个同心圆：
 
-1. 外圈：白色，半径 5（`4+1`），作为描边
-2. 内圈：队伍颜色，半径 4
+1. 外圈：白色，半径 8（`6+2`），作为描边
+2. 内圈：队伍颜色（或死亡黑色），半径 6
 
 `-1` 表示填充圆。`cv::LINE_AA` 开启抗锯齿，边缘更平滑。
 
@@ -358,9 +373,14 @@ cv::Mat RadarMap::drawMap(const std::vector<Mappoint>& mappoints,
 ### 绘制标签
 
 ```cpp
-        std::string label = robot_id::getRobotLabel(mappoint.teamId, mappoint.classIdx);
-        if (!label.empty())
-        {
+        std::string label;
+        if (mappoint.isDead) {
+            label = "dead";
+        } else if (mappoint.classIdx >= 0 && mappoint.classIdx < classNames.size()) {
+            label = classNames[mappoint.classIdx];
+        }
+
+        if (!label.empty()) {
             cv::Point textPt(pt.x + 10, pt.y - 10);
             cv::putText(frame, label, textPt, cv::FONT_HERSHEY_SIMPLEX, 0.5,
                         cv::Scalar(255, 255, 255), 5, cv::LINE_AA);
@@ -374,18 +394,19 @@ cv::Mat RadarMap::drawMap(const std::vector<Mappoint>& mappoints,
 
 ---
 
-#### `robot_id::getRobotLabel`
+#### 标签生成逻辑
 
-生成标签字符串，如 `"red3"`、`"blueS"`。
+标签由 `isDead` 和 `classNames` 共同决定：
 
----
+* **死亡** → `"dead"`
+* **存活** → `classNames[classIdx]`（如 `"R1"`、`"R4"`、`"S"`）
 
 #### 双层文字绘制
 
 和圆点一样，文字也画两层：
 
 1. 底层：白色，线宽 5（粗描边）
-2. 上层：队伍颜色，线宽 2（实际文字）
+2. 上层：队伍颜色（或死亡黑色），线宽 2（实际文字）
 
 这是图像可视化中的**常见技巧**：粗白边 + 细彩字，在任何背景上都有足够的对比度。
 

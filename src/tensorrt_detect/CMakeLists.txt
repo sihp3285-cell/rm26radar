@@ -26,6 +26,7 @@ find_package(OpenCV REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(CUDAToolkit REQUIRED)
 find_package(Open3D REQUIRED)
+find_package(Qt5 REQUIRED COMPONENTS Core Widgets)
 
 # --- TensorRT 部分保持不变 ---
 set(TRT_ROOT "/opt/TensorRT/TensorRT-10.2.0.19")
@@ -150,6 +151,22 @@ ament_target_dependencies(map_node
 
 target_link_libraries(map_node tensorrt_detect_core)
 
+# ========== ROS2 节点：qt_display_node ==========
+add_executable(qt_display_node src/nodes/qt_display_node.cpp)
+
+ament_target_dependencies(qt_display_node
+    rclcpp
+    sensor_msgs
+    cv_bridge
+    std_msgs
+)
+
+target_link_libraries(qt_display_node
+    tensorrt_detect_core
+    Qt5::Core
+    Qt5::Widgets
+)
+
 # ========== 安装 & ament 打包 ==========
 install(TARGETS
     standard
@@ -158,6 +175,7 @@ install(TARGETS
     video_node
     pose_node
     map_node
+    qt_display_node
     DESTINATION lib/${PROJECT_NAME}
 )
 

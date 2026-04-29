@@ -62,8 +62,15 @@ enum TeamId {
 在 `DetectionBox` 和 `Result` 中，`armorColor` 字段的值直接对应这个枚举：
 
 ```cpp
-armor.armorColor = raw_id;  // raw_id 来自模型输出，0/1/2 对应 UNKNOWN/RED/BLUE
+// 存活装甲板：armorColor 表示实际颜色/队伍
+armor.armorColor = raw_id;  // 1/2 对应 RED/BLUE
+
+// 死亡装甲板：armorColor 显式设为 UNKNOWN，但死亡状态由 isDead 字段独立承载
+armor.armorColor = robot_id::UNKNOWN;
+armor.isDead = true;
 ```
+
+> **重要变更**：原始代码中 `armorColor == 0`（UNKNOWN）被同时用来表示"未知颜色"和"死亡装甲板"，导致语义混淆。现在死亡状态由独立的 `bool isDead` 字段承载，`armorColor` 只表示颜色/队伍信息。
 
 ---
 

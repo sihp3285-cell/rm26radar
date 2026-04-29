@@ -75,8 +75,7 @@ private:
                 if (!target.valid) {
                     continue;
                 }
-
-                // 过滤掉车辆检测（CAR, class_id == 0），与 standalone_main 逻辑保持一致
+                // 过滤掉车辆检测（CAR, class_id == 0）
                 if (target.class_id == robot_id::CAR) {
                     continue;
                 }
@@ -87,10 +86,10 @@ private:
 
                 Mappoint mp;
                 mp.map_point = map_pt;
-                // drawMap 内部会重新通过 robot_id 计算 label，这里传空字符串与 standalone 保持一致
                 mp.label = "";
                 mp.classIdx = target.class_id;
-                mp.teamId = target.team_id;
+                mp.armorColor = target.team_id;
+                mp.isDead = target.is_dead;
                 mappoints.push_back(mp);
 
                 // 填充 RadarMap 消息
@@ -103,7 +102,7 @@ private:
                     idx = 5; // 哨兵放在索引 5
                 }
 
-                if (idx >= 0 && idx < 6) {
+                if (!target.is_dead && idx >= 0 && idx < 6) {
                     if (target.team_id == robot_id::BLUE) {
                         radar_msg->blue_x[idx] = map_pt.x;
                         radar_msg->blue_y[idx] = map_pt.y;

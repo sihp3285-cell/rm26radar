@@ -45,8 +45,8 @@
                           │                 │
                           ↓                 ↓
                    ┌─────────────┐    ┌─────────────┐
-                   │ display_node│    │ (决策/通信)  │
-                   │             │    │             │
+                   │display_node │    │ qt_display  │
+                   │   / Qt      │    │   _node     │
                    └─────────────┘    └─────────────┘
 ```
 
@@ -124,15 +124,20 @@
 
 ## 2.5 可视化末端层（Visualization Layer）
 
-**节点**：`display_node`
+**节点**：`display_node`、`qt_display_node`
 
 **职责**：把图像数据呈现给人类。
 
-* 订阅 `/detected_image` 和 `/map_image`
-* 水平拼接，显示到一个 OpenCV 窗口
-* 用 `mutex` 保护多线程图像共享
+| 节点 | 技术栈 | 订阅话题 | 特点 |
+|------|--------|---------|------|
+| `display_node` | OpenCV `cv::imshow` | `/detected_image`、`/map_image` | 轻量、简单、跨平台 |
+| `qt_display_node` | Qt5 + ROS2 | `/detected_image`、`/map_image` | 界面美观、支持 Qt 动画和样式表 |
 
-这个节点是**纯消费者**，不发布任何话题。它的存在与否不影响上游节点运行。
+两个节点**二选一**启动即可：
+* `display_node` 适合调试和快速验证，代码简洁
+* `qt_display_node` 适合正式展示，UI 更现代化
+
+它们都是**纯消费者**，不发布任何话题。存在与否不影响上游节点运行。
 
 ---
 
@@ -143,10 +148,10 @@
 | 话题名 | 消息类型 | 发布者 | 订阅者 | 作用 |
 |--------|---------|--------|--------|------|
 | `/image_raw` | `sensor_msgs/Image` | video_node | detect_node | 原始图像 |
-| `/detected_image` | `sensor_msgs/Image` | detect_node | display_node | 带检测框的可视化图 |
+| `/detected_image` | `sensor_msgs/Image` | detect_node | display_node / qt_display_node | 带检测框的可视化图 |
 | `/armor_detections` | `DetectionArray` | detect_node | pose_node | 结构化检测结果 |
 | `/world_targets` | `WorldTargetArray` | pose_node | map_node | 世界坐标目标 |
-| `/map_image` | `sensor_msgs/Image` | map_node | display_node | 小地图图像 |
+| `/map_image` | `sensor_msgs/Image` | map_node | display_node / qt_display_node | 小地图图像 |
 | `/radar_map` | `RadarMap` | map_node | (决策节点) | 结构化雷达数据 |
 
 ---

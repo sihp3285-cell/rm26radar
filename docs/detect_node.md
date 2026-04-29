@@ -546,6 +546,10 @@ armor_msg->detections.reserve(results.size());
 
 ```cpp
 for (const auto& res : results) {
+    if (res.idx == robot_id::CAR) {
+        continue;  // 只发布装甲板结果，车辆检测不发给下游
+    }
+
     tensorrt_detect_msgs::msg::DetectionBox box;
     box.idx         = res.idx;
     box.confidence  = res.confidence;
@@ -554,6 +558,7 @@ for (const auto& res : results) {
     box.width       = res.box.width;
     box.height      = res.box.height;
     box.armor_color = res.armorColor;
+    box.is_dead     = res.isDead;
     box.car_x       = res.car_box.x;
     box.car_y       = res.car_box.y;
     box.car_width   = res.car_box.width;
@@ -570,6 +575,20 @@ for (const auto& res : results) {
 
 ---
 
+### CAR 过滤
+
+```cpp
+if (res.idx == robot_id::CAR) {
+    continue;
+}
+```
+
+**只发布装甲板检测结果**，第一层车辆检测（`CAR`, `idx=0`）不发给下游节点。
+
+原因：`pose_node` 和 `map_node` 只关心装甲板（和死亡装甲板），车辆检测框对它们没有意义。debug 图像仍然会画车辆框（供人看），但结构化数据只发装甲板。
+
+---
+
 ### `DetectionBox` 包含的字段解读
 
 | 字段 | 含义 |
@@ -578,11 +597,12 @@ for (const auto& res : results) {
 | `confidence` | 置信度 |
 | `x/y/width/height` | 装甲板检测框 |
 | `armor_color` | 装甲颜色/队伍 ID |
+| `is_dead` | **死亡装甲板标志**（`true` = 死亡） |
 | `car_x/car_y/car_width/car_height` | 车辆整体检测框 |
 | `world_x/world_y` | 世界坐标（如果 pipeline 已计算） |
 | `fps` | 当前帧率 |
 
-字段设计非常完整，下游节点（`pose_node`）可以按需取用。
+字段设计非常完整，下游节点（`pose_node`）可以按需取用。新增的 `is_dead` 字段让死亡状态独立传递，不再依赖 `armor_color == 0` 的隐式判断。
 
 ---
 
