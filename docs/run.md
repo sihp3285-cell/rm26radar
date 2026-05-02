@@ -87,6 +87,9 @@ src/tensorrt_detect/config/ros2_params.yaml
 | detect_node | `debug_output_max_width` | `1280` | 调试图像最大宽度 |
 | display_node | `window_width` | `1920` | 显示窗口宽度（OpenCV 版本） |
 | display_node | `window_height` | `720` | 显示窗口高度（OpenCV 版本） |
+| calibrate_node | `image_topic` | `/image_raw` | 标定图像话题 |
+| calibrate_node | `reprojection_threshold` | `10.0` | 重投影误差阈值（px） |
+| calibrate_node | `auto_calibrate` | `true` | 启动时自动检测标定 |
 | qt_display_node | `video_topic` | `/detected_image` | 视频图像话题 |
 | qt_display_node | `map_image_topic` | `/map_image` | 地图图像话题 |
 
@@ -136,7 +139,15 @@ source install/setup.bash
 ros2 run tensorrt_detect display_node
 ```
 
-**终端 5 —— 显示（Qt5 版本，推荐）：**
+**终端 5 —— 标定节点：**
+```bash
+cd /home/delphine/rm/tensorrt10_detect
+source /opt/ros/jazzy/setup.bash
+source install/setup.bash
+ros2 run tensorrt_detect calibrate_node
+```
+
+**终端 6 —— 显示（Qt5 版本，推荐）：**
 ```bash
 cd /home/delphine/rm/tensorrt10_detect
 source /opt/ros/jazzy/setup.bash
@@ -148,7 +159,52 @@ ros2 run tensorrt_detect qt_display_node
 
 ---
 
-## 六、常用调试命令
+## 六、标定相关命令
+
+### 手动触发标定
+
+```bash
+ros2 service call /calibration/start std_srvs/srv/Trigger {}
+```
+
+标定流程：
+1. 视频自动暂停
+2. `calibrate_node` 捕获一帧图像
+3. 弹出 OpenCV 窗口，用鼠标点击标定点（默认 6 个）
+4. 自动计算 PnP 外参和重投影误差
+5. 误差 ≤ 10px 时保存到 `calib_result.yaml`
+6. 自动调用 `/pose_node/reload_calibration`
+7. 等待 map 稳定后视频恢复
+
+### 直接重载 pose_node 标定
+
+```bash
+ros2 service call /pose_node/reload_calibration std_srvs/srv/Trigger {}
+```
+
+### 暂停/恢复视频
+
+```bash
+# 暂停
+ros2 service call /video_node/set_pause std_srvs/srv/SetBool "{data: true}"
+
+# 恢复
+ros2 service call /video_node/set_pause std_srvs/srv/SetBool "{data: false}"
+```
+
+### 切换阵营视角
+
+```bash
+# 切换为蓝方视角
+ros2 topic pub /flip_team std_msgs/msg/Bool "{data: true}" --once
+
+# 切换为红方视角
+ros2 topic pub /flip_team std_msgs/msg/Bool "{data: false}" --once
+```
+
+---
+
+## 七、常用调试命令
 
 ```bash
 # 查看活跃节点

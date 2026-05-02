@@ -51,25 +51,6 @@ public:
 
 
 private:
-    void scale_results(std::vector<Result>& results, float scale_x, float scale_y) const
-    {
-        for (auto& res : results) {
-            res.box.x = static_cast<int>(res.box.x * scale_x);
-            res.box.y = static_cast<int>(res.box.y * scale_y);
-            res.box.width = static_cast<int>(res.box.width * scale_x);
-            res.box.height = static_cast<int>(res.box.height * scale_y);
-
-            res.car_box.x = static_cast<int>(res.car_box.x * scale_x);
-            res.car_box.y = static_cast<int>(res.car_box.y * scale_y);
-            res.car_box.width = static_cast<int>(res.car_box.width * scale_x);
-            res.car_box.height = static_cast<int>(res.car_box.height * scale_y);
-
-            res.worldPoint.x *= scale_x;
-            res.worldPoint.y *= scale_y;
-        }
-    }
-
-
     void image_callback(const sensor_msgs::msg::Image::SharedPtr msg)
     {
         try {
@@ -79,11 +60,6 @@ private:
             const cv::Mat& frame = cv_ptr->image;
 
             std::vector<Result> results = pipeline_->process(frame);
-
-            const float scale_x = static_cast<float>(frame.cols) / static_cast<float>(frame.cols);
-            const float scale_y = static_cast<float>(frame.rows) / static_cast<float>(frame.rows);
-            scale_results(results, scale_x, scale_y);
-
 
             auto now = std::chrono::steady_clock::now();
             double dt = std::chrono::duration<double>(now - last_time_).count();

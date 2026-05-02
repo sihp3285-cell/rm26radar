@@ -11,7 +11,7 @@ pose_node
    ↓  /world_targets
 map_node
    ↓  /map_image, /radar_map
-display_node
+qt_display_node
 ```
 
 `video_node` 是整个系统的**数据源头**。它不负责任何算法，只负责一件事：
@@ -33,7 +33,9 @@ display_node
 #include <sensor_msgs/msg/image.hpp>
 #include <cv_bridge/cv_bridge.hpp>
 #include <std_msgs/msg/header.hpp>
+#include <std_srvs/srv/set_bool.hpp>
 #include <opencv2/opencv.hpp>
+#include <atomic>
 ```
 
 ---
@@ -275,6 +277,28 @@ timer_ = this->create_wall_timer(
 ```
 
 这是 `video_node` 的**运行驱动核心**。
+
+---
+
+### 创建暂停控制 Service
+
+```cpp
+pause_service_ = this->create_service<std_srvs::srv::SetBool>(
+    "/video_node/set_pause",
+    [this](const std_srvs::srv::SetBool::Request::SharedPtr request,
+           std_srvs::srv::SetBool::Response::SharedPtr response) {
+        is_paused_ = request->data;
+        response->success = true;
+        response->message = request->data ? "视频已暂停" : "视频已恢复";
+    });
+```
+
+`video_node` 提供 `/video_node/set_pause` 服务（`std_srvs::srv::SetBool`），供 `calibrate_node` 在标定过程中控制视频播放：
+
+* `request->data = true` → 暂停视频（定格在当前帧）
+* `request->data = false` → 恢复视频继续播放
+
+这样标定时用户可以看到定格的画面，不受视频持续播放的干扰。
 
 ---
 

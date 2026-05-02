@@ -78,6 +78,7 @@ private:
     float scale_y;     // Y 方向缩放比例
     float offset_x;    // X 方向偏移
     float offset_y;    // Y 方向偏移
+    bool flip_team_ = false;  // 阵营翻转标志
     bool isCalibrated() const { return m_isCalibrated; }
 ```
 
@@ -121,6 +122,8 @@ public:
     cv::Point2f worldtomap(const cv::Point2f& worldPoint) const;
     cv::Mat drawMap(const std::vector<Mappoint>& mappoints,
                     const std::vector<std::string>& classNames) const;
+    void setFlipTeam(bool flip) { flip_team_ = flip; }
+    bool getFlipTeam() const { return flip_team_; }
 ```
 
 ---
@@ -140,6 +143,15 @@ public:
 #### `worldtomap`
 
 世界坐标 → 地图像素坐标。
+
+---
+
+#### `setFlipTeam` / `getFlipTeam`
+
+运行时动态切换阵营视角：
+
+* `setFlipTeam(true)` → 蓝方视角（坐标和底图翻转 180°）
+* `setFlipTeam(false)` → 红方视角（不翻转）
 
 ---
 
@@ -268,8 +280,10 @@ scale_y = 地图像素高 / 场地物理长（米）
 cv::Point2f RadarMap::worldtomap(const cv::Point2f& worldPoint) const
 {
     cv::Point2f mapPoint;
-    mapPoint.x = worldPoint.x * scale_x + offset_x;
-    mapPoint.y = worldPoint.y * scale_y + offset_y;
+    float wx = flip_team_ ? -worldPoint.x : worldPoint.x;
+    float wy = flip_team_ ? -worldPoint.y : worldPoint.y;
+    mapPoint.x = wx * scale_x + offset_x;
+    mapPoint.y = wy * scale_y + offset_y;
     return mapPoint;
 }
 ```
@@ -284,6 +298,22 @@ map_y = world_y × scale_y + offset_y
 ```
 
 这是一个**线性映射**（仿射变换的简化版）：先缩放，再平移。
+
+---
+
+### 阵营翻转逻辑
+
+```cpp
+float wx = flip_team_ ? -worldPoint.x : worldPoint.x;
+float wy = flip_team_ ? -worldPoint.y : worldPoint.y;
+```
+
+当 `flip_team_ = true` 时，世界坐标被绕场地中心翻转 180°（取反）：
+
+* `world_x → -world_x`
+* `world_y → -world_y`
+
+这意味着红方和蓝方的基地位置在地图上互换，实现从蓝方视角看地图的效果。旋转中心是 `(0, 0)`，即场地中心，与 `offset_x/offset_y` 的对齐方式一致。
 
 假设：
 
@@ -307,9 +337,30 @@ cv::Mat RadarMap::drawMap(const std::vector<Mappoint>& mappoints,
                           const std::vector<std::string>& classNames) const
 {
     cv::Mat frame = map.clone();
+    if (flip_team_) {
+        cv::rotate(frame, frame, cv::ROTATE_180);
+    }
 ```
 
 深拷贝地图底图。这样多次调用 `drawMap` 不会互相污染。
+
+---
+
+### 阵营翻转时的底图旋转
+
+```cpp
+if (flip_team_) {
+    cv::rotate(frame, frame, cv::ROTATE_180);
+}
+```
+
+当 `flip_team_ = true` 时，不仅坐标通过 `worldtomap` 翻转了，底图本身也要旋转 180°，确保：
+
+* 地图上的基地、地形等视觉元素与翻转后的坐标对齐
+* 红方和蓝方的基地位置在地图上互换
+* 文字标签保持正向可读（因为是在翻转后的坐标系上绘制的）
+
+如果只翻转坐标而不旋转底图，会出现"圆点在对面，但底图还在原位"的错位现象。
 
 ---
 

@@ -432,49 +432,7 @@ std::vector<Result> results = pipeline_->process(frame);
 
 ---
 
-# 十四、结果坐标缩放
-
-```cpp
-const float scale_x = static_cast<float>(frame.cols) / static_cast<float>(frame.cols);
-const float scale_y = static_cast<float>(frame.rows) / static_cast<float>(frame.rows);
-scale_results(results, scale_x, scale_y);
-```
-
----
-
-### `scale_results` 函数
-
-```cpp
-void scale_results(std::vector<Result>& results, float scale_x, float scale_y) const
-{
-    for (auto& res : results) {
-        res.box.x = static_cast<int>(res.box.x * scale_x);
-        res.box.y = static_cast<int>(res.box.y * scale_y);
-        res.box.width = static_cast<int>(res.box.width * scale_x);
-        res.box.height = static_cast<int>(res.box.height * scale_y);
-
-        res.car_box.x = static_cast<int>(res.car_box.x * scale_x);
-        res.car_box.y = static_cast<int>(res.car_box.y * scale_y);
-        res.car_box.width = static_cast<int>(res.car_box.width * scale_x);
-        res.car_box.height = static_cast<int>(res.car_box.height * scale_y);
-
-        res.worldPoint.x *= scale_x;
-        res.worldPoint.y *= scale_y;
-    }
-}
-```
-
-**（新版新增）** 将检测结果中的像素坐标按缩放比例映射回原图坐标。
-
-当前代码中 `scale_x` 和 `scale_y` 都是 `1.0`（分子分母相同），所以 `scale_results` 实际上是**空操作**。
-
-原因是：`model.cpp` 的 `postprocessing()` 已经将检测结果通过 `rx`/`ry` 映射回了**原图坐标**。因此 `pipeline_->process(frame)` 返回的 `results` 已经是原图分辨率下的坐标，不需要再做额外缩放。
-
-> **注意**：这段代码可以视为历史遗留，后续可以清理掉。`scale_results` 函数本身的设计是合理的（如果检测在 resize 后的图像上进行，确实需要反缩放），但在当前实现中由于后处理已经做了映射，所以不再需要。
-
----
-
-# 十五、FPS 计算
+# 十四、FPS 计算
 
 ```cpp
 auto now = std::chrono::steady_clock::now();
@@ -507,7 +465,7 @@ fps_ = 0.9 * fps_ + 0.1 * instant_fps;
 
 ---
 
-# 十六、构建并发布结构化检测消息（新版核心）
+# 十五、构建并发布结构化检测消息（新版核心）
 
 ```cpp
 auto armor_msg = std::make_shared<tensorrt_detect_msgs::msg::DetectionArray>();
@@ -621,7 +579,7 @@ armor_pub_->publish(*armor_msg);
 
 ---
 
-# 十七、条件化发布可视化图像（性能优化核心）
+# 十六、条件化发布可视化图像（性能优化核心）
 
 ```cpp
 if (publish_debug_image_) {
@@ -760,7 +718,7 @@ image_pub_->publish(*out_msg);
 
 ---
 
-# 十八、节流日志
+# 十七、节流日志
 
 ```cpp
 RCLCPP_INFO_THROTTLE(
@@ -781,7 +739,7 @@ RCLCPP_INFO_THROTTLE(
 
 ---
 
-# 十九、异常处理
+# 十八、异常处理
 
 ```cpp
 catch (const cv_bridge::Exception& e) {
@@ -801,7 +759,7 @@ catch (const std::exception& e) {
 
 ---
 
-# 二十、成员变量
+# 十九、成员变量
 
 ```cpp
 std::unique_ptr<Config> cfg_;
@@ -856,7 +814,7 @@ Pub/Sub 对象必须作为成员变量保存。如果只在构造函数里用局
 
 ---
 
-# 二十一、`main` 函数
+# 二十、`main` 函数
 
 ```cpp
 int main(int argc, char** argv)
@@ -880,7 +838,7 @@ int main(int argc, char** argv)
 
 ---
 
-# 二十二、完整数据流回顾
+# 二十一、完整数据流回顾
 
 ```text
 video_node ──/image_raw──→ detect_node
@@ -901,7 +859,7 @@ video_node ──/image_raw──→ detect_node
 
 ---
 
-# 二十三、性能优化总结
+# 二十二、性能优化总结
 
 本次 `detect_node` 的性能优化围绕一个核心原则：**不做无用功**。具体手段包括：
 
@@ -962,7 +920,7 @@ this->declare_parameter<int>("debug_output_max_width", 1280);
 
 ---
 
-# 二十四、从这份代码里学到的设计要点
+# 二十三、从这份代码里学到的设计要点
 
 ## 1. 一输入、多输出
 
