@@ -408,7 +408,7 @@ t: [t1, t2, t3]
 
         for(const auto& result : allresults)
         {
-            if (result.idx == 0 ) continue;
+            if (result.idx == 0 || result.idx == 7) continue;
 
             cv::Point2f wp = poseSolver.middletoworld(result.car_box);
             cv::Point2f mp = radarMap.worldtomap(wp);

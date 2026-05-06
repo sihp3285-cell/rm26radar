@@ -2,7 +2,10 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <cv_bridge/cv_bridge.hpp>
 #include <std_msgs/msg/header.hpp>
+#include <std_srvs/srv/trigger.hpp>
 #include <opencv2/opencv.hpp>
+#include <filesystem>
+#include <yaml-cpp/yaml.h>
 
 #include "tensorrt_detect_msgs/msg/detection_array.hpp"
 #include "tensorrt_detect_msgs/msg/detection_box.hpp"
@@ -45,6 +48,11 @@ public:
         image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
             input_topic_, rclcpp::QoS(1),
             std::bind(&DetectNode::image_callback, this, std::placeholders::_1));
+
+        reload_roi_service_ = this->create_service<std_srvs::srv::Trigger>(
+            "/detect_node/reload_roi",
+            std::bind(&DetectNode::reloadROI, this,
+                      std::placeholders::_1, std::placeholders::_2));
 
         RCLCPP_INFO(this->get_logger(), "DetectNode 初始化完成，等待图像输入...");
     }
@@ -150,9 +158,44 @@ private:
     int detect_input_height_ = 0;
     int debug_output_max_width_ = 1280;
 
+    void reloadROI(const std_srvs::srv::Trigger::Request::SharedPtr /*request*/,
+                   std_srvs::srv::Trigger::Response::SharedPtr response)
+    {
+        try {
+            std::string config_dir = this->get_parameter("config_dir").as_string();
+            std::filesystem::path dir(config_dir);
+            std::string outpost_yaml = (dir / "outpost_roi.yaml").string();
+
+            YAML::Node cfg = YAML::LoadFile(outpost_yaml);
+            cfg_->model.outpostEnabled = cfg["outpost_enabled"]
+                                            ? cfg["outpost_enabled"].as<bool>()
+                                            : false;
+            if (cfg["outpost_roi"]) {
+                cfg_->model.outpostRoi = cfg["outpost_roi"].as<std::vector<int>>();
+            }
+            cfg_->model.outpostScoreThreshold = cfg["outpost_score_threshold"]
+                                                    ? cfg["outpost_score_threshold"].as<float>()
+                                                    : 0.0f;
+
+            response->success = true;
+            response->message = "outpost ROI 配置已重载";
+            RCLCPP_INFO(this->get_logger(), "outpost ROI 配置已重载: enabled=%s, roi=[%d,%d,%d,%d]",
+                        cfg_->model.outpostEnabled ? "true" : "false",
+                        cfg_->model.outpostRoi.size() >= 4 ? cfg_->model.outpostRoi[0] : -1,
+                        cfg_->model.outpostRoi.size() >= 4 ? cfg_->model.outpostRoi[1] : -1,
+                        cfg_->model.outpostRoi.size() >= 4 ? cfg_->model.outpostRoi[2] : -1,
+                        cfg_->model.outpostRoi.size() >= 4 ? cfg_->model.outpostRoi[3] : -1);
+        } catch (const std::exception& e) {
+            response->success = false;
+            response->message = std::string("重载失败: ") + e.what();
+            RCLCPP_ERROR(this->get_logger(), "outpost ROI 重载失败: %s", e.what());
+        }
+    }
+
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_pub_;
     rclcpp::Publisher<tensorrt_detect_msgs::msg::DetectionArray>::SharedPtr armor_pub_;
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reload_roi_service_;
     std::chrono::steady_clock::time_point last_time_ = std::chrono::steady_clock::now();
     double fps_ = 0.0;
     cv::Mat detect_input_frame_;

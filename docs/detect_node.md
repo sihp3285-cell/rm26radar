@@ -814,7 +814,59 @@ Pub/Sub 对象必须作为成员变量保存。如果只在构造函数里用局
 
 ---
 
-# 二十、`main` 函数
+# 二十、`reloadROI`：前哨站 ROI 动态重载服务
+
+```cpp
+void reloadROI(const std_srvs::srv::Trigger::Request::SharedPtr /*request*/,
+               std_srvs::srv::Trigger::Response::SharedPtr response)
+{
+    try {
+        std::string config_dir = this->get_parameter("config_dir").as_string();
+        std::filesystem::path dir(config_dir);
+        std::string outpost_yaml = (dir / "outpost_roi.yaml").string();
+
+        YAML::Node cfg = YAML::LoadFile(outpost_yaml);
+        cfg_->model.outpostEnabled = cfg["outpost_enabled"]
+                                        ? cfg["outpost_enabled"].as<bool>()
+                                        : false;
+        if (cfg["outpost_roi"]) {
+            cfg_->model.outpostRoi = cfg["outpost_roi"].as<std::vector<int>>();
+        }
+        cfg_->model.outpostScoreThreshold = cfg["outpost_score_threshold"]
+                                                ? cfg["outpost_score_threshold"].as<float>()
+                                                : 0.0f;
+
+        response->success = true;
+        response->message = "outpost ROI 配置已重载";
+        RCLCPP_INFO(this->get_logger(), "outpost ROI 配置已重载: enabled=%s, roi=[%d,%d,%d,%d]",
+                    cfg_->model.outpostEnabled ? "true" : "false",
+                    cfg_->model.outpostRoi.size() >= 4 ? cfg_->model.outpostRoi[0] : -1,
+                    cfg_->model.outpostRoi.size() >= 4 ? cfg_->model.outpostRoi[1] : -1,
+                    cfg_->model.outpostRoi.size() >= 4 ? cfg_->model.outpostRoi[2] : -1,
+                    cfg_->model.outpostRoi.size() >= 4 ? cfg_->model.outpostRoi[3] : -1);
+    } catch (const std::exception& e) {
+        response->success = false;
+        response->message = std::string("重载失败: ") + e.what();
+        RCLCPP_ERROR(this->get_logger(), "outpost ROI 重载失败: %s", e.what());
+    }
+}
+```
+
+---
+
+### 为什么读取 `outpost_roi.yaml` 而不是 `model.yaml`？
+
+`roi_set_node` 标定后把前哨站 ROI 保存到 `outpost_roi.yaml`。如果 `reloadROI` 去读 `model.yaml`，永远读不到更新后的 ROI，重载就失去了意义。
+
+### 服务接口
+
+* 话题：`/detect_node/reload_roi`
+* 类型：`std_srvs/srv/Trigger`
+* 触发方式：`roi_set_node` 标定完成后自动调用，或手动 `ros2 service call /detect_node/reload_roi std_srvs/srv/Trigger`
+
+---
+
+# 二十一、`main` 函数
 
 ```cpp
 int main(int argc, char** argv)

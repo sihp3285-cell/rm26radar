@@ -536,27 +536,156 @@ for (auto& armor : detections) {
 
 ---
 
-## 五、总入口：`process`
+## 五、前哨站检测：`runOutpostDetect`
+
+```cpp
+std::vector<Result> DetectPipeline::runOutpostDetect(const cv::Mat& frame) {
+    std::vector<Result> results;
+    if (!cfg_.model.outpostEnabled || cfg_.model.outpostRoi.size() != 4) {
+        return results;
+    }
+
+    const cv::Rect imgBound(0, 0, frame.cols, frame.rows);
+    cv::Rect outpostRoi(
+        cfg_.model.outpostRoi[0],
+        cfg_.model.outpostRoi[1],
+        cfg_.model.outpostRoi[2],
+        cfg_.model.outpostRoi[3]
+    );
+    cv::Rect safeRoi = outpostRoi & imgBound;
+    if (safeRoi.width <= 0 || safeRoi.height <= 0) {
+        return results;
+    }
+
+    bool hasValidDetection = false;
+    Result bestResult;
+    float bestConf = -1.0f;
+
+    if (armorDetector_.Detect(frame(safeRoi))) {
+        for (auto& res : armorDetector_.detectResults) {
+            if (res.confidence < cfg_.model.outpostScoreThreshold) {
+                continue;
+            }
+            if (res.confidence > bestConf) {
+                bestConf = res.confidence;
+                bestResult = res;
+                hasValidDetection = true;
+            }
+        }
+    }
+
+    if (hasValidDetection) {
+        outpostMissCount_ = 0;
+        outpostIsDead_ = false;
+
+        bestResult.box.x += safeRoi.x;
+        bestResult.box.y += safeRoi.y;
+        bestResult.idx = robot_id::OUTPOST;
+        bestResult.car_box = safeRoi;
+        bestResult.isDead = false;
+        outpostLastBox_ = bestResult.box;
+        results.push_back(bestResult);
+    } else {
+        outpostMissCount_++;
+        if (outpostMissCount_ >= cfg_.model.outpostMissThreshold) {
+            outpostMissCount_ = cfg_.model.outpostMissThreshold;
+            outpostIsDead_ = true;
+
+            Result deadResult;
+            deadResult.idx = robot_id::OUTPOST;
+            deadResult.isDead = true;
+            deadResult.confidence = 0.0f;
+            if (outpostLastBox_.width > 0 && outpostLastBox_.height > 0) {
+                deadResult.box = outpostLastBox_;
+            } else {
+                deadResult.box = safeRoi;
+            }
+            deadResult.car_box = safeRoi;
+            results.push_back(deadResult);
+        }
+    }
+    return results;
+}
+```
+
+---
+
+### 独立 ROI 截取
+
+前哨站检测不依赖第一阶段的目标检测结果，而是直接使用配置文件中的固定 `outpostRoi`。这是因为前哨站在场地中的位置相对固定，手动标定 ROI 比让模型在全图搜索更稳定、更快。
+
+### 复用 armor 模型
+
+```cpp
+armorDetector_.Detect(frame(safeRoi))
+```
+
+前哨站的"装甲板"用和第二阶段相同的 `armorDetector_` 检测，不单独加载模型，节省显存和初始化时间。
+
+### 置信度过滤
+
+```cpp
+if (res.confidence < cfg_.model.outpostScoreThreshold) continue;
+```
+
+前哨站有独立的置信度阈值 `outpostScoreThreshold`，和第二阶段的全局 `scoreThreshold2` 解耦，方便针对前哨站场景单独调优。
+
+### 帧间累计计数器（核心机制）
+
+```cpp
+if (hasValidDetection) {
+    outpostMissCount_ = 0;      // 检测到 → 清零
+    outpostIsDead_ = false;
+} else {
+    outpostMissCount_++;        // 未检测到 → 累加
+    if (outpostMissCount_ >= cfg_.model.outpostMissThreshold) {
+        outpostIsDead_ = true;  // 达到阈值 → 判定死亡
+    }
+}
+```
+
+这是前哨站检测的**关键稳定性设计**：
+
+* **检测到**：计数器清零，状态 = 存活
+* **未检测到**：计数器累加
+* **达到阈值**（默认 20 帧）：状态 = 摧毁（死亡）
+
+避免偶尔一帧漏检就导致状态跳变，只有**持续漏检**才判定前哨站被摧毁。
+
+### 死亡状态输出
+
+即使前哨站被判定死亡，仍然会输出一个 `isDead = true` 的结果。这样下游节点（如 QT 前端）能持续显示"前哨站：摧毁"的状态，而不是直接消失。
+
+---
+
+## 六、总入口：`process`
 
 ```cpp
 std::vector<Result> DetectPipeline::process(const cv::Mat& frame) {
-    std::vector<Result> all = runDetect(frame);
+    auto cars = runDetect(frame);
+    auto armors = runArmorDetect(frame, cars);
+    runClassify(frame, armors);
 
-    auto detections = runArmorDetect(frame, all);
-    runClassify(frame, detections);
-    all.insert(all.end(), detections.begin(), detections.end());
+    std::vector<Result> all;
+    all.insert(all.end(), cars.begin(), cars.end());
+    all.insert(all.end(), armors.begin(), armors.end());
+
+    auto outposts = runOutpostDetect(frame);
+    all.insert(all.end(), outposts.begin(), outposts.end());
+
     return all;
 }
 ```
 
 ---
 
-### 三阶段调用
+### 四阶段调用
 
 ```text
-1. runDetect(frame)        → all（车辆检测结果）
-2. runArmorDetect(frame, all) → detections（装甲板检测结果）
-3. runClassify(frame, detections) → 更新 detections 的 idx
+1. runDetect(frame)              → cars（车辆检测结果）
+2. runArmorDetect(frame, cars)   → armors（装甲板检测结果）
+3. runClassify(frame, armors)    → 更新 armors 的 idx
+4. runOutpostDetect(frame)       → outposts（前哨站检测结果）
 ```
 
 ---
@@ -564,21 +693,18 @@ std::vector<Result> DetectPipeline::process(const cv::Mat& frame) {
 ### 结果合并
 
 ```cpp
-all.insert(all.end(), detections.begin(), detections.end());
+all.insert(all.end(), outposts.begin(), outposts.end());
 ```
 
-把装甲板检测结果追加到车辆检测结果后面，一起返回。
-
-这意味着返回的 `vector<Result>` 里同时包含：
+前哨站结果独立追加到最终列表。返回的 `vector<Result>` 里包含：
 
 * 车辆检测框（`idx = 0`，即 `CAR`）
 * 装甲板检测框（`idx = 2~6`，即 `R1~R4`、`S`）
-
-`detect_node` 在发布 `DetectionArray` 时，会把所有这些结果都发出去。`pose_node` 后续会过滤掉 `CAR`（`class_id == 0`），只处理机器人目标。
+* 前哨站（`idx = 7`，即 `OUTPOST`）
 
 ---
 
-# 六、从 Pipeline 层学到的设计要点
+# 七、从 Pipeline 层学到的设计要点
 
 ## 1. 级联检测（Cascade Detection）
 

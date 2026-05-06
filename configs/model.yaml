@@ -19,6 +19,11 @@ scoreThreshold3: 0.3
 isNMS3: false
 modelType3: "CLASSIFY"
 
+outpost_enabled: true
+outpost_roi: [1807, 1451, 173, 65]
+outpost_score_threshold: 0.400000006
+outpost_miss_threshold: 20
+#此处为默认值
 
 classNames:
   0: "car"
@@ -28,6 +33,7 @@ classNames:
   4: "3"   # 对应 raw_id 2
   5: "4"   # 对应 raw_id 3
   6: "s"   # 对应 raw_id 4
+  7: "outpost"   # 前哨站
 
 minRoiSize: 30
 padRatio: 0.25

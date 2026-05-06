@@ -34,9 +34,14 @@ private:
     Model  classifyModel_;
     Config cfg_;
 
+    int outpostMissCount_ = 0;
+    bool outpostIsDead_ = false;
+    cv::Rect outpostLastBox_;
+
     std::vector<Result>   runDetect(const cv::Mat& frame);
     std::vector<Result>   runArmorDetect(const cv::Mat& frame,
                                          const std::vector<Result>& detections);
     void runClassify(const cv::Mat& frame,std::vector<Result>& detections);
-    
+    std::vector<Result>   runOutpostDetect(const cv::Mat& frame);
+
 };

@@ -350,8 +350,8 @@ for (const auto& target : msg->targets) {
         continue;
     }
 
-    // 过滤掉车辆检测（CAR, class_id == 0）
-    if (target.class_id == robot_id::CAR) {
+    // 过滤掉车辆检测（CAR, class_id == 0）和前哨站（OUTPOST）
+    if (target.class_id == robot_id::CAR || target.class_id == robot_id::OUTPOST) {
         continue;
     }
 ```

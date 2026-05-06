@@ -1,0 +1,42 @@
+-- Found ament_cmake: 2.5.6 (/opt/ros/jazzy/share/ament_cmake/cmake)
+-- Override CMake install command with custom implementation using symlinks instead of copying resources
+-- Found rclcpp: 28.1.18 (/opt/ros/jazzy/share/rclcpp/cmake)
+-- Found rosidl_generator_c: 4.6.7 (/opt/ros/jazzy/share/rosidl_generator_c/cmake)
+-- Found rosidl_generator_cpp: 4.6.7 (/opt/ros/jazzy/share/rosidl_generator_cpp/cmake)
+-- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+-- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+-- Found rmw_implementation_cmake: 7.3.3 (/opt/ros/jazzy/share/rmw_implementation_cmake/cmake)
+-- Found rmw_fastrtps_cpp: 8.4.3 (/opt/ros/jazzy/share/rmw_fastrtps_cpp/cmake)
+-- Using RMW implementation 'rmw_fastrtps_cpp' as default
+-- Found sensor_msgs: 5.3.7 (/opt/ros/jazzy/share/sensor_msgs/cmake)
+-- Found cv_bridge: 4.1.0 (/opt/ros/jazzy/share/cv_bridge/cmake)
+-- Found std_srvs: 5.3.7 (/opt/ros/jazzy/share/std_srvs/cmake)
+-- Found tensorrt_detect_msgs: 0.0.1 (/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake)
+-- Configuring done (0.8s)
+-- Generating done (0.1s)
+-- Build files have been written to: /home/delphine/rm/tensorrt10_detect/build/tensorrt_detect
+[  3%] Building CXX object CMakeFiles/tensorrt_detect_core.dir/src/core/pipeline.cpp.o
+[ 10%] Built target display_node
+[ 14%] Building CXX object CMakeFiles/tensorrt_detect_core.dir/src/core/mouseback.cpp.o
+[ 17%] Building CXX object CMakeFiles/tensorrt_detect_core.dir/src/core/radarmap.cpp.o
+[ 21%] Building CXX object CMakeFiles/tensorrt_detect_core.dir/src/config/ConfigManager.cpp.o
+[ 28%] Built target video_node
+[ 32%] Linking CXX static library libtensorrt_detect_core.a
+[ 50%] Built target tensorrt_detect_core
+[ 53%] Building CXX object CMakeFiles/standard.dir/apps/standalone_main.cpp.o
+[ 57%] Building CXX object CMakeFiles/roi_set_node.dir/src/nodes/roi_set_node.cpp.o
+[ 64%] Building CXX object CMakeFiles/pose_node.dir/src/nodes/pose_node.cpp.o
+[ 64%] Linking CXX executable calibrate_node
+[ 67%] Building CXX object CMakeFiles/map_node.dir/src/nodes/map_node.cpp.o
+[ 71%] Building CXX object CMakeFiles/detect_node.dir/src/nodes/detect_node.cpp.o
+[ 75%] Linking CXX executable qt_display_node
+[ 78%] Built target calibrate_node
+[ 82%] Built target qt_display_node
+[ 85%] Linking CXX executable standard
+[ 85%] Built target standard
+[ 89%] Linking CXX executable pose_node
+[ 89%] Built target pose_node
+[ 92%] Linking CXX executable roi_set_node
+[ 92%] Built target roi_set_node
+[ 96%] Linking CXX executable map_node
+[ 96%] Built target map_node

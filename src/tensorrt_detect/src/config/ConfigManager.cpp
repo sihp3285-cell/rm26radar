@@ -75,6 +75,28 @@ Config::Config(const std::string& configDir) {
         }
     }
 
+    // outpost_roi.yaml 优先覆盖 model.yaml 中的 outpost 配置
+    const std::string outpostYaml = (dir / "outpost_roi.yaml").string();
+    if (fs::exists(outpostYaml)) {
+        try {
+            YAML::Node cfg = YAML::LoadFile(outpostYaml);
+            if (cfg["outpost_enabled"]) {
+                model.outpostEnabled = cfg["outpost_enabled"].as<bool>();
+            }
+            if (cfg["outpost_roi"]) {
+                model.outpostRoi = cfg["outpost_roi"].as<std::vector<int>>();
+            }
+            if (cfg["outpost_score_threshold"]) {
+                model.outpostScoreThreshold = cfg["outpost_score_threshold"].as<float>();
+            }
+            if (cfg["outpost_miss_threshold"]) {
+                model.outpostMissThreshold = cfg["outpost_miss_threshold"].as<int>();
+            }
+        } catch (const std::exception& e) {
+            // outpost_roi.yaml 可选，加载失败不阻断
+        }
+    }
+
     validateModelConfig(model);
     validateCameraConfig(camera);
     validateMapConfig(map);
@@ -123,6 +145,17 @@ void Config::loadModelConfig(const std::string& path) {
     model.classIdxBase = cfg["classIdxBase"] ? cfg["classIdxBase"].as<int>() : 0;
 
     model.classNames = parseClassNamesNode(cfg["classNames"]);
+
+    model.outpostEnabled = cfg["outpost_enabled"] ? cfg["outpost_enabled"].as<bool>() : false;
+    if (cfg["outpost_roi"]) {
+        model.outpostRoi = cfg["outpost_roi"].as<std::vector<int>>();
+    }
+    model.outpostScoreThreshold = cfg["outpost_score_threshold"]
+                                      ? cfg["outpost_score_threshold"].as<float>()
+                                      : 0.0f;
+    model.outpostMissThreshold = cfg["outpost_miss_threshold"]
+                                     ? cfg["outpost_miss_threshold"].as<int>()
+                                     : 20;
 }
 
 void Config::loadCameraConfig(const std::string& path) {

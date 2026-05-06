@@ -48,6 +48,11 @@ struct ModelConfig {
     int classIdxBase = 0;
 
     std::vector<std::string> classNames;
+
+    bool outpostEnabled = false;
+    std::vector<int> outpostRoi;           // [x, y, width, height]
+    float outpostScoreThreshold = 0.0f;
+    int outpostMissThreshold = 20;         // 前哨站未检测判定死亡阈值（帧数）
 };
 
 struct CameraConfig {

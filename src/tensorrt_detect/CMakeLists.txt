@@ -93,6 +93,7 @@ ament_target_dependencies(detect_node
     sensor_msgs
     cv_bridge
     std_msgs
+    std_srvs
     tensorrt_detect_msgs
 )
 
@@ -171,6 +172,23 @@ target_link_libraries(calibrate_node
 
 target_include_directories(calibrate_node PRIVATE ${COMMON_INCLUDE_DIRS})
 
+# ========== ROS2 节点：roi_set_node ==========
+add_executable(roi_set_node src/nodes/roi_set_node.cpp)
+
+ament_target_dependencies(roi_set_node
+    rclcpp
+    sensor_msgs
+    cv_bridge
+    std_msgs
+    std_srvs
+)
+
+target_link_libraries(roi_set_node
+    tensorrt_detect_core
+)
+
+target_include_directories(roi_set_node PRIVATE ${COMMON_INCLUDE_DIRS})
+
 # ========== ROS2 节点：qt_display_node ==========
 add_executable(qt_display_node src/nodes/qt_display_node.cpp)
 
@@ -179,6 +197,7 @@ ament_target_dependencies(qt_display_node
     sensor_msgs
     cv_bridge
     std_msgs
+    tensorrt_detect_msgs
 )
 
 target_link_libraries(qt_display_node
@@ -196,6 +215,7 @@ install(TARGETS
     pose_node
     map_node
     calibrate_node
+    roi_set_node
     qt_display_node
     DESTINATION lib/${PROJECT_NAME}
 )

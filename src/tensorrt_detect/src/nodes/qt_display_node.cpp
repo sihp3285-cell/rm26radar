@@ -18,6 +18,8 @@
 #include <cv_bridge/cv_bridge.hpp>
 #include <opencv2/opencv.hpp>
 
+#include "tensorrt_detect_msgs/msg/detection_array.hpp"
+
 class QtDisplayNode;
 
 /**
@@ -120,11 +122,15 @@ public:
             map_label_->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
     }
 
-    void updateStatus(double fps, double delay_ms)
+    void updateStatus(double fps, double delay_ms, bool outpost_alive)
     {
-        QString text = QString("FPS: %1  |  Delay: %2 ms")
+        QString outpost_text = outpost_alive
+            ? QStringLiteral("前哨站: 存活")
+            : QStringLiteral("前哨站: 摧毁");
+        QString text = QString("FPS: %1  |  Delay: %2 ms  |  %3")
                            .arg(fps, 0, 'f', 1)
-                           .arg(delay_ms, 0, 'f', 2);
+                           .arg(delay_ms, 0, 'f', 2)
+                           .arg(outpost_text);
         status_label_->setText(text);
     }
 
@@ -175,12 +181,15 @@ public:
     {
         this->declare_parameter<std::string>("video_topic", "/detected_image");
         this->declare_parameter<std::string>("map_image_topic", "/map_image");
+        this->declare_parameter<std::string>("armor_topic", "/armor_detections");
 
         video_topic_ = this->get_parameter("video_topic").as_string();
         map_image_topic_ = this->get_parameter("map_image_topic").as_string();
+        armor_topic_ = this->get_parameter("armor_topic").as_string();
 
         RCLCPP_INFO(this->get_logger(), "视频话题: %s", video_topic_.c_str());
         RCLCPP_INFO(this->get_logger(), "地图图像话题: %s", map_image_topic_.c_str());
+        RCLCPP_INFO(this->get_logger(), "检测话题: %s", armor_topic_.c_str());
 
         // 订阅检测图像
         video_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
@@ -220,6 +229,24 @@ public:
                 }
             });
 
+        // 订阅检测结果，提取前哨站状态
+        armor_sub_ = this->create_subscription<tensorrt_detect_msgs::msg::DetectionArray>(
+            armor_topic_, rclcpp::QoS(10),
+            [this](const tensorrt_detect_msgs::msg::DetectionArray::SharedPtr msg) {
+                bool alive = false;
+                bool found = false;
+                for (const auto& det : msg->detections) {
+                    if (det.idx == 7) {  // OUTPOST
+                        found = true;
+                        alive = !det.is_dead;
+                        break;
+                    }
+                }
+                if (found) {
+                    latest_outpost_alive_ = alive;
+                }
+            });
+
         // 发布阵营翻转话题
         team_flip_pub_ = this->create_publisher<std_msgs::msg::Bool>("/flip_team", rclcpp::QoS(1).reliable());
     }
@@ -233,13 +260,14 @@ public:
     }
 
     // 供 DisplayWindow 在主线程调用，安全取出最新数据
-    void fetchData(cv::Mat &frame, cv::Mat &map, double &fps, double &delay_ms)
+    void fetchData(cv::Mat &frame, cv::Mat &map, double &fps, double &delay_ms, bool &outpost_alive)
     {
         QMutexLocker lock(&mutex_);
         frame = latest_frame_.clone();
         map = latest_map_.clone();
         fps = latest_fps_;
         delay_ms = latest_delay_ms_;
+        outpost_alive = latest_outpost_alive_;
     }
 
 private:
@@ -248,15 +276,18 @@ private:
 
     std::string video_topic_;
     std::string map_image_topic_;
+    std::string armor_topic_;
 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr video_sub_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr map_sub_;
+    rclcpp::Subscription<tensorrt_detect_msgs::msg::DetectionArray>::SharedPtr armor_sub_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr team_flip_pub_;
 
     cv::Mat latest_frame_;
     cv::Mat latest_map_;
     double latest_fps_{0.0};
     double latest_delay_ms_{0.0};
+    bool latest_outpost_alive_ = false;
 
     std::chrono::steady_clock::time_point last_time_ = std::chrono::steady_clock::now();
     double fps_{0.0};
@@ -268,10 +299,11 @@ void DisplayWindow::updateFromNode()
     if (!node_) return;
     cv::Mat frame, map;
     double fps = 0.0, delay = 0.0;
-    node_->fetchData(frame, map, fps, delay);
+    bool outpost_alive = false;
+    node_->fetchData(frame, map, fps, delay, outpost_alive);
     updateVideo(frame);
     updateMap(map);
-    updateStatus(fps, delay);
+    updateStatus(fps, delay, outpost_alive);
 }
 
 int main(int argc, char *argv[])

@@ -490,6 +490,35 @@ Config::Config(const std::string& configDir) {
 
 ---
 
+### 优先加载 `outpost_roi.yaml`
+
+```cpp
+    const std::string outpostYaml = (dir / "outpost_roi.yaml").string();
+    if (fs::exists(outpostYaml)) {
+        try {
+            YAML::Node cfg = YAML::LoadFile(outpostYaml);
+            if (cfg["outpost_enabled"]) {
+                model.outpostEnabled = cfg["outpost_enabled"].as<bool>();
+            }
+            if (cfg["outpost_roi"]) {
+                model.outpostRoi = cfg["outpost_roi"].as<std::vector<int>>();
+            }
+            if (cfg["outpost_score_threshold"]) {
+                model.outpostScoreThreshold = cfg["outpost_score_threshold"].as<float>();
+            }
+            if (cfg["outpost_miss_threshold"]) {
+                model.outpostMissThreshold = cfg["outpost_miss_threshold"].as<int>();
+            }
+        } catch (const std::exception& e) {
+            // outpost_roi.yaml 可选，加载失败不阻断
+        }
+    }
+```
+
+启动时，如果 `outpost_roi.yaml` 存在，就用它**覆盖** `model.yaml` 中的前哨站配置。这样 `roi_set_node` 标定后的结果在节点重启后依然生效，不需要手动触发重载。
+
+---
+
 ### 验证
 
 ```cpp
@@ -547,6 +576,17 @@ void Config::loadModelConfig(const std::string& path) {
     model.minRoiSize  = cfg["minRoiSize"] ? cfg["minRoiSize"].as<int>() : 0;
     model.padRatio    = cfg["padRatio"] ? cfg["padRatio"].as<float>() : 0.0f;
     model.classIdxBase = cfg["classIdxBase"] ? cfg["classIdxBase"].as<int>() : 0;
+
+    model.outpostEnabled = cfg["outpost_enabled"] ? cfg["outpost_enabled"].as<bool>() : false;
+    if (cfg["outpost_roi"]) {
+        model.outpostRoi = cfg["outpost_roi"].as<std::vector<int>>();
+    }
+    model.outpostScoreThreshold = cfg["outpost_score_threshold"]
+                                      ? cfg["outpost_score_threshold"].as<float>()
+                                      : 0.0f;
+    model.outpostMissThreshold = cfg["outpost_miss_threshold"]
+                                     ? cfg["outpost_miss_threshold"].as<int>()
+                                     : 20;
 ```
 
 `cfg["key"]` 如果节点存在且非空，条件为 `true`；否则为 `false`。

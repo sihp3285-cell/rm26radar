@@ -1,0 +1,5 @@
+outpost_enabled: true
+outpost_roi: [1807, 1451, 173, 65]
+outpost_score_threshold: 0.400000006
+outpost_miss_threshold: 20
+#标定后此处将覆盖model.yaml中的默认值

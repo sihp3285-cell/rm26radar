@@ -1,0 +1,49 @@
+-- Found ament_cmake: 2.5.6 (/opt/ros/jazzy/share/ament_cmake/cmake)
+-- Override CMake install command with custom implementation using symlinks instead of copying resources
+-- Found rclcpp: 28.1.18 (/opt/ros/jazzy/share/rclcpp/cmake)
+-- Found rosidl_generator_c: 4.6.7 (/opt/ros/jazzy/share/rosidl_generator_c/cmake)
+-- Found rosidl_generator_cpp: 4.6.7 (/opt/ros/jazzy/share/rosidl_generator_cpp/cmake)
+-- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+-- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+-- Found rmw_implementation_cmake: 7.3.3 (/opt/ros/jazzy/share/rmw_implementation_cmake/cmake)
+-- Found rmw_fastrtps_cpp: 8.4.3 (/opt/ros/jazzy/share/rmw_fastrtps_cpp/cmake)
+-- Using RMW implementation 'rmw_fastrtps_cpp' as default
+-- Found sensor_msgs: 5.3.7 (/opt/ros/jazzy/share/sensor_msgs/cmake)
+-- Found cv_bridge: 4.1.0 (/opt/ros/jazzy/share/cv_bridge/cmake)
+-- Found std_srvs: 5.3.7 (/opt/ros/jazzy/share/std_srvs/cmake)
+-- Found tensorrt_detect_msgs: 0.0.1 (/home/delphine/rm/tensorrt10_detect/install/tensorrt_detect_msgs/share/tensorrt_detect_msgs/cmake)
+CMake Deprecation Warning at /home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/lib/cmake/Open3D/Open3DConfig.cmake:18 (cmake_policy):
+  The OLD behavior for policy CMP0072 will be removed from a future version
+  of CMake.
+
+  The cmake-policies(7) manual explains that the OLD behaviors of all
+  policies are deprecated and that a policy should be set to OLD only under
+  specific short-term circumstances.  Projects should be ported to the NEW
+  behavior and not rely on setting a policy to OLD.
+Call Stack (most recent call first):
+  CMakeLists.txt:29 (find_package)
+
+
+-- Configuring done (0.8s)
+-- Generating done (0.1s)
+-- Build files have been written to: /home/delphine/rm/tensorrt10_detect/build/tensorrt_detect
+[  7%] Built target display_node
+[ 14%] Built target video_node
+[ 50%] Built target tensorrt_detect_core
+[ 53%] Building CXX object CMakeFiles/standard.dir/apps/standalone_main.cpp.o
+[ 60%] Built target calibrate_node
+[ 71%] Built target qt_display_node
+[ 71%] Building CXX object CMakeFiles/map_node.dir/src/nodes/map_node.cpp.o
+[ 78%] Built target pose_node
+[ 85%] Built target detect_node
+[ 92%] Built target roi_set_node
+/home/delphine/rm/tensorrt10_detect/src/tensorrt_detect/apps/standalone_main.cpp: In function ‘int main(int, const char**)’:
+/home/delphine/rm/tensorrt10_detect/src/tensorrt_detect/apps/standalone_main.cpp:196:50: error: ‘robot_id’ has not been declared
+  196 |             if (result.idx == 0 || result.idx == robot_id::OUTPOST) continue;
+      |                                                  ^~~~~~~~
+gmake[2]: *** [CMakeFiles/standard.dir/build.make:76: CMakeFiles/standard.dir/apps/standalone_main.cpp.o] Error 1
+gmake[1]: *** [CMakeFiles/Makefile2:181: CMakeFiles/standard.dir/all] Error 2
+gmake[1]: *** Waiting for unfinished jobs....
+[ 96%] Linking CXX executable map_node
+[ 96%] Built target map_node
+gmake: *** [Makefile:146: all] Error 2

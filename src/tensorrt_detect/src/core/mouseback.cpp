@@ -27,6 +27,18 @@ std::vector<cv::Point2f> MouseBack::getPoints(const cv::Mat& frame)
         cv::putText(displayFrame, std::to_string(i+1), points[i] + cv::Point2f(10, 10), 
                     cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 2);
         }
+        // 两点模式下，实时绘制矩形预览
+        if (maxpoints == 2 && points.size() == 2) {
+            int x1 = static_cast<int>(points[0].x);
+            int y1 = static_cast<int>(points[0].y);
+            int x2 = static_cast<int>(points[1].x);
+            int y2 = static_cast<int>(points[1].y);
+            int x = std::min(x1, x2);
+            int y = std::min(y1, y2);
+            int w = std::abs(x1 - x2);
+            int h = std::abs(y1 - y2);
+            cv::rectangle(displayFrame, cv::Rect(x, y, w, h), cv::Scalar(0, 255, 0), 2);
+        }
         cv::imshow(windowName, displayFrame);
         int key = cv::waitKey(10);
         if (points.size() >= maxpoints) {

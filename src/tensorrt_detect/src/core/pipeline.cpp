@@ -95,11 +95,85 @@ void DetectPipeline::runClassify(const cv::Mat& frame, std::vector<Result>& dete
     }
 }
 
-std::vector<Result> DetectPipeline::process(const cv::Mat& frame) {
-    std::vector<Result> all = runDetect(frame);  
+std::vector<Result> DetectPipeline::runOutpostDetect(const cv::Mat& frame) {
+    std::vector<Result> results;
+    if (!cfg_.model.outpostEnabled || cfg_.model.outpostRoi.size() != 4) {
+        return results;
+    }
 
-    auto detections = runArmorDetect(frame, all);
-    runClassify(frame, detections);
-    all.insert(all.end(), detections.begin(), detections.end());
+    const cv::Rect imgBound(0, 0, frame.cols, frame.rows);
+    cv::Rect outpostRoi(
+        cfg_.model.outpostRoi[0],
+        cfg_.model.outpostRoi[1],
+        cfg_.model.outpostRoi[2],
+        cfg_.model.outpostRoi[3]
+    );
+    cv::Rect safeRoi = outpostRoi & imgBound;
+    if (safeRoi.width <= 0 || safeRoi.height <= 0) {
+        return results;
+    }
+
+    bool hasValidDetection = false;
+    Result bestResult;
+    float bestConf = -1.0f;
+
+    if (armorDetector_.Detect(frame(safeRoi))) {
+        for (auto& res : armorDetector_.detectResults) {
+            if (res.confidence < cfg_.model.outpostScoreThreshold) {
+                continue;
+            }
+            if (res.confidence > bestConf) {
+                bestConf = res.confidence;
+                bestResult = res;
+                hasValidDetection = true;
+            }
+        }
+    }
+
+    if (hasValidDetection) {
+        outpostMissCount_ = 0;
+        outpostIsDead_ = false;
+
+        bestResult.box.x += safeRoi.x;
+        bestResult.box.y += safeRoi.y;
+        bestResult.idx = robot_id::OUTPOST;
+        bestResult.car_box = safeRoi;
+        bestResult.isDead = false;
+        outpostLastBox_ = bestResult.box;
+        results.push_back(bestResult);
+    } else {
+        outpostMissCount_++;
+        if (outpostMissCount_ >= cfg_.model.outpostMissThreshold) {
+            outpostMissCount_ = cfg_.model.outpostMissThreshold;
+            outpostIsDead_ = true;
+
+            Result deadResult;
+            deadResult.idx = robot_id::OUTPOST;
+            deadResult.isDead = true;
+            deadResult.confidence = 0.0f;
+            if (outpostLastBox_.width > 0 && outpostLastBox_.height > 0) {
+                deadResult.box = outpostLastBox_;
+            } else {
+                deadResult.box = safeRoi;
+            }
+            deadResult.car_box = safeRoi;
+            results.push_back(deadResult);
+        }
+    }
+    return results;
+}
+
+std::vector<Result> DetectPipeline::process(const cv::Mat& frame) {
+    auto cars = runDetect(frame);
+    auto armors = runArmorDetect(frame, cars);
+    runClassify(frame, armors);
+
+    std::vector<Result> all;
+    all.insert(all.end(), cars.begin(), cars.end());
+    all.insert(all.end(), armors.begin(), armors.end());
+
+    auto outposts = runOutpostDetect(frame);
+    all.insert(all.end(), outposts.begin(), outposts.end());
+
     return all;
 }

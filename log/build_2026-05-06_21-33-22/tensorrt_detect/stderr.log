@@ -1,0 +1,20 @@
+CMake Deprecation Warning at /home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/lib/cmake/Open3D/Open3DConfig.cmake:18 (cmake_policy):
+  The OLD behavior for policy CMP0072 will be removed from a future version
+  of CMake.
+
+  The cmake-policies(7) manual explains that the OLD behaviors of all
+  policies are deprecated and that a policy should be set to OLD only under
+  specific short-term circumstances.  Projects should be ported to the NEW
+  behavior and not rely on setting a policy to OLD.
+Call Stack (most recent call first):
+  CMakeLists.txt:29 (find_package)
+
+
+/home/delphine/rm/tensorrt10_detect/src/tensorrt_detect/apps/standalone_main.cpp: In function ‘int main(int, const char**)’:
+/home/delphine/rm/tensorrt10_detect/src/tensorrt_detect/apps/standalone_main.cpp:196:50: error: ‘robot_id’ has not been declared
+  196 |             if (result.idx == 0 || result.idx == robot_id::OUTPOST) continue;
+      |                                                  ^~~~~~~~
+gmake[2]: *** [CMakeFiles/standard.dir/build.make:76: CMakeFiles/standard.dir/apps/standalone_main.cpp.o] Error 1
+gmake[1]: *** [CMakeFiles/Makefile2:181: CMakeFiles/standard.dir/all] Error 2
+gmake[1]: *** Waiting for unfinished jobs....
+gmake: *** [Makefile:146: all] Error 2
