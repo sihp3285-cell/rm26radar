@@ -24,7 +24,7 @@ public:
         this->declare_parameter<std::string>("input_topic", "/image_raw");
         this->declare_parameter<std::string>("output_topic", "/detected_image");
         this->declare_parameter<bool>("publish_debug_image", true);
-        // 检测输入图像宽度
+        
         this->declare_parameter<int>("debug_output_max_width", 1280);
 
         std::string config_dir = this->get_parameter("config_dir").as_string();
@@ -176,6 +176,9 @@ private:
             cfg_->model.outpostScoreThreshold = cfg["outpost_score_threshold"]
                                                     ? cfg["outpost_score_threshold"].as<float>()
                                                     : 0.0f;
+            cfg_->model.outpostMissThreshold = cfg["outpost_miss_threshold"]
+                                                   ? cfg["outpost_miss_threshold"].as<int>()
+                                                   : 20;
 
             response->success = true;
             response->message = "outpost ROI 配置已重载";

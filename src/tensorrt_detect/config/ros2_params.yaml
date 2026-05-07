@@ -50,3 +50,11 @@ calibrate_node:
     reprojection_threshold: 10.0
     auto_calibrate: true
     auto_calibrate_delay_sec: 2
+
+roi_set_node:
+  ros__parameters:
+    config_dir: "/home/delphine/rm/tensorrt10_detect/configs"
+    image_topic: "/image_raw"
+    outpost_roi_path: "/home/delphine/rm/tensorrt10_detect/configs/outpost_roi.yaml"
+    auto_set_roi: true
+    auto_set_delay_sec: 3

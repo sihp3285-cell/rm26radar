@@ -32,7 +32,7 @@ private:
     Model  detectModel_;
     Model  armorDetector_;
     Model  classifyModel_;
-    Config cfg_;
+    Config& cfg_;
 
     int outpostMissCount_ = 0;
     bool outpostIsDead_ = false;

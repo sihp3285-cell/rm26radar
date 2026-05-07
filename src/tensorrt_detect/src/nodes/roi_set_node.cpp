@@ -299,15 +299,16 @@ private:
     bool callDetectNodeReload()
     {
         auto client = this->create_client<std_srvs::srv::Trigger>("/detect_node/reload_roi");
-        if (!client->wait_for_service(std::chrono::seconds(3))) {
+        // detect_node 初始化 TensorRT 模型可能较慢，给予足够等待时间
+        if (!client->wait_for_service(std::chrono::seconds(10))) {
             RCLCPP_ERROR(this->get_logger(),
-                "detect_node 的 reload_roi 服务未上线（等待 3 秒超时）");
+                "detect_node 的 reload_roi 服务未上线（等待 10 秒超时）");
             return false;
         }
 
         auto request = std::make_shared<std_srvs::srv::Trigger::Request>();
         auto future = client->async_send_request(request);
-        auto status = future.wait_for(std::chrono::seconds(5));
+        auto status = future.wait_for(std::chrono::seconds(10));
 
         if (status == std::future_status::timeout) {
             RCLCPP_ERROR(this->get_logger(), "调用 detect_node reload_roi 超时");
@@ -327,22 +328,30 @@ private:
     bool saveROIResult(const cv::Rect& roi)
     {
         try {
-            YAML::Emitter out;
-            out << YAML::BeginMap;
-            out << YAML::Key << "outpost_enabled" << YAML::Value << true;
-            out << YAML::Key << "outpost_roi" << YAML::Value << YAML::Flow << YAML::BeginSeq;
-            out << roi.x << roi.y << roi.width << roi.height;
-            out << YAML::EndSeq;
-            out << YAML::Key << "outpost_score_threshold" << YAML::Value << 0.4f;
-            out << YAML::Key << "outpost_miss_threshold" << YAML::Value << 20;
-            out << YAML::EndMap;
+            YAML::Node node;
+            // 若文件已存在，先读取现有内容以保留其他字段
+            if (std::filesystem::exists(outpost_roi_path_)) {
+                node = YAML::LoadFile(outpost_roi_path_);
+            }
+
+            // 仅更新 outpost_roi，其余字段保留原值或使用默认值
+            if (!node["outpost_enabled"]) {
+                node["outpost_enabled"] = true;
+            }
+            node["outpost_roi"] = std::vector<int>{roi.x, roi.y, roi.width, roi.height};
+            if (!node["outpost_score_threshold"]) {
+                node["outpost_score_threshold"] = 0.4f;
+            }
+            if (!node["outpost_miss_threshold"]) {
+                node["outpost_miss_threshold"] = 20;
+            }
 
             std::ofstream fout(outpost_roi_path_);
             if (!fout.is_open()) {
                 RCLCPP_ERROR(this->get_logger(), "无法打开文件写入: %s", outpost_roi_path_.c_str());
                 return false;
             }
-            fout << out.c_str();
+            fout << node;
             fout.close();
             RCLCPP_INFO(this->get_logger(), "ROI 结果已保存到: %s", outpost_roi_path_.c_str());
             return true;

@@ -63,5 +63,14 @@ def generate_launch_description():
             name='qt_display_node',
             output='screen',
             parameters=[params_file],
+        ),
+
+        # ROI 设置节点：自动检测 outpost_roi 是否为空，为空则自动进入框定
+        Node(
+            package='tensorrt_detect',
+            executable='roi_set_node',
+            name='roi_set_node',
+            output='screen',
+            parameters=[params_file],
         )
     ])
