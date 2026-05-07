@@ -82,29 +82,33 @@ class DisplayWindow : public QMainWindow
 
 继承自 `QMainWindow`，包含三个区域：
 
-1. **左侧**：视频图像 (`video_label_`)
-2. **右侧**：小地图 (`map_label_`)
-3. **底部**：状态栏 + 阵营切换按钮
+1. **顶部**：状态栏（FPS + 延迟 + 前哨站状态）
+2. **左侧**：视频图像 (`video_label_`)
+3. **右侧**：小地图 (`map_label_`)
+4. **底部**：阵营切换按钮
 
 ---
 
 ### 布局结构
 
 ```text
++--------------------------------------+
+| status_label_                        |
+| (FPS + Delay + 前哨站状态)           |
++--------------------------------------+
 +------------------+------------------+
 |                  |                  |
 |   video_label_   |   map_label_     |
 |   (检测图像)      |   (小地图)        |
 |                  |                  |
 +------------------+------------------+
-| status_label_          [红方视角]    |
-| (FPS + Delay + 前哨站状态)           |
+|                              [红方视角] |
 +--------------------------------------+
 ```
 
 ---
 
-### `updateStatus`：更新底部状态栏
+### `updateStatus`：更新顶部状态栏
 
 ```cpp
 void updateStatus(double fps, double delay_ms, bool outpost_alive)

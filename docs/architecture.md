@@ -2,7 +2,7 @@
 
 这份文档从**全局视角**讲解你当前 ROS2 视觉检测系统的架构设计。不会逐行抠代码，而是侧重：
 
-* 为什么拆成这五个节点？
+* 为什么拆成多个节点？
 * 话题之间怎么配合？
 * 自定义消息为什么这样设计？
 * Launch 文件怎么把节点串起来？
@@ -17,13 +17,21 @@
 │  video_node │ ──────────────────→ │ detect_node │
 │  (传感器层)  │                     │  (算法核心层) │
 └─────────────┘                     └──────┬──────┘
-    ↑                                      │
-    │      /video_node/set_pause           │
-    │           (服务)                     │
-┌───┴─────────┐                            │
-│calibrate_node│                            │
-│  (标定控制层) │                            │
-└─────────────┘                            │
+    ↑      ↑                               │
+    │      │      /video_node/set_pause     │
+    │      │           (服务)               │
+    │   ┌──┴─────────┐                     │
+    │   │calibrate_node│                   │
+    │   │  (标定控制层) │                   │
+    │   └─────────────┘                   │
+    │      ↑                               │
+    │      │      /calibration/start       │
+    │      │           (服务)               │
+    │   ┌──┴─────────┐                     │
+    └──→│  roi_set_node│ ←─────────────────┤
+        │ (ROI 控制层) │   /detect_node/     │
+        └─────────────┘    reload_roi       │
+                              (服务)        │
                           ┌────────────────┼────────────────┐
                           │                │                │
                           ↓                ↓                ↓
@@ -143,7 +151,25 @@
 * 标定过程中通过 `/video_node/set_pause` 服务暂停/恢复视频，避免标定窗口弹出时视频继续播放
 * 同时提供 `/calibration/start` 服务，支持用户手动触发重新标定
 
-## 2.6 可视化末端层（Visualization Layer）
+---
+
+## 2.6 ROI 控制层（ROI Control Layer）
+
+**节点**：`roi_set_node`
+
+**职责**：前哨站 ROI 的自动检测与手动框定。
+
+* 启动时自动检测 `outpost_roi.yaml` 是否有效
+* 无效时自动进入 ROI 框定流程（临时订阅 `/image_raw` 获取一帧，弹出 OpenCV 交互窗口两点框选）
+* 若相机标定无效，先自动触发 `/calibration/start` 完成标定
+* 框定过程中通过 `/video_node/set_pause` 服务暂停/恢复视频
+* 保存到 `outpost_roi.yaml`（保留原有其他字段，仅更新 `outpost_roi`）
+* 通过 `/detect_node/reload_roi` 服务通知 `detect_node` 重载配置
+* 提供 `/roi_set/start` 服务，支持用户手动触发重新框定
+
+---
+
+## 2.7 可视化末端层（Visualization Layer）
 
 **节点**：`qt_display_node`
 
@@ -151,7 +177,7 @@
 
 | 节点 | 技术栈 | 订阅话题 | 特点 |
 |------|--------|---------|------|
-| `qt_display_node` | Qt5 + ROS2 | `/detected_image`、`/map_image` | 界面美观、支持 Qt 样式表、底部状态栏、阵营切换按钮 |
+| `qt_display_node` | Qt5 + ROS2 | `/detected_image`、`/map_image` | 界面美观、支持 Qt 样式表、顶部状态栏、阵营切换按钮 |
 
 `qt_display_node` 不仅是消费者，还发布 `/flip_team`（`std_msgs/Bool`）话题，用于控制 `map_node` 的红蓝方阵营视角翻转。这是系统中**唯一的人机交互入口**。
 
@@ -170,9 +196,11 @@
 | `/map_image` | `sensor_msgs/Image` | map_node | qt_display_node | 小地图图像 |
 | `/radar_map` | `RadarMap` | map_node | (决策节点) | 结构化雷达数据 |
 | `/flip_team` | `std_msgs/Bool` | qt_display_node | map_node | 红蓝方阵营视角切换 |
-| `/calibration/start` | `std_srvs/Trigger` (Service) | calibrate_node | (用户/脚本) | 手动触发标定 |
+| `/calibration/start` | `std_srvs/Trigger` (Service) | calibrate_node | (用户/roi_set_node) | 手动触发标定 |
+| `/roi_set/start` | `std_srvs/Trigger` (Service) | roi_set_node | (用户/脚本) | 手动触发 ROI 框定 |
+| `/detect_node/reload_roi` | `std_srvs/Trigger` (Service) | detect_node | roi_set_node | ROI 更新后通知重载 |
 | `/pose_node/reload_calibration` | `std_srvs/Trigger` (Service) | pose_node | calibrate_node | 标定完成后通知重载 |
-| `/video_node/set_pause` | `std_srvs/SetBool` (Service) | video_node | calibrate_node | 暂停/恢复视频播放 |
+| `/video_node/set_pause` | `std_srvs/SetBool` (Service) | video_node | calibrate_node / roi_set_node | 暂停/恢复视频播放 |
 
 ---
 
@@ -367,6 +395,15 @@ def generate_launch_description():
             package='tensorrt_detect',
             executable='qt_display_node',
             name='qt_display_node',
+            output='screen',
+            parameters=[params_file],
+        ),
+
+        # ROI 设置节点：自动检测 outpost_roi 是否为空，为空则自动进入框定
+        Node(
+            package='tensorrt_detect',
+            executable='roi_set_node',
+            name='roi_set_node',
             output='screen',
             parameters=[params_file],
         ),

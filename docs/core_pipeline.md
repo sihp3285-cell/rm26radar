@@ -71,7 +71,7 @@ private:
     Model  detectModel_;      // 第一阶段：目标检测
     Model  armorDetector_;    // 第二阶段：装甲板检测
     Model  classifyModel_;    // 第三阶段：分类
-    Config cfg_;              // 配置副本
+    Config& cfg_;           // 配置引用
 
     std::vector<Result> runDetect(const cv::Mat& frame);
     std::vector<Result> runArmorDetect(const cv::Mat& frame,
@@ -179,9 +179,13 @@ DetectPipeline::DetectPipeline(Config& cfg)
 
 ### `cfg_(cfg)`
 
-保存配置对象的**副本**。注意这里是拷贝构造，不是引用。
+绑定外部传入的 `Config` 对象的**引用**。
 
-为什么存副本而不是引用？因为 `Config` 对象可能由外部（如 `detect_node`）管理，如果 `detect_node` 被销毁了，`Config` 引用就会悬空。存副本更安全，虽然有一点点内存开销。
+为什么用引用而不是副本？因为 `detect_node` 提供了运行时重载 ROI 的服务（`/detect_node/reload_roi`），重载后会修改 `Config::model` 中的前哨站相关字段。如果 `DetectPipeline` 内部存的是副本，`reloadROI` 修改的永远是外部 `Config`，而 `pipeline` 里的配置不会同步更新，导致重载失效。
+
+用引用后，`detect_node` 重载配置时，`pipeline` 内部看到的也是最新值，实现了**配置热更新**。
+
+> 注意：因为 `cfg_` 是引用，`DetectPipeline` 不能被拷贝或移动。实际使用中它由 `std::unique_ptr` 管理，生命周期与 `detect_node` 一致，引用始终有效。
 
 ---
 

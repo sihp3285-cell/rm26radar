@@ -24,7 +24,7 @@ public:
         this->declare_parameter<std::string>("input_topic", "/image_raw");
         this->declare_parameter<std::string>("output_topic", "/detected_image");
         this->declare_parameter<bool>("publish_debug_image", true);
-        
+
         this->declare_parameter<int>("debug_output_max_width", 1280);
 
         std::string config_dir = this->get_parameter("config_dir").as_string();
@@ -119,11 +119,6 @@ private:
                 } else {
                     debug_output_frame_ = debug_frame_;
                 }
-
-                cv::putText(debug_output_frame_, cv::format("FPS: %.1f", fps_),
-                            cv::Point(20, 40),
-                            cv::FONT_HERSHEY_SIMPLEX,
-                            1.0, cv::Scalar(0, 255, 0), 2);
 
                 std_msgs::msg::Header header = msg->header;
                 header.frame_id = "detected_frame";

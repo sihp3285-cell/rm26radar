@@ -38,7 +38,15 @@ public:
         main_layout->setContentsMargins(8, 8, 8, 8);
         main_layout->setSpacing(6);
 
-        // 上部分：视频 + 地图 水平排列
+        // 顶部：状态栏（放大字体，醒目显示）
+        status_label_ = new QLabel("FPS: --  |  Delay: -- ms", this);
+        status_label_->setStyleSheet(
+            "color: #00ff88; background-color: #0d0d0d; font-size: 25px; "
+            "font-family: 'Microsoft YaHei', 'Consolas', monospace; "
+            "padding: 10px 16px; border-radius: 4px;");
+        main_layout->addWidget(status_label_);
+
+        // 中部：视频 + 地图 水平排列
         auto *content_layout = new QHBoxLayout();
         content_layout->setSpacing(8);
 
@@ -56,16 +64,10 @@ public:
 
         main_layout->addLayout(content_layout, 1);
 
-        // 底部：状态栏 + 阵营切换按钮
+        // 底部：阵营切换按钮
         auto *bottom_layout = new QHBoxLayout();
         bottom_layout->setSpacing(8);
-
-        status_label_ = new QLabel("FPS: --  |  Delay: -- ms", this);
-        status_label_->setStyleSheet(
-            "color: #00ff88; background-color: #0d0d0d; font-size: 14px; "
-            "font-family: 'Microsoft YaHei', 'Consolas', monospace; "
-            "padding: 6px 12px; border-radius: 4px;");
-        bottom_layout->addWidget(status_label_, 1);
+        bottom_layout->addStretch(1);
 
         team_button_ = new QPushButton("红方视角", this);
         team_button_->setCheckable(true);
@@ -74,10 +76,10 @@ public:
             "QPushButton {"
             "  background-color: #cc0000;"
             "  color: white;"
-            "  font-size: 14px;"
+            "  font-size: 16px;"
             "  font-weight: bold;"
             "  font-family: 'Microsoft YaHei', 'Consolas', monospace;"
-            "  padding: 6px 20px;"
+            "  padding: 8px 24px;"
             "  border-radius: 4px;"
             "  border: none;"
             "}"

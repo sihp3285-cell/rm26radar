@@ -835,6 +835,9 @@ void reloadROI(const std_srvs::srv::Trigger::Request::SharedPtr /*request*/,
         cfg_->model.outpostScoreThreshold = cfg["outpost_score_threshold"]
                                                 ? cfg["outpost_score_threshold"].as<float>()
                                                 : 0.0f;
+        cfg_->model.outpostMissThreshold = cfg["outpost_miss_threshold"]
+                                               ? cfg["outpost_miss_threshold"].as<int>()
+                                               : 20;
 
         response->success = true;
         response->message = "outpost ROI 配置已重载";

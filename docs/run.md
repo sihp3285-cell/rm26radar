@@ -92,6 +92,8 @@ src/tensorrt_detect/config/ros2_params.yaml
 | calibrate_node | `auto_calibrate` | `true` | 启动时自动检测标定 |
 | qt_display_node | `video_topic` | `/detected_image` | 视频图像话题 |
 | qt_display_node | `map_image_topic` | `/map_image` | 地图图像话题 |
+| roi_set_node | `auto_set_roi` | `true` | 启动时自动检测 ROI 是否为空 |
+| roi_set_node | `auto_set_delay_sec` | `3` | 自动框定前的等待秒数 |
 
 ---
 
@@ -147,7 +149,17 @@ source install/setup.bash
 ros2 run tensorrt_detect calibrate_node
 ```
 
-**终端 6 —— 显示（Qt5 版本，推荐）：**
+**终端 6 —— ROI 设置节点（自动检测/框定前哨站 ROI）：**
+```bash
+cd /home/delphine/rm/tensorrt10_detect
+source /opt/ros/jazzy/setup.bash
+source install/setup.bash
+ros2 run tensorrt_detect roi_set_node
+```
+
+> `roi_set_node` 默认 `auto_set_roi: true`。若 `outpost_roi.yaml` 无效或为空，会在延迟 3 秒后自动暂停视频并弹出 ROI 框定窗口。框定完成后自动保存并通知 `detect_node` 重载配置，随后恢复视频播放。
+
+**终端 7 —— 显示（Qt5 版本，推荐）：**
 ```bash
 cd /home/delphine/rm/tensorrt10_detect
 source /opt/ros/jazzy/setup.bash
@@ -175,6 +187,20 @@ ros2 service call /calibration/start std_srvs/srv/Trigger {}
 5. 误差 ≤ 10px 时保存到 `calib_result.yaml`
 6. 自动调用 `/pose_node/reload_calibration`
 7. 等待 map 稳定后视频恢复
+
+### 手动触发 ROI 框定
+
+```bash
+ros2 service call /roi_set/start std_srvs/srv/Trigger {}
+```
+
+ROI 框定流程：
+1. 若标定无效，先自动触发相机标定
+2. 视频自动暂停
+3. 弹出 OpenCV 窗口，用鼠标框选前哨站 ROI（两点模式）
+4. 保存到 `outpost_roi.yaml`（保留原有其他字段）
+5. 自动调用 `/detect_node/reload_roi` 使配置生效
+6. 视频恢复播放
 
 ### 直接重载 pose_node 标定
 
