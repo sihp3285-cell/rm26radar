@@ -92,6 +92,12 @@ Config::Config(const std::string& configDir) {
             if (cfg["outpost_miss_threshold"]) {
                 model.outpostMissThreshold = cfg["outpost_miss_threshold"].as<int>();
             }
+            if (cfg["outpost_mappoints_red"]) {
+                map.outpostMapPointsRed = cfg["outpost_mappoints_red"].as<std::vector<int>>();
+            }
+            if (cfg["outpost_mappoints_blue"]) {
+                map.outpostMapPointsBlue = cfg["outpost_mappoints_blue"].as<std::vector<int>>();
+            }
         } catch (const std::exception& e) {
             // outpost_roi.yaml 可选，加载失败不阻断
         }

@@ -66,6 +66,7 @@ public:
         target_sub_ = this->create_subscription<tensorrt_detect_msgs::msg::WorldTargetArray>(
             input_topic_, 10,
             std::bind(&MapNode::target_callback, this, std::placeholders::_1));
+        
 
         RCLCPP_INFO(this->get_logger(), "MapNode 初始化完成，等待世界坐标输入...");
     }
@@ -85,11 +86,22 @@ private:
                 radar_msg->red_y[i] = 0.0f;
             }
 
+            // 先读取前哨站状态
+            bool has_outpost = false;
+            bool outpost_alive = false;
+            for (const auto& target : msg->targets) {
+                if (target.class_id == robot_id::OUTPOST) {
+                    has_outpost = true;
+                    outpost_alive = !target.is_dead;
+                    break;
+                }
+            }
+
             for (const auto& target : msg->targets) {
                 if (!target.valid) {
                     continue;
                 }
-                // 过滤掉车辆检测（CAR, class_id == 0）和前哨站（OUTPOST）
+                // 过滤掉车辆检测和前哨站，它们不进入动态目标列表
                 if (target.class_id == robot_id::CAR || target.class_id == robot_id::OUTPOST) {
                     continue;
                 }
@@ -131,6 +143,54 @@ private:
             radar_map_pub_->publish(*radar_msg);
 
             cv::Mat map_frame = radar_map_->drawMap(mappoints, cfg_->model.classNames);
+
+            // ========== 前哨站叠加绘制（在 drawMap 之后） ==========
+            const auto& outpostPts = cfg_->map.getOutpostMapPoints(flip_team_);
+            if (outpostPts.size() >= 2) {
+                float x = outpostPts[0];
+                float y = outpostPts[1];
+
+                cv::Point2f pt;
+                if (cfg_->map.isFlip) {
+                    if (flip_team_) {
+                        pt.x = 387 - y;
+                        pt.y = x; 
+                    } else {
+                        pt.x = y;
+                        pt.y = 721 - x;
+                    }
+                } else {
+                    if (flip_team_) {
+                        pt.x = y;
+                        pt.y = 721 - x;
+                    } else { 
+                        pt.x = 387 - y;
+                        pt.y = x;
+
+                    }
+                }
+
+                if (!has_outpost) {
+                    // 消息中没有前哨站信息，不绘制
+                } else if (outpost_alive) {
+                    cv::circle(map_frame, pt, 8, cv::Scalar(0, 215, 255), -1, cv::LINE_AA);
+                    cv::circle(map_frame, pt, 10, cv::Scalar(255, 255, 255), 2, cv::LINE_AA);
+                    cv::putText(map_frame, "ALIVE", cv::Point(pt.x + 16, pt.y),
+                                cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 255, 255), 4, cv::LINE_AA);
+                    cv::putText(map_frame, "ALIVE", cv::Point(pt.x + 16, pt.y),
+                                cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 165, 255), 2, cv::LINE_AA);
+                } else {
+                    cv::Scalar dead_color(0, 0, 0);
+                    int len = 10;
+                    cv::line(map_frame, pt + cv::Point2f(-len, -len), pt + cv::Point2f(len, len), dead_color, 3, cv::LINE_AA);
+                    cv::line(map_frame, pt + cv::Point2f(len, -len), pt + cv::Point2f(-len, len), dead_color, 3, cv::LINE_AA);
+                    cv::putText(map_frame, "DEAD", cv::Point(pt.x + 16, pt.y),
+                                cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 255, 255), 4, cv::LINE_AA);
+                    cv::putText(map_frame, "DEAD", cv::Point(pt.x + 16, pt.y),
+                                cv::FONT_HERSHEY_SIMPLEX, 0.6, dead_color, 2, cv::LINE_AA);
+                }
+            }
+            // ======================================================
 
             std_msgs::msg::Header header = msg->header;
             header.frame_id = "radar_map";

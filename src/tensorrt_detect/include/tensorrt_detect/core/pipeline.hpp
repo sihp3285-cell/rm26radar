@@ -27,6 +27,7 @@ public:
 
 
     std::vector<Result> process(const cv::Mat& frame);
+    bool isOutpostAlive() const { return !outpostIsDead_; }
 
 private:
     Model  detectModel_;

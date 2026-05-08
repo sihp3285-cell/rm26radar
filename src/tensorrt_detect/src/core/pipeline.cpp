@@ -146,18 +146,6 @@ std::vector<Result> DetectPipeline::runOutpostDetect(const cv::Mat& frame) {
         if (outpostMissCount_ >= cfg_.model.outpostMissThreshold) {
             outpostMissCount_ = cfg_.model.outpostMissThreshold;
             outpostIsDead_ = true;
-
-            Result deadResult;
-            deadResult.idx = robot_id::OUTPOST;
-            deadResult.isDead = true;
-            deadResult.confidence = 0.0f;
-            if (outpostLastBox_.width > 0 && outpostLastBox_.height > 0) {
-                deadResult.box = outpostLastBox_;
-            } else {
-                deadResult.box = safeRoi;
-            }
-            deadResult.car_box = safeRoi;
-            results.push_back(deadResult);
         }
     }
     return results;

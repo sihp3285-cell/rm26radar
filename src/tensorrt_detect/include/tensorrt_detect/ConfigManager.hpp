@@ -68,6 +68,14 @@ struct MapConfig {
     std::vector<float> race_size;  // [length, width] 场地物理尺寸，单位：米
     std::vector<int> map_size;     // [width, height] 地图像素尺寸
     bool isFlip = false;
+
+    std::vector<int> outpostMapPointsRed;   // [x, y] 红方前哨站在地图上的像素坐标
+    std::vector<int> outpostMapPointsBlue;  // [x, y] 蓝方前哨站在地图上的像素坐标
+
+    // 根据阵营获取对应的前哨站地图像素坐标
+    const std::vector<int>& getOutpostMapPoints(bool flipTeam) const {
+        return flipTeam ? outpostMapPointsBlue : outpostMapPointsRed;
+    }
 };
 
 struct RuntimeConfig {

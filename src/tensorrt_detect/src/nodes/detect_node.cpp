@@ -81,9 +81,15 @@ private:
             armor_msg->header.frame_id = "detection";
             armor_msg->detections.reserve(results.size());
 
+            bool hasOutpost = false;
             for (const auto& res : results) {
                 if (res.idx == robot_id::CAR) {
                     continue;
+                }
+                if (res.box.width <= 0 || res.box.height <= 0) continue;  // 空框不画
+
+                if (res.idx == robot_id::OUTPOST) {
+                    hasOutpost = true;
                 }
 
                 tensorrt_detect_msgs::msg::DetectionBox box;
@@ -104,6 +110,15 @@ private:
                 box.fps         = static_cast<float>(fps_);
 
                 armor_msg->detections.push_back(box);
+            }
+
+            // 前哨站功能启用但未在 results 中出现时，推送状态消息（空框，仅传递存活/死亡状态）
+            if (cfg_->model.outpostEnabled && !hasOutpost) {
+                tensorrt_detect_msgs::msg::DetectionBox statusBox;
+                statusBox.idx = robot_id::OUTPOST;
+                statusBox.is_dead = !pipeline_->isOutpostAlive();
+                statusBox.confidence = 0.0f;
+                armor_msg->detections.push_back(statusBox);
             }
 
             armor_pub_->publish(*armor_msg);
