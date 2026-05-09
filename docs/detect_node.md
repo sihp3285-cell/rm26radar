@@ -36,13 +36,17 @@ display_node / pose_node
 #include <sensor_msgs/msg/image.hpp>
 #include <cv_bridge/cv_bridge.hpp>
 #include <std_msgs/msg/header.hpp>
+#include <std_srvs/srv/trigger.hpp>
 #include <opencv2/opencv.hpp>
+#include <filesystem>
+#include <yaml-cpp/yaml.h>
 
 #include "tensorrt_detect_msgs/msg/detection_array.hpp"
 #include "tensorrt_detect_msgs/msg/detection_box.hpp"
 #include "ConfigManager.hpp"
 #include "pipeline.hpp"
 #include "draw.hpp"
+#include "robot_id.hpp"
 ```
 
 ---
@@ -82,6 +86,12 @@ ROS 图像消息和 OpenCV `cv::Mat` 之间的桥梁。
 图像消息里的 `header` 包含时间戳 `stamp` 和坐标系标识 `frame_id`。
 
 这个节点的一个重要职责是**header 的继承与改写**：输入图像的 header 会被复制到输出消息中，保证时间链的连续性。
+
+---
+
+### `#include <std_srvs/srv/trigger.hpp>`
+
+`/detect_node/reload_roi` 服务的消息类型，用于动态重载前哨站 ROI 配置。
 
 ---
 
@@ -141,6 +151,12 @@ ROS 图像消息和 OpenCV `cv::Mat` 之间的桥梁。
 
 ---
 
+### `#include "robot_id.hpp"`
+
+定义了机器人类别枚举（`CAR`, `R1`~`R4`, `S`, `OUTPOST`）。在填充 `DetectionArray` 时用于过滤 CAR 结果，以及识别前哨站目标。
+
+---
+
 # 二、定义节点类
 
 ```cpp
@@ -160,7 +176,7 @@ public:
     DetectNode() : Node("detect_node")
 ```
 
-节点在 ROS2 系统中的注册名是 `"detect_node"`。以后在日志、ros2 topic list、ros2 node list 里看到这个名字，就是这里决定的。
+节点在 ROS2 系统中的注册名是 `"detect_node"`。以后在日志、`ros2 topic list`、`ros2 node list` 里看到这个名字，就是这里决定的。
 
 ---
 
@@ -283,14 +299,19 @@ pipeline_ = std::make_unique<DetectPipeline>(*cfg_);
 
 ---
 
-# 八、创建两个 Publisher
+# 八、创建两个 Publisher 和一个 Service
 
 ```cpp
 image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(output_topic_, rclcpp::QoS(1));
 armor_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::DetectionArray>("/armor_detections", 10);
+
+reload_roi_service_ = this->create_service<std_srvs::srv::Trigger>(
+    "/detect_node/reload_roi",
+    std::bind(&DetectNode::reloadROI, this,
+              std::placeholders::_1, std::placeholders::_2));
 ```
 
-这是新版相比旧版最重要的变化：**从 1 个 publisher 变成 2 个 publisher**。
+这是新版相比旧版最重要的变化：**从 1 个 publisher 变成 2 个 publisher + 1 个 service**。
 
 ---
 
@@ -320,6 +341,16 @@ armor_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::DetectionArray>("
 >
 > * 图像 → 给人看
 > > * 结构化消息 → 给机器下游节点用
+
+---
+
+### `reload_roi_service_`
+
+* 话题：`/detect_node/reload_roi`
+* 类型：`std_srvs::srv::Trigger`
+* 作用：运行时动态重载前哨站 ROI 配置
+
+`roi_set_node` 完成前哨站 ROI 标定后，通过调用这个 service 通知 `detect_node` 重新读取 `outpost_roi.yaml`，无需重启节点。
 
 ---
 
@@ -503,9 +534,15 @@ armor_msg->detections.reserve(results.size());
 ### 填充 DetectionBox 数组
 
 ```cpp
+bool hasOutpost = false;
 for (const auto& res : results) {
     if (res.idx == robot_id::CAR) {
         continue;  // 只发布装甲板结果，车辆检测不发给下游
+    }
+    if (res.box.width <= 0 || res.box.height <= 0) continue;  // 空框不画
+
+    if (res.idx == robot_id::OUTPOST) {
+        hasOutpost = true;
     }
 
     tensorrt_detect_msgs::msg::DetectionBox box;
@@ -527,6 +564,15 @@ for (const auto& res : results) {
 
     armor_msg->detections.push_back(box);
 }
+
+// 前哨站功能启用但未在 results 中出现时，推送状态消息（空框，仅传递存活/死亡状态）
+if (cfg_->model.outpostEnabled && !hasOutpost) {
+    tensorrt_detect_msgs::msg::DetectionBox statusBox;
+    statusBox.idx = robot_id::OUTPOST;
+    statusBox.is_dead = !pipeline_->isOutpostAlive();
+    statusBox.confidence = 0.0f;
+    armor_msg->detections.push_back(statusBox);
+}
 ```
 
 这段代码把 C++ 结构体 `Result` 翻译成 ROS2 消息 `DetectionBox`。
@@ -544,6 +590,50 @@ if (res.idx == robot_id::CAR) {
 **只发布装甲板检测结果**，第一层车辆检测（`CAR`, `idx=0`）不发给下游节点。
 
 原因：`pose_node` 和 `map_node` 只关心装甲板（和死亡装甲板），车辆检测框对它们没有意义。debug 图像仍然会画车辆框（供人看），但结构化数据只发装甲板。
+
+---
+
+### 空框过滤
+
+```cpp
+if (res.box.width <= 0 || res.box.height <= 0) continue;
+```
+
+过滤掉宽或高为 0 的无效检测框，防止下游节点收到脏数据。
+
+---
+
+### 前哨站状态追踪
+
+```cpp
+if (res.idx == robot_id::OUTPOST) {
+    hasOutpost = true;
+}
+```
+
+遍历过程中记录是否检测到前哨站。如果前哨站功能启用但当前帧没有检测到前哨站（可能由于检测器漏检），后续会补充一个状态消息，让下游节点知道前哨站的存活状态。
+
+---
+
+### 前哨站状态补充
+
+```cpp
+if (cfg_->model.outpostEnabled && !hasOutpost) {
+    tensorrt_detect_msgs::msg::DetectionBox statusBox;
+    statusBox.idx = robot_id::OUTPOST;
+    statusBox.is_dead = !pipeline_->isOutpostAlive();
+    statusBox.confidence = 0.0f;
+    armor_msg->detections.push_back(statusBox);
+}
+```
+
+当前哨站检测功能启用、但当前帧未检测到前哨站时，推送一个特殊的 `DetectionBox`：
+
+* `idx = OUTPOST`：标识这是前哨站状态
+* `is_dead`：由 `pipeline_->isOutpostAlive()` 决定
+* `confidence = 0.0f`：表示这不是真实检测结果，而是状态推送
+
+这样下游节点（如 `qt_display_node`、`map_node`）始终能获取前哨站的最新存活状态，即使检测器偶尔漏检。
 
 ---
 
@@ -775,6 +865,7 @@ int debug_output_max_width_ = 1280;
 rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
 rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_pub_;
 rclcpp::Publisher<tensorrt_detect_msgs::msg::DetectionArray>::SharedPtr armor_pub_;
+rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reload_roi_service_;
 std::chrono::steady_clock::time_point last_time_ = std::chrono::steady_clock::now();
 double fps_ = 0.0;
 cv::Mat detect_input_frame_;
@@ -799,6 +890,12 @@ Pub/Sub 对象必须作为成员变量保存。如果只在构造函数里用局
 ### `armor_pub_`（新版新增）
 
 这是新版最重要的成员变量。没有它，结构化检测结果就发不出去，`pose_node` 也就收不到数据。
+
+---
+
+### `reload_roi_service_`
+
+**（新增）** 前哨站 ROI 动态重载服务。`roi_set_node` 标定完成后自动调用，或手动触发，无需重启节点即可更新前哨站检测区域。
 
 ---
 
@@ -893,7 +990,7 @@ int main(int argc, char** argv)
 
 ---
 
-# 二十一、完整数据流回顾
+# 二十二、完整数据流回顾
 
 ```text
 video_node ──/image_raw──→ detect_node
@@ -914,7 +1011,7 @@ video_node ──/image_raw──→ detect_node
 
 ---
 
-# 二十二、性能优化总结
+# 二十三、性能优化总结
 
 本次 `detect_node` 的性能优化围绕一个核心原则：**不做无用功**。具体手段包括：
 
@@ -975,7 +1072,7 @@ this->declare_parameter<int>("debug_output_max_width", 1280);
 
 ---
 
-# 二十三、从这份代码里学到的设计要点
+# 二十四、从这份代码里学到的设计要点
 
 ## 1. 一输入、多输出
 

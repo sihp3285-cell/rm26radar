@@ -88,6 +88,11 @@ struct ModelConfig {
     int classIdxBase = 0;
 
     std::vector<std::string> classNames;
+
+    bool outpostEnabled = false;
+    std::vector<int> outpostRoi;           // [x, y, width, height]
+    float outpostScoreThreshold = 0.0f;
+    int outpostMissThreshold = 20;         // 前哨站未检测判定死亡阈值（帧数）
 };
 ```
 
@@ -111,6 +116,15 @@ struct ModelConfig {
 * `padRatio`：填充比例（当前未使用）
 * `classIdxBase`：类别索引偏移基值（当前未使用）
 * `classNames`：类别名称表，用于可视化
+
+---
+
+#### 前哨站配置
+
+* `outpostEnabled`：是否启用前哨站检测
+* `outpostRoi`：前哨站 ROI 区域 `[x, y, width, height]`
+* `outpostScoreThreshold`：前哨站检测置信度阈值
+* `outpostMissThreshold`：前哨站连续未检测判定死亡的帧数阈值
 
 ---
 
@@ -166,10 +180,18 @@ struct MapConfig {
     std::vector<float> race_size;  // [length, width] 场地物理尺寸，单位：米
     std::vector<int> map_size;     // [width, height] 地图像素尺寸
     bool isFlip = false;
+
+    std::vector<int> outpostMapPointsRed;   // [x, y] 红方前哨站在地图上的像素坐标
+    std::vector<int> outpostMapPointsBlue;  // [x, y] 蓝方前哨站在地图上的像素坐标
+
+    // 根据阵营获取对应的前哨站地图像素坐标
+    const std::vector<int>& getOutpostMapPoints(bool flipTeam) const {
+        return flipTeam ? outpostMapPointsBlue : outpostMapPointsRed;
+    }
 };
 ```
 
-小地图配置。
+小地图配置。除了基础的地图路径、场地尺寸和像素尺寸外，还包含前哨站在地图上的像素坐标，以及根据阵营快速查询的辅助方法。
 
 ---
 
@@ -459,6 +481,8 @@ Config::Config(const std::string& configDir) {
 
 使用 C++17 `std::filesystem::path` 的 `/` 运算符拼接路径，跨平台兼容（Windows 用 `\`，Linux 用 `/`）。
 
+注意：`tracker.yaml` 目前定义了路径但**未在构造函数中加载**，预留为后续扩展使用。
+
 ---
 
 ### 加载配置
@@ -509,13 +533,21 @@ Config::Config(const std::string& configDir) {
             if (cfg["outpost_miss_threshold"]) {
                 model.outpostMissThreshold = cfg["outpost_miss_threshold"].as<int>();
             }
+            if (cfg["outpost_mappoints_red"]) {
+                map.outpostMapPointsRed = cfg["outpost_mappoints_red"].as<std::vector<int>>();
+            }
+            if (cfg["outpost_mappoints_blue"]) {
+                map.outpostMapPointsBlue = cfg["outpost_mappoints_blue"].as<std::vector<int>>();
+            }
         } catch (const std::exception& e) {
             // outpost_roi.yaml 可选，加载失败不阻断
         }
     }
 ```
 
-启动时，如果 `outpost_roi.yaml` 存在，就用它**覆盖** `model.yaml` 中的前哨站配置。这样 `roi_set_node` 标定后的结果在节点重启后依然生效，不需要手动触发重载。
+启动时，如果 `outpost_roi.yaml` 存在，就用它**覆盖** `model.yaml` 和 `map.yaml` 中的前哨站配置。这样 `roi_set_node` 标定后的结果在节点重启后依然生效，不需要手动触发重载。
+
+除了模型侧的前哨站 ROI、阈值配置外，还会读取红蓝双方前哨站在地图上的像素坐标，供小地图绘制使用。
 
 ---
 
@@ -550,7 +582,7 @@ Config::Config(const std::string& modelYaml,
 }
 ```
 
-和目录版本类似，只是直接传入文件路径，不做自动拼接。
+和目录版本类似，只是直接传入文件路径，不做自动拼接。同样不加载 `calib_result.yaml` 和 `outpost_roi.yaml`。
 
 ---
 
@@ -693,7 +725,60 @@ worldPoints:
 
 ---
 
-## 六、验证函数
+### `parsePoint2fList`
+
+```cpp
+std::vector<cv::Point2f> Config::parsePoint2fList(
+    const std::vector<std::vector<float>>& data) {
+    std::vector<cv::Point2f> pts;
+    pts.reserve(data.size());
+
+    for (const auto& p : data) {
+        if (p.size() != 2) {
+            throw std::runtime_error("Point2f 列表中的每个点都必须有 2 个元素");
+        }
+        pts.emplace_back(p[0], p[1]);
+    }
+    return pts;
+}
+```
+
+与 `parsePoint3fList` 类似，但解析的是 2D 点（`[x, y]`），用于标定结果中的 `image_points`。`loadCalibConfig` 会调用此函数。
+
+---
+
+## 六、`loadMapConfig`
+
+```cpp
+void Config::loadMapConfig(const std::string& path) {
+    YAML::Node cfg = YAML::LoadFile(path);
+
+    map.mapPath         = cfg["mapPath"].as<std::string>();
+    map.race_size       = cfg["race_size"].as<std::vector<float>>();
+    map.map_size        = cfg["map_size"].as<std::vector<int>>();
+    map.isFlip          = cfg["isflip"].as<bool>();
+}
+```
+
+注意 YAML 中的键是 `isflip`（小写 f），但结构体中的字段是 `isFlip`（驼峰命名）。这是历史遗留的命名不一致。
+
+---
+
+## 七、`loadRuntimeConfig`
+
+```cpp
+void Config::loadRuntimeConfig(const std::string& path) {
+    YAML::Node cfg = YAML::LoadFile(path);
+
+    runtime.showFlag = cfg["show_flag"].as<bool>();
+}
+```
+
+同样，YAML 键 `show_flag` 与结构体字段 `showFlag` 存在命名风格差异。
+
+---
+
+## 八、验证函数
 
 ```cpp
 void Config::validateModelConfig(const ModelConfig& cfg) {
@@ -761,7 +846,7 @@ void Config::validateMapConfig(const MapConfig& cfg) {
 
 ---
 
-## 七、`loadCalibConfig`
+## 九、`loadCalibConfig`
 
 ```cpp
 void Config::loadCalibConfig(const std::string& path) {
@@ -787,7 +872,7 @@ void Config::loadCalibConfig(const std::string& path) {
 }
 ```
 
-读取 `calib_result.yaml`，解析标定点、旋转矩阵 `R` 和平移向量 `T`。
+读取 `calib_result.yaml`，解析标定点（通过 `parsePoint2fList`）、旋转矩阵 `R` 和平移向量 `T`。
 
 最后设置 `calib.valid = true`，表示标定结果可用。
 

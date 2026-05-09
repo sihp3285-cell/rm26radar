@@ -36,8 +36,8 @@ void RadarMap::calibrate2(float race_length, float race_width, int map_width, in
 cv::Point2f RadarMap::worldtomap(const cv::Point2f& worldPoint)const
 {
     cv::Point2f mapPoint;
-    float wx = flip_team_ ? -worldPoint.x : worldPoint.x;
-    float wy = flip_team_ ? -worldPoint.y : worldPoint.y;
+    float wx = worldPoint.x;
+    float wy = worldPoint.y;
     mapPoint.x = wx * scale_x + offset_x;
     mapPoint.y = wy * scale_y + offset_y;
     return mapPoint;

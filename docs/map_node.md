@@ -99,7 +99,7 @@ ROS2 C++ 节点基础。
 
 ### `#include "robot_id.hpp"`
 
-定义了队伍 ID（RED/BLUE）和机器人类别（R1~R4, S, CAR）的枚举和工具函数。
+定义了队伍 ID（RED/BLUE）和机器人类别（R1~R4, S, CAR, OUTPOST）的枚举和工具函数。
 
 ---
 
@@ -166,7 +166,7 @@ this->declare_parameter<bool>("flip_team", false);
 默认 `false`。控制阵营视角翻转：
 
 * `false` → 红方视角（不翻转）
-* `true` → 蓝方视角（坐标和底图翻转 180°）
+* `true` → 蓝方视角（底图旋转 180°）
 
 该参数可通过 launch 文件预设，也可在运行时通过 `/flip_team` 话题动态切换。
 
@@ -179,6 +179,7 @@ std::string config_dir = this->get_parameter("config_dir").as_string();
 input_topic_ = this->get_parameter("input_topic").as_string();
 output_image_topic_ = this->get_parameter("output_image_topic").as_string();
 output_map_topic_ = this->get_parameter("output_map_topic").as_string();
+flip_team_ = this->get_parameter("flip_team").as_bool();
 
 RCLCPP_INFO(this->get_logger(), "配置目录: %s", config_dir.c_str());
 RCLCPP_INFO(this->get_logger(), "订阅话题: %s", input_topic_.c_str());
@@ -200,6 +201,7 @@ radar_map_->calibrate2(
     cfg_->map.race_size[1],
     cfg_->map.map_size[0],
     cfg_->map.map_size[1]);
+radar_map_->setFlipTeam(flip_team_);
 ```
 
 ---
@@ -220,6 +222,12 @@ radar_map_->calibrate2(
 * `map_size[0], map_size[1]`：地图图片的像素尺寸（宽、高）
 
 `calibrate2` 内部会计算缩放比例和偏移量，以后调用 `worldtomap()` 时就能快速转换。
+
+---
+
+### `setFlipTeam`
+
+根据 `flip_team_` 参数初始化 `RadarMap` 的阵营视角。如果启动时通过 launch 文件指定了 `flip_team:=true`，地图会立即以蓝方视角显示。
 
 ---
 
@@ -247,7 +255,10 @@ flip_team_sub_ = this->create_subscription<std_msgs::msg::Bool>(
     "/flip_team", rclcpp::QoS(1),
     [this](const std_msgs::msg::Bool::SharedPtr msg) {
         flip_team_ = msg->data;
-        radar_map_->setFlipTeam(flip_team_);
+        if (radar_map_) {
+            radar_map_->setFlipTeam(flip_team_);
+        }
+        RCLCPP_INFO(this->get_logger(), "阵营视角已切换为: %s", flip_team_ ? "蓝方" : "红方");
     });
 ```
 
@@ -268,6 +279,8 @@ flip_team_sub_ = this->create_subscription<std_msgs::msg::Bool>(
 * `msg->data == true` → 蓝方视角
 
 收到消息后，调用 `radar_map_->setFlipTeam()` 实时更新 `RadarMap` 的内部状态。后续所有 `worldtomap()` 调用和 `drawMap()` 绘制都会自动应用新的阵营视角。
+
+回调里加了 `if (radar_map_)` 空指针检查，防止 `RadarMap` 初始化失败时触发段错误。同时打印 INFO 日志确认切换成功。
 
 这是系统中**运行时动态配置**的典型案例：用户点击 Qt 界面按钮 → 发布 Bool 消息 → `map_node` 收到后即时切换视角 → 下一张地图图像就是翻转后的。
 
@@ -342,7 +355,30 @@ float32[6] red_x, red_y     // 红方 1~5 号 + 哨兵
 
 ---
 
-# 十二、遍历每个目标并处理
+# 十二、先读取前哨站状态
+
+```cpp
+bool has_outpost = false;
+bool outpost_alive = false;
+for (const auto& target : msg->targets) {
+    if (target.class_id == robot_id::OUTPOST) {
+        has_outpost = true;
+        outpost_alive = !target.is_dead;
+        break;
+    }
+}
+```
+
+在遍历目标之前，先扫描一遍消息，检查是否有前哨站（`OUTPOST`）目标。
+
+* `has_outpost`：当前帧是否检测到前哨站
+* `outpost_alive`：前哨站是否存活（`is_dead == false` 表示存活）
+
+这个信息稍后用于在地图上叠加绘制前哨站状态（存活显示橙色圆点 + "ALIVE"，摧毁显示黑色叉 + "DEAD"）。
+
+---
+
+# 十三、遍历每个目标并处理
 
 ```cpp
 for (const auto& target : msg->targets) {
@@ -364,17 +400,19 @@ for (const auto& target : msg->targets) {
 
 ---
 
-### 过滤 CAR
+### 过滤 CAR 和 OUTPOST
 
 `class_id == 0` 对应 `robot_id::CAR`，即未分类的车辆整体检测框。
 
 在小地图上，我们只关心具体的机器人（R1、R2、R3、R4、哨兵），不关心模糊的"这是一辆车"的检测结果。所以过滤掉 CAR，保证地图上只显示有明确身份的目标。
 
+前哨站（`OUTPOST`）也被过滤掉，不进入 `mappoints` 列表。因为前哨站位置是固定的（由 `map.yaml` 中的 `outpostPoints` 决定），不需要根据动态检测结果绘制，而是在 `drawMap` 之后单独叠加绘制。
+
 > 注意：`detect_node` 已经在发布 `/armor_detections` 时过滤掉了 CAR，所以这里理论上不会收到 CAR。这个过滤是**防御性检查**，防止未来代码变更导致意外数据进入地图绘制。
 
 ---
 
-# 十三、世界坐标 → 地图坐标
+# 十四、世界坐标 → 地图坐标
 
 ```cpp
 // pose_node 中 world_x 为场地 X（宽），world_z 为场地 Z（长）
@@ -405,7 +443,7 @@ cv::Point2f map_pt = radar_map_->worldtomap(world_pt);
 
 ---
 
-# 十四、填充本地可视化结构
+# 十五、填充本地可视化结构
 
 ```cpp
 Mappoint mp;
@@ -432,7 +470,7 @@ mappoints.push_back(mp);
 
 ---
 
-# 十五、填充 RadarMap 结构化消息
+# 十六、填充 RadarMap 结构化消息
 
 ```cpp
 // class_id 映射: R1=2, R2=3, R3=4, R4=5, S=6
@@ -495,7 +533,7 @@ if (!target.is_dead && idx >= 0 && idx < 6) {
 
 ---
 
-# 十六、发布 RadarMap 消息
+# 十七、发布 RadarMap 消息
 
 ```cpp
 radar_msg->header = msg->header;
@@ -516,15 +554,10 @@ radar_map_pub_->publish(*radar_msg);
 
 ---
 
-# 十七、绘制并发布地图图像
+# 十八、绘制并发布地图图像
 
 ```cpp
 cv::Mat map_frame = radar_map_->drawMap(mappoints, cfg_->model.classNames);
-
-std_msgs::msg::Header header = msg->header;
-header.frame_id = "radar_map";
-auto out_msg = cv_bridge::CvImage(header, "bgr8", map_frame).toImageMsg();
-image_pub_->publish(*out_msg);
 ```
 
 ---
@@ -539,7 +572,81 @@ image_pub_->publish(*out_msg);
 
 ---
 
-### 发布地图图像
+# 十九、前哨站叠加绘制
+
+```cpp
+const auto& outpostPts = cfg_->map.getOutpostMapPoints(flip_team_);
+if (outpostPts.size() >= 2) {
+    float x = outpostPts[0];
+    float y = outpostPts[1];
+
+    cv::Point2f pt;
+    if (cfg_->map.isFlip) {
+        if (flip_team_) {
+            pt.x = 387 - y;
+            pt.y = x;
+        } else {
+            pt.x = y;
+            pt.y = 721 - x;
+        }
+    } else {
+        if (flip_team_) {
+            pt.x = y;
+            pt.y = 721 - x;
+        } else {
+            pt.x = 387 - y;
+            pt.y = x;
+        }
+    }
+
+    if (!has_outpost) {
+        // 消息中没有前哨站信息，不绘制
+    } else if (outpost_alive) {
+        cv::circle(map_frame, pt, 8, cv::Scalar(0, 215, 255), -1, cv::LINE_AA);
+        cv::circle(map_frame, pt, 10, cv::Scalar(255, 255, 255), 2, cv::LINE_AA);
+        cv::putText(map_frame, "ALIVE", cv::Point(pt.x + 16, pt.y),
+                    cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 255, 255), 4, cv::LINE_AA);
+        cv::putText(map_frame, "ALIVE", cv::Point(pt.x + 16, pt.y),
+                    cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 165, 255), 2, cv::LINE_AA);
+    } else {
+        cv::Scalar dead_color(0, 0, 0);
+        int len = 10;
+        cv::line(map_frame, pt + cv::Point2f(-len, -len), pt + cv::Point2f(len, len), dead_color, 3, cv::LINE_AA);
+        cv::line(map_frame, pt + cv::Point2f(len, -len), pt + cv::Point2f(-len, len), dead_color, 3, cv::LINE_AA);
+        cv::putText(map_frame, "DEAD", cv::Point(pt.x + 16, pt.y),
+                    cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 255, 255), 4, cv::LINE_AA);
+        cv::putText(map_frame, "DEAD", cv::Point(pt.x + 16, pt.y),
+                    cv::FONT_HERSHEY_SIMPLEX, 0.6, dead_color, 2, cv::LINE_AA);
+    }
+}
+```
+
+---
+
+### 为什么单独绘制前哨站？
+
+前哨站位置是场地固定点，不随检测结果动态变化。它的像素坐标由 `map.yaml` 中的 `outpostPoints` 预定义，通过 `cfg_->map.getOutpostMapPoints(flip_team_)` 获取。
+
+根据 `isFlip` 和 `flip_team_` 两个标志的组合，计算最终绘制位置。这里有 4 种坐标变换组合，覆盖所有阵营和翻转情况。
+
+### 绘制样式
+
+* **存活**：橙色实心圆（`cv::Scalar(0, 215, 255)`）+ 白色描边 + "ALIVE" 文字（白色描边 + 橙色填充）
+* **摧毁**：黑色叉号 + "DEAD" 文字（白色描边 + 黑色填充）
+* **未检测到**：不绘制
+
+文字使用双层绘制（先粗白边再细黑/橙字），增强在各种地图背景下的可读性。
+
+---
+
+# 二十、发布地图图像
+
+```cpp
+std_msgs::msg::Header header = msg->header;
+header.frame_id = "radar_map";
+auto out_msg = cv_bridge::CvImage(header, "bgr8", map_frame).toImageMsg();
+image_pub_->publish(*out_msg);
+```
 
 和 `detect_node` 发布可视化图的逻辑一样：
 
@@ -550,7 +657,7 @@ image_pub_->publish(*out_msg);
 
 ---
 
-# 十八、节流日志
+# 二十一、节流日志
 
 ```cpp
 RCLCPP_INFO_THROTTLE(
@@ -565,7 +672,7 @@ RCLCPP_INFO_THROTTLE(
 
 ---
 
-# 十九、异常处理
+# 二十二、异常处理
 
 ```cpp
 catch (const std::exception& e) {
@@ -577,11 +684,13 @@ catch (const std::exception& e) {
 
 ---
 
-# 二十、成员变量
+# 二十三、成员变量
 
 ```cpp
+bool flip_team_ = false;
 std::unique_ptr<Config> cfg_;
 std::unique_ptr<RadarMap> radar_map_;
+rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr flip_team_sub_;
 
 std::string input_topic_;
 std::string output_image_topic_;
@@ -591,6 +700,18 @@ rclcpp::Subscription<tensorrt_detect_msgs::msg::WorldTargetArray>::SharedPtr tar
 rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_pub_;
 rclcpp::Publisher<tensorrt_detect_msgs::msg::RadarMap>::SharedPtr radar_map_pub_;
 ```
+
+---
+
+### `flip_team_`
+
+当前阵营视角标志。`false`=红方视角，`true`=蓝方视角。由参数初始化，可被 `/flip_team` 话题动态修改。
+
+---
+
+### `flip_team_sub_`
+
+阵营切换订阅者。订阅 `/flip_team` 话题，实时响应 Qt 界面的阵营切换操作。
 
 ---
 
@@ -612,7 +733,7 @@ rclcpp::Publisher<tensorrt_detect_msgs::msg::RadarMap>::SharedPtr radar_map_pub_
 
 ---
 
-# 二十一、`main` 函数
+# 二十四、`main` 函数
 
 ```cpp
 int main(int argc, char** argv)
@@ -629,7 +750,7 @@ int main(int argc, char** argv)
 
 ---
 
-# 二十二、完整数据流回顾
+# 二十五、完整数据流回顾
 
 ```text
 pose_node ──/world_targets──→ map_node
@@ -647,7 +768,7 @@ pose_node ──/world_targets──→ map_node
 
 ---
 
-# 二十三、从这份代码里学到的设计要点
+# 二十六、从这份代码里学到的设计要点
 
 ## 1. 聚合节点的价值
 
@@ -700,3 +821,12 @@ if (target.class_id == robot_id::CAR) continue;
 和 `detect_node` 一样，`map_node` 同时发图像和结构化消息。这再次印证了 ROS2 的一个设计模式：
 
 > **同一批数据，用不同形式服务不同消费者。**
+
+## 6. 固定元素的动态状态渲染
+
+前哨站位置固定但状态（存活/摧毁）动态变化。`map_node` 将其与动态目标分离处理：
+
+* 动态目标 → `drawMap()` 遍历绘制
+* 固定元素 → 预定义坐标 + 状态判断单独叠加
+
+这种模式也适用于基地、能量机关等场地固定设施的绘制。

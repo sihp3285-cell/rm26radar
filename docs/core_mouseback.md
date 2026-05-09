@@ -197,6 +197,18 @@ std::vector<cv::Point2f> MouseBack::getPoints(const cv::Mat& frame)
             cv::putText(displayFrame, std::to_string(i+1), points[i] + cv::Point2f(10, 10),
                         cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 2);
         }
+        // 两点模式下，实时绘制矩形预览
+        if (maxpoints == 2 && points.size() == 2) {
+            int x1 = static_cast<int>(points[0].x);
+            int y1 = static_cast<int>(points[0].y);
+            int x2 = static_cast<int>(points[1].x);
+            int y2 = static_cast<int>(points[1].y);
+            int x = std::min(x1, x2);
+            int y = std::min(y1, y2);
+            int w = std::abs(x1 - x2);
+            int h = std::abs(y1 - y2);
+            cv::rectangle(displayFrame, cv::Rect(x, y, w, h), cv::Scalar(0, 255, 0), 2);
+        }
 ```
 
 对每个已收集的点：
@@ -205,6 +217,39 @@ std::vector<cv::Point2f> MouseBack::getPoints(const cv::Mat& frame)
 2. 在点的右下方画绿色数字标签（1, 2, 3...）
 
 `points[i] + cv::Point2f(10, 10)` 把文字稍微偏移，避免和圆点重叠。
+
+---
+
+### 两点模式矩形预览
+
+当 `maxpoints == 2` 且已收集到两个点时，会实时绘制一个绿色矩形框预览。这常用于标定 ROI 区域，用户可以直观地看到两个对角点形成的矩形范围。
+
+---
+
+### 两点模式矩形预览
+
+```cpp
+        // 两点模式下，实时绘制矩形预览
+        if (maxpoints == 2 && points.size() == 2) {
+            int x1 = static_cast<int>(points[0].x);
+            int y1 = static_cast<int>(points[0].y);
+            int x2 = static_cast<int>(points[1].x);
+            int y2 = static_cast<int>(points[1].y);
+            int x = std::min(x1, x2);
+            int y = std::min(y1, y2);
+            int w = std::abs(x1 - x2);
+            int h = std::abs(y1 - y2);
+            cv::rectangle(displayFrame, cv::Rect(x, y, w, h), cv::Scalar(0, 255, 0), 2);
+        }
+```
+
+当 `maxpoints == 2`（即 ROI 标定模式）且已经收集到 2 个点时，实时绘制由这两个点构成的矩形框。
+
+* 用 `std::min` 确定左上角，`std::abs` 计算宽高
+* 绿色边框（`cv::Scalar(0, 255, 0)`），线宽 2
+* 让用户在点击第二个点后、确认前，能直观看到 ROI 范围
+
+这是 `roi_set_node` 标定前哨站 ROI 时的关键交互反馈。
 
 ---
 

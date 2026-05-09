@@ -66,6 +66,8 @@
                    └─────────────┘    └─────────────┘
 ```
 
+> 注：`display_node`（OpenCV 版本）同样订阅 `/detected_image` 与 `/map_image`，提供水平拼接的显示窗口。Launch 文件中默认不启动，可手动运行。
+
 ---
 
 # 二、分层架构设计思想
@@ -178,6 +180,7 @@
 | 节点 | 技术栈 | 订阅话题 | 特点 |
 |------|--------|---------|------|
 | `qt_display_node` | Qt5 + ROS2 | `/detected_image`、`/map_image` | 界面美观、支持 Qt 样式表、顶部状态栏、阵营切换按钮 |
+| `display_node` | OpenCV + ROS2 | `/detected_image`、`/map_image` | 轻量、水平拼接视频与小地图，按 Q/ESC 退出 |
 
 `qt_display_node` 不仅是消费者，还发布 `/flip_team`（`std_msgs/Bool`）话题，用于控制 `map_node` 的红蓝方阵营视角翻转。这是系统中**唯一的人机交互入口**。
 
@@ -190,10 +193,10 @@
 | 话题/服务名 | 类型 | 发布者/服务器 | 订阅者/客户端 | 作用 |
 |------------|------|--------------|--------------|------|
 | `/image_raw` | `sensor_msgs/Image` | video_node | detect_node / calibrate_node | 原始图像 |
-| `/detected_image` | `sensor_msgs/Image` | detect_node | qt_display_node | 带检测框的可视化图 |
+| `/detected_image` | `sensor_msgs/Image` | detect_node | qt_display_node、display_node | 带检测框的可视化图 |
 | `/armor_detections` | `DetectionArray` | detect_node | pose_node | 结构化检测结果 |
 | `/world_targets` | `WorldTargetArray` | pose_node | map_node | 世界坐标目标 |
-| `/map_image` | `sensor_msgs/Image` | map_node | qt_display_node | 小地图图像 |
+| `/map_image` | `sensor_msgs/Image` | map_node | qt_display_node、display_node | 小地图图像 |
 | `/radar_map` | `RadarMap` | map_node | (决策节点) | 结构化雷达数据 |
 | `/flip_team` | `std_msgs/Bool` | qt_display_node | map_node | 红蓝方阵营视角切换 |
 | `/calibration/start` | `std_srvs/Trigger` (Service) | calibrate_node | (用户/roi_set_node) | 手动触发标定 |
@@ -259,6 +262,7 @@ int32 idx           # 类别 ID
 float32 confidence  # 置信度
 int32 x, y, width, height      # 装甲板检测框
 int32 armor_color   # 装甲颜色 / 队伍 ID
+bool is_dead        # 是否被标记为死亡/摧毁
 int32 car_x, car_y, car_width, car_height  # 车辆整体检测框
 float32 world_x, world_y  # 世界坐标（如果 pipeline 已算）
 float32 fps         # 当前帧率
@@ -289,6 +293,7 @@ DetectionBox[] detections
 ```yaml
 int32 idx, class_id, team_id
 float32 score
+bool is_dead
 bool valid
 float32 world_x, world_y, world_z
 int32 bbox_x, bbox_y, bbox_w, bbox_h
@@ -414,7 +419,7 @@ def generate_launch_description():
 
 ## 5.1 Launch 文件的价值
 
-没有 launch 文件时，你需要开 6 个终端，分别运行 6 个节点。每个节点还要手动 source ROS2 环境。
+没有 launch 文件时，你需要开 7 个终端，分别运行 7 个节点（若再启动 `display_node`，则需要 8 个）。每个节点还要手动 source ROS2 环境。
 
 有了 launch 文件，一行命令启动整个系统：
 
@@ -580,7 +585,7 @@ radar_map_pub_ = this->create_publisher<RadarMap>(output_map_topic_, 10);
 你的项目里同时保留了两个入口：
 
 * `standard`（`apps/standalone_main.cpp`）：单进程 monolithic 程序
-* 五个 ROS2 节点（`src/nodes/*.cpp`）：分布式节点程序
+* 八个 ROS2 节点（`src/nodes/*.cpp`）：分布式节点程序
 
 对比两者，可以清晰看到 ROS2 带来的变化：
 

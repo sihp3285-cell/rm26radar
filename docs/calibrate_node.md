@@ -92,7 +92,65 @@ this->declare_parameter<int>("auto_calibrate_delay_sec", 2);
 
 ---
 
-# 四、启动时自动检测
+# 四、加载相机配置：`loadCameraConfig()`
+
+在参数读取完成后，构造函数会调用 `loadCameraConfig()` 从 `config_dir_/camera.yaml` 加载相机参数：
+
+```cpp
+bool loadCameraConfig()
+{
+    std::filesystem::path dir(config_dir_);
+    std::string camera_yaml = (dir / "camera.yaml").string();
+    YAML::Node cfg = YAML::LoadFile(camera_yaml);
+
+    std::vector<double> cam_data = cfg["cameraMatrix"].as<std::vector<double>>();
+    if (cam_data.size() != 9) {
+        RCLCPP_ERROR(this->get_logger(), "cameraMatrix 长度必须为 9");
+        return false;
+    }
+    camera_matrix_ = cv::Mat(3, 3, CV_64F);
+    for (int i = 0; i < 9; ++i) {
+        camera_matrix_.at<double>(i / 3, i % 3) = cam_data[i];
+    }
+
+    std::vector<double> dist_data = cfg["distCoeffs"].as<std::vector<double>>();
+    dist_coeffs_ = cv::Mat(1, static_cast<int>(dist_data.size()), CV_64F);
+    for (size_t i = 0; i < dist_data.size(); ++i) {
+        dist_coeffs_.at<double>(0, static_cast<int>(i)) = dist_data[i];
+    }
+
+    require_points_num_ = cfg["requirePointsNum"].as<int>();
+    auto wp = cfg["worldPoints"].as<std::vector<std::vector<float>>>();
+    world_points_.clear();
+    for (const auto& p : wp) {
+        if (p.size() != 3) {
+            RCLCPP_ERROR(this->get_logger(), "worldPoints 每个点必须有 3 个元素");
+            return false;
+        }
+        world_points_.emplace_back(p[0], p[1], p[2]);
+    }
+
+    if (static_cast<int>(world_points_.size()) != require_points_num_) {
+        RCLCPP_WARN(this->get_logger(),
+            "worldPoints 数量 (%zu) 与 requirePointsNum (%d) 不一致",
+            world_points_.size(), require_points_num_);
+    }
+    return true;
+}
+```
+
+加载内容包括：
+
+* `cameraMatrix`：3×3 相机内参矩阵
+* `distCoeffs`：畸变系数
+* `requirePointsNum`：标定所需点击点数
+* `worldPoints`：3D 世界坐标点（用于 PnP）
+
+代码里有多层校验：`cameraMatrix` 长度必须为 9，`worldPoints` 每个点必须有 3 个元素，点数与 `requirePointsNum` 不一致时打印警告但不退出。如果解析失败，节点会在构造函数里直接返回，不创建服务和定时器。
+
+---
+
+# 五、启动时自动检测
 
 ```cpp
 if (auto_calibrate_ && !isCalibFileValid()) {
@@ -100,8 +158,13 @@ if (auto_calibrate_ && !isCalibFileValid()) {
     auto_calibrate_timer_ = this->create_wall_timer(..., [this]() {
         auto_calibrate_timer_->cancel();
         if (!isCalibFileValid() && !is_calibrating_.load()) {
+            RCLCPP_INFO(this->get_logger(), "自动进入标定流程...");
             auto [success, msg] = doCalibration();
-            // ...
+            if (success) {
+                RCLCPP_INFO(this->get_logger(), "自动标定成功: %s", msg.c_str());
+            } else {
+                RCLCPP_ERROR(this->get_logger(), "自动标定失败: %s", msg.c_str());
+            }
         }
     });
 }
@@ -128,25 +191,30 @@ if (auto_calibrate_ && !isCalibFileValid()) {
 
 ---
 
-# 五、核心方法：`doCalibration()`
+# 六、核心方法：`doCalibration()`
 
 这是 `calibrate_node` 的干活函数。无论自动标定还是手动触发，最终都走到这里。
 
 ---
 
-## 5.1 并发保护
+## 6.1 并发保护
 
 ```cpp
 if (is_calibrating_.exchange(true)) {
     return {false, "标定正在进行中，请勿重复触发"};
 }
+
+auto guard = [this](bool*) { is_calibrating_ = false; };
+std::unique_ptr<bool, decltype(guard)> scope_guard(nullptr, guard);
 ```
 
 `std::atomic<bool>` 防止并发标定。如果用户快速点击两次按钮，第二次会被拒绝。
 
+`scope_guard` 确保无论标定成功、失败还是异常退出，`is_calibrating_` 都会被重置为 `false`，避免标定锁死。
+
 ---
 
-## 5.2 图像获取：临时节点 + 独立 Executor
+## 6.2 图像获取：临时节点 + 独立 Executor
 
 ```cpp
 static int temp_node_counter = 0;
@@ -159,14 +227,22 @@ auto frame_future = frame_promise.get_future();
 auto image_sub = temp_node->create_subscription<sensor_msgs::msg::Image>(
     image_topic_, rclcpp::QoS(1),
     [&](const sensor_msgs::msg::Image::SharedPtr msg) {
-        auto cv_ptr = cv_bridge::toCvCopy(msg, "bgr8");
-        frame_promise.set_value(cv_ptr->image.clone());
+        try {
+            auto cv_ptr = cv_bridge::toCvCopy(msg, "bgr8");
+            frame_promise.set_value(cv_ptr->image.clone());
+        } catch (const std::exception& e) {
+            frame_promise.set_exception(std::current_exception());
+        }
     });
 
 rclcpp::executors::SingleThreadedExecutor temp_executor;
 temp_executor.add_node(temp_node);
+
 auto status = temp_executor.spin_until_future_complete(
     frame_future, std::chrono::seconds(10));
+
+image_sub.reset();
+temp_executor.remove_node(temp_node);
 ```
 
 ---
@@ -182,20 +258,30 @@ auto status = temp_executor.spin_until_future_complete(
 * `spin_until_future_complete` 阻塞直到收到图像或超时
 * 不干扰主节点的 service/timer 调度
 
+### 异常处理与资源清理
+
+临时节点的 subscription 回调里加了 `try/catch`，如果 `cv_bridge` 转换失败，通过 `set_exception` 把异常传递给 future，避免 promise 永远不被满足导致死等。
+
+`image_sub.reset()` 和 `temp_executor.remove_node(temp_node)` 显式清理临时资源，避免资源泄漏。
+
 ---
 
-## 5.3 视频暂停控制
+## 6.3 视频暂停控制
 
 ```cpp
 struct VideoPauseGuard {
     CalibrateNode* node;
     bool active;
     ~VideoPauseGuard() {
-        if (active && node) node->callVideoPause(false);
+        if (active && node) {
+            node->callVideoPause(false);
+        }
     }
 };
 VideoPauseGuard vp_guard{this, true};
-callVideoPause(true);
+if (!callVideoPause(true)) {
+    RCLCPP_WARN(this->get_logger(), "暂停视频失败，将继续标定");
+}
 ```
 
 **RAII 设计**：`VideoPauseGuard` 在析构时自动恢复视频，确保无论标定成功、失败还是被取消，视频都不会永久暂停。
@@ -203,15 +289,41 @@ callVideoPause(true);
 `callVideoPause` 内部通过 ROS2 Service Client 调用 `video_node` 的 `/video_node/set_pause`：
 
 ```cpp
-auto client = create_client<std_srvs::srv::SetBool>("/video_node/set_pause");
-auto request = std::make_shared<std_srvs::srv::SetBool::Request>();
-request->data = pause;  // true=暂停, false=恢复
-auto future = client->async_send_request(request);
+bool callVideoPause(bool pause)
+{
+    auto client = this->create_client<std_srvs::srv::SetBool>("/video_node/set_pause");
+    if (!client->wait_for_service(std::chrono::seconds(3))) {
+        RCLCPP_WARN(this->get_logger(),
+            "video_node 的 set_pause 服务未上线（等待 3 秒超时）");
+        return false;
+    }
+
+    auto request = std::make_shared<std_srvs::srv::SetBool::Request>();
+    request->data = pause;
+    auto future = client->async_send_request(request);
+    auto status = future.wait_for(std::chrono::seconds(2));
+
+    if (status == std::future_status::timeout) {
+        RCLCPP_WARN(this->get_logger(), "调用 video_node set_pause 超时");
+        return false;
+    }
+
+    auto result = future.get();
+    if (result->success) {
+        RCLCPP_INFO(this->get_logger(), "视频控制: %s", result->message.c_str());
+        return true;
+    } else {
+        RCLCPP_WARN(this->get_logger(), "视频控制失败: %s", result->message.c_str());
+        return false;
+    }
+}
 ```
+
+`callVideoPause` 返回 `bool`，即使暂停失败也不终止标定流程（只是打印警告继续）。这是合理的容错设计：标定节点不应因为视频控制服务的临时不可用而完全停摆。
 
 ---
 
-## 5.4 手动标定：MouseBack
+## 6.4 手动标定：MouseBack
 
 ```cpp
 MouseBack mouseBack("Calibrate", require_points_num_);
@@ -228,11 +340,17 @@ image_points = mouseBack.getPoints(captured_frame);
 
 ---
 
-## 5.5 PnP 解算与重投影误差
+## 6.5 PnP 解算与重投影误差
 
 ```cpp
-cv::solvePnP(world_points_, image_points, camera_matrix_, dist_coeffs_,
-             rvec, tvec, false, cv::SOLVEPNP_ITERATIVE);
+bool pnp_ok = cv::solvePnP(world_points_, image_points,
+                           camera_matrix_, dist_coeffs_,
+                           rvec, tvec, false,
+                           cv::SOLVEPNP_ITERATIVE);
+if (!pnp_ok) {
+    RCLCPP_ERROR(this->get_logger(), "solvePnP 失败，请重新标定");
+    continue;
+}
 
 cv::projectPoints(world_points_, rvec, tvec,
                   camera_matrix_, dist_coeffs_, projected);
@@ -244,6 +362,18 @@ for (size_t i = 0; i < image_points.size(); ++i) {
     total_err += std::sqrt(dx * dx + dy * dy);
 }
 double mean_error = total_err / image_points.size();
+
+if (mean_error <= reprojection_threshold_) {
+    cv::Mat R_mat;
+    cv::Rodrigues(rvec, R_mat);
+    R = R_mat.t();
+    T = -R * tvec;
+    success = true;
+    break;
+} else {
+    RCLCPP_WARN(this->get_logger(),
+        "误差过大，需要重新标定。请在弹出的窗口中重新点击标定点。");
+}
 ```
 
 ---
@@ -257,9 +387,19 @@ double mean_error = total_err / image_points.size();
 
 这是标定精度的**闭环验证**，防止脏数据进入系统。
 
+### PnP 失败处理
+
+`solvePnP` 可能失败（比如点击点与 3D 点对应关系错误）。失败后打印错误并 `continue`，让用户重新点击，而不是直接退出整个标定流程。
+
+### 旋转向量 → 旋转矩阵
+
+`solvePnP` 输出的是旋转向量 `rvec`，通过 `cv::Rodrigues` 转换成 3×3 旋转矩阵 `R_mat`。
+
+然后 `R = R_mat.t()`，`T = -R * tvec`，这是从 OpenCV 相机坐标系到世界坐标系的标准转换。
+
 ---
 
-## 5.6 保存标定结果
+## 6.6 保存标定结果
 
 ```cpp
 YAML::Emitter out;
@@ -288,29 +428,48 @@ t: [t1, t2, t3]
 
 ---
 
-## 5.7 通知 pose_node 重载
+## 6.7 通知 pose_node 重载
 
 ```cpp
 bool callPoseNodeReload()
 {
     auto client = create_client<std_srvs::srv::Trigger>("/pose_node/reload_calibration");
     if (!client->wait_for_service(std::chrono::seconds(3))) {
-        return false;  // pose_node 服务未上线
+        RCLCPP_ERROR(this->get_logger(),
+            "pose_node 的 reload 服务未上线（等待 3 秒超时）");
+        return false;
     }
+
     auto request = std::make_shared<std_srvs::srv::Trigger::Request>();
     auto future = client->async_send_request(request);
+    auto status = future.wait_for(std::chrono::seconds(5));
+
+    if (status == std::future_status::timeout) {
+        RCLCPP_ERROR(this->get_logger(), "调用 pose_node reload 超时");
+        return false;
+    }
+
     auto result = future.get();
-    return result->success;
+    if (result->success) {
+        RCLCPP_INFO(this->get_logger(), "pose_node 重载成功: %s", result->message.c_str());
+        return true;
+    } else {
+        RCLCPP_ERROR(this->get_logger(), "pose_node 重载失败: %s", result->message.c_str());
+        return false;
+    }
 }
 ```
 
 标定完成后，通过 ROS2 Service 调用 `pose_node` 的 `/pose_node/reload_calibration`，让 `pose_node` 重新读取 `calib_result.yaml` 并更新外参。
 
+`callPoseNodeReload` 有完整的超时和错误处理：等待服务 3 秒、等待响应 5 秒，任何环节失败都返回 `false` 并打印明确错误信息。
+
 ---
 
-## 5.8 等待 map 稳定后恢复视频
+## 6.8 等待 map 稳定后恢复视频
 
 ```cpp
+RCLCPP_INFO(this->get_logger(), "等待 map pipeline 稳定...");
 std::this_thread::sleep_for(std::chrono::seconds(2));
 ```
 
@@ -318,7 +477,7 @@ std::this_thread::sleep_for(std::chrono::seconds(2));
 
 ---
 
-# 六、手动触发接口：/calibration/start
+# 七、手动触发接口：/calibration/start
 
 ```cpp
 start_service_ = this->create_service<std_srvs::srv::Trigger>(
@@ -335,7 +494,7 @@ ros2 service call /calibration/start std_srvs/srv/Trigger {}
 
 ---
 
-# 七、完整标定时序图
+# 八、完整标定时序图
 
 ```text
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
@@ -376,7 +535,7 @@ ros2 service call /calibration/start std_srvs/srv/Trigger {}
 
 ---
 
-# 八、从这份代码里学到的设计要点
+# 九、从这份代码里学到的设计要点
 
 ## 1. 临时节点模式
 
@@ -393,11 +552,12 @@ temp_executor.spin_until_future_complete(future, timeout);
 
 ```cpp
 struct VideoPauseGuard {
-    ~VideoPauseGuard() { node->callVideoPause(false); }
+    ~VideoPauseGuard() { if (active && node) node->callVideoPause(false); }
 };
+std::unique_ptr<bool, decltype(guard)> scope_guard(nullptr, guard);
 ```
 
-用 RAII 确保资源（视频播放状态）在任何退出路径下都能正确恢复，避免函数中途 `return` 导致视频永久暂停。
+用 RAII 确保资源（视频播放状态、标定锁标志）在任何退出路径下都能正确恢复，避免函数中途 `return` 或异常导致资源泄漏。
 
 ## 3. 精度闭环验证
 
@@ -414,3 +574,7 @@ solvePnP(...) → projectPoints(...) → 比较误差 → 合格才保存
 ## 5. 服务协调而非直接耦合
 
 `calibrate_node` 不直接修改 `pose_node` 的内部状态，而是通过 `/pose_node/reload_calibration` 服务通知它。这保持了节点间的边界和解耦。
+
+## 6. 容错设计
+
+`callVideoPause` 和 `callPoseNodeReload` 都有完整的超时和错误处理，失败时不崩节点、不终止流程，而是打印警告继续或返回错误信息。这是长时间运行系统的必备素质。

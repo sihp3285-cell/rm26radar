@@ -69,12 +69,12 @@ public:
         bottom_layout->setSpacing(8);
         bottom_layout->addStretch(1);
 
-        team_button_ = new QPushButton("红方视角", this);
+        team_button_ = new QPushButton("蓝方视角", this);
         team_button_->setCheckable(true);
         team_button_->setCursor(Qt::PointingHandCursor);
         team_button_->setStyleSheet(
             "QPushButton {"
-            "  background-color: #cc0000;"
+            "  background-color: #0066cc;"
             "  color: white;"
             "  font-size: 16px;"
             "  font-weight: bold;"
@@ -85,11 +85,11 @@ public:
             "}"
             "QPushButton:hover { background-color: #aa0000; }"
             "QPushButton:checked {"
-            "  background-color: #0066cc;"
+            "  background-color: #cc0000;"
             "}"
             "QPushButton:checked:hover { background-color: #0055aa; }");
         connect(team_button_, &QPushButton::toggled, this, [this](bool checked) {
-            team_button_->setText(checked ? "蓝方视角" : "红方视角");
+            team_button_->setText(checked ? "红方视角" : "蓝方视角");
             if (team_flip_cb_) team_flip_cb_(checked);
         });
         bottom_layout->addWidget(team_button_);
@@ -258,7 +258,7 @@ public:
         std_msgs::msg::Bool msg;
         msg.data = is_blue_team;
         team_flip_pub_->publish(msg);
-        RCLCPP_INFO(this->get_logger(), "发布阵营切换: %s", is_blue_team ? "蓝方视角" : "红方视角");
+        RCLCPP_INFO(this->get_logger(), "发布阵营切换: %s", is_blue_team ? "红方视角" : "蓝方视角");
     }
 
     // 供 DisplayWindow 在主线程调用，安全取出最新数据

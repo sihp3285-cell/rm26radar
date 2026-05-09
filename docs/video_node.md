@@ -73,12 +73,24 @@ cv::Mat（OpenCV 世界）→ sensor_msgs::msg::Image（ROS2 世界）
 
 ---
 
+### `#include <std_srvs/srv/set_bool.hpp>`
+
+`SetBool` 服务类型，用于 `/video_node/set_pause` 服务接口。
+
+---
+
 ### `#include <opencv2/opencv.hpp>`
 
 因为本地视频读取完全依赖 OpenCV：
 
 * `cv::VideoCapture`：打开视频文件、读取帧
 * `cv::Mat`：存储每一帧图像
+
+---
+
+### `#include <atomic>`
+
+`std::atomic<bool>` 用于 `is_paused_` 标志，保证 ROS2 服务回调和定时器回调之间的线程安全读写。
 
 ---
 
@@ -110,7 +122,7 @@ public:
 # 四、声明参数
 
 ```cpp
-this->declare_parameter<std::string>("video_path", "/home/delphine/rm/car_project/test/005.mp4");
+this->declare_parameter<std::string>("video_path", "/home/delphine/rm/car_project/test/007.mp4");
 this->declare_parameter<std::string>("topic_name", "/image_raw");
 this->declare_parameter<int>("fps", 30);
 ```
@@ -290,6 +302,7 @@ pause_service_ = this->create_service<std_srvs::srv::SetBool>(
         is_paused_ = request->data;
         response->success = true;
         response->message = request->data ? "视频已暂停" : "视频已恢复";
+        RCLCPP_INFO(this->get_logger(), "%s", response->message.c_str());
     });
 ```
 
@@ -353,7 +366,7 @@ std::bind(&VideoNode::timer_callback, this)
 RCLCPP_INFO(this->get_logger(), "VideoNode 初始化完成，开始发布视频帧");
 ```
 
-构造函数执行完毕：参数读取、视频打开、publisher 创建、timer 创建。节点进入持续发帧的运行状态。
+构造函数执行完毕：参数读取、视频打开、publisher 创建、timer 创建、pause service 创建。节点进入持续发帧的运行状态。
 
 ---
 
@@ -370,7 +383,21 @@ private:
 
 ---
 
-# 十三、读取一帧视频
+## 12.1 暂停检查
+
+```cpp
+if (is_paused_.load()) {
+    return;
+}
+```
+
+如果视频被 `calibrate_node` 通过 `/video_node/set_pause` 服务暂停，定时器回调直接返回，不读取也不发布新帧。视频会定格在当前画面，直到收到恢复命令。
+
+`is_paused_` 是 `std::atomic<bool>`，`.load()` 保证线程安全读取（服务回调可能在另一个线程中修改它）。
+
+---
+
+## 12.2 读取一帧视频
 
 ```cpp
 cv::Mat frame;
@@ -401,7 +428,7 @@ if (!cap_.read(frame)) {
 
 ---
 
-# 十四、转成 ROS2 图像消息
+# 十三、转成 ROS2 图像消息
 
 ```cpp
 auto msg = cv_bridge::CvImage(
@@ -423,7 +450,7 @@ cv::Mat → sensor_msgs::msg::Image
 
 ---
 
-# 十五、填充 Header
+# 十四、填充 Header
 
 ```cpp
 msg->header.stamp = this->now();
@@ -462,7 +489,7 @@ video_frame → detected_frame
 
 ---
 
-# 十六、发布图像
+# 十五、发布图像
 
 ```cpp
 image_pub_->publish(*msg);
@@ -476,7 +503,7 @@ image_pub_->publish(*msg);
 
 ---
 
-# 十七、成员变量
+# 十六、成员变量
 
 ```cpp
 cv::VideoCapture cap_;
@@ -484,8 +511,10 @@ std::string video_path_;
 std::string topic_name_;
 int fps_setting_;
 
+std::atomic<bool> is_paused_{false};
 rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_pub_;
 rclcpp::TimerBase::SharedPtr timer_;
+rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr pause_service_;
 ```
 
 ---
@@ -493,6 +522,18 @@ rclcpp::TimerBase::SharedPtr timer_;
 ### `cv::VideoCapture cap_`
 
 视频读取器对象。必须作为成员变量保存，因为每次回调都要继续从同一个视频流中读下一帧。
+
+---
+
+### `is_paused_`
+
+**（新增）** 原子布尔标志，控制视频暂停/恢复。由 `/video_node/set_pause` 服务回调修改，由 `timer_callback` 读取。
+
+---
+
+### `pause_service_`
+
+**（新增）** 暂停控制服务。必须作为成员变量长期保存，否则服务会被销毁。
 
 ---
 
@@ -512,7 +553,7 @@ Publisher 对象。必须长期存活，否则节点就不能持续发消息。
 
 ---
 
-# 十八、`main` 函数
+# 十七、`main` 函数
 
 ```cpp
 int main(int argc, char** argv)
@@ -542,13 +583,13 @@ int main(int argc, char** argv)
 
 * 有定时器到期了？→ 执行 timer_callback
 * 有订阅消息到了？→ 执行 subscription callback（这个节点没有订阅）
-* 有服务请求到了？→ 执行 service callback（这个节点没有服务）
+* 有服务请求到了？→ 执行 service callback
 
 所以虽然你代码里没有显式写 `while` 循环，但 `spin` 就是它的幕后推手。
 
 ---
 
-# 十九、把整份 `video_node.cpp` 总结成一句话
+# 十八、把整份 `video_node.cpp` 总结成一句话
 
 > **把本地视频文件包装成一个按固定帧率发布图像的 ROS2 话题源。**
 
@@ -566,7 +607,7 @@ ros2 run tensorrt_detect video_node --ros-args -p video_path:=/new/video.mp4
 
 ---
 
-# 二十、从这份代码里学到的"源节点模板"
+# 十九、从这份代码里学到的"源节点模板"
 
 以后你写任何"从某处取数据，转成 ROS 消息发出去"的节点，都可以套这个模板：
 
@@ -588,7 +629,7 @@ ros2 run tensorrt_detect video_node --ros-args -p video_path:=/new/video.mp4
 
 ---
 
-# 二十一、ROS2 时间系统补充
+# 二十、ROS2 时间系统补充
 
 `video_node` 里涉及两种时间概念，值得深入理解：
 

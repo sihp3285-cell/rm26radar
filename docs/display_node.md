@@ -474,15 +474,11 @@ try {
 ```cpp
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        latest_frame_ = cv_ptr->image;  // toCvCopy 已是深拷贝，无需再 clone
+        latest_frame_ = cv_ptr->image.clone();
     }
 ```
 
-**（性能优化）** 这里去掉了 `.clone()`。
-
-原因是：`cv_bridge::toCvCopy(msg, "bgr8")` 已经在内部做了**一次深拷贝**，把 ROS 消息的数据复制到了 `cv_ptr->image` 的新内存里。所以 `cv_ptr->image` 本身就是独立内存，直接赋值给 `latest_frame_` 即可，没必要再 `clone()` 一次。
-
-旧版这里多了一次全图深拷贝（比如 1280×720×3 ≈ 2.7MB），每帧都浪费，积少成多。
+`cv_bridge::toCvCopy(msg, "bgr8")` 已经在内部做了**一次深拷贝**，把 ROS 消息的数据复制到了 `cv_ptr->image` 的新内存里。但这里仍然调用 `.clone()`，确保 `latest_frame_` 拥有完全独立的内存副本，避免后续 OpenCV 操作可能对底层缓冲区的意外修改。
 
 `mutex_` 仍然是必须的：回调线程在写 `latest_frame_`，主线程在读 `latest_frame_`，需要保证同一时刻只有一个线程访问。
 

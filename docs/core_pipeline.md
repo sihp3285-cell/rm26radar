@@ -66,19 +66,35 @@ class DetectPipeline {
 public:
     DetectPipeline(Config& cfg);
     std::vector<Result> process(const cv::Mat& frame);
+    bool isOutpostAlive() const;  // 查询前哨站是否存活
 
 private:
     Model  detectModel_;      // 第一阶段：目标检测
     Model  armorDetector_;    // 第二阶段：装甲板检测
     Model  classifyModel_;    // 第三阶段：分类
-    Config& cfg_;           // 配置引用
+    Config& cfg_;             // 配置引用
+
+    int outpostMissCount_ = 0;   // 前哨站连续漏检计数
+    bool outpostIsDead_ = false; // 前哨站死亡状态
+    cv::Rect outpostLastBox_;    // 前哨站上一次有效检测框
 
     std::vector<Result> runDetect(const cv::Mat& frame);
     std::vector<Result> runArmorDetect(const cv::Mat& frame,
                                        const std::vector<Result>& detections);
     void runClassify(const cv::Mat& frame, std::vector<Result>& detections);
+    std::vector<Result> runOutpostDetect(const cv::Mat& frame);
 };
 ```
+
+---
+
+### `isOutpostAlive`
+
+```cpp
+bool isOutpostAlive() const { return !outpostIsDead_; }
+```
+
+公共接口，供外部节点查询前哨站当前是否存活。内部状态由 `runOutpostDetect` 维护。
 
 ---
 
@@ -594,18 +610,6 @@ std::vector<Result> DetectPipeline::runOutpostDetect(const cv::Mat& frame) {
         if (outpostMissCount_ >= cfg_.model.outpostMissThreshold) {
             outpostMissCount_ = cfg_.model.outpostMissThreshold;
             outpostIsDead_ = true;
-
-            Result deadResult;
-            deadResult.idx = robot_id::OUTPOST;
-            deadResult.isDead = true;
-            deadResult.confidence = 0.0f;
-            if (outpostLastBox_.width > 0 && outpostLastBox_.height > 0) {
-                deadResult.box = outpostLastBox_;
-            } else {
-                deadResult.box = safeRoi;
-            }
-            deadResult.car_box = safeRoi;
-            results.push_back(deadResult);
         }
     }
     return results;
@@ -656,9 +660,9 @@ if (hasValidDetection) {
 
 避免偶尔一帧漏检就导致状态跳变，只有**持续漏检**才判定前哨站被摧毁。
 
-### 死亡状态输出
+### 死亡状态记录
 
-即使前哨站被判定死亡，仍然会输出一个 `isDead = true` 的结果。这样下游节点（如 QT 前端）能持续显示"前哨站：摧毁"的状态，而不是直接消失。
+当连续漏检达到阈值后，`outpostIsDead_` 被置为 `true`，但**不再输出死亡 `Result`**。下游节点可以通过 `isOutpostAlive()` 接口查询前哨站状态，或者依赖历史帧自行处理。
 
 ---
 

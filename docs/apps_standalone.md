@@ -50,7 +50,7 @@ namespace YAML {
 int main(int argc, char const *argv[])
 {
     Config cfg("/home/delphine/rm/tensorrt10_detect/configs");
-    cv::VideoCapture cap("/home/delphine/rm/car_project/test/005.mp4");
+    cv::VideoCapture cap("/home/delphine/rm/car_project/test/007.mp4");
 ```
 
 ---
@@ -122,7 +122,7 @@ Standalone 模式使用硬编码路径，这是它和 ROS2 模式的最大区别
 
 ### 创建预览窗口
 
-显示视频预览，提示用户按 `S` 键截取当前帧进行标定。
+显示视频预览，提示用户按 `S` 键截取当前帧进行标定，或按空格键加载已有标定结果。
 
 ---
 
@@ -233,6 +233,28 @@ Standalone 模式使用硬编码路径，这是它和 ROS2 模式的最大区别
 
 ---
 
+#### 格式错误处理
+
+```cpp
+                        } else {
+                            std::cerr << "错误：R矩阵需要9个元素，T向量需要3个元素！" << std::endl;
+                            std::cout << "请按 'S' 键重新标定。" << std::endl;
+                        }
+                    } else {
+                        std::cerr << "错误：calib_result.yaml 文件中缺少 r 或 t 键！" << std::endl;
+                        std::cout << "请按 'S' 键重新标定。" << std::endl;
+                    }
+                } catch (const YAML::Exception& e) {
+                    std::cerr << "错误：读取 calib_result.yaml 文件时出错: " << e.what() << std::endl;
+                    std::cout << "请按 'S' 键重新标定。" << std::endl;
+                }
+            }
+```
+
+如果数据格式不对或 YAML 解析失败，打印错误信息并提示用户按 `S` 键重新标定，而不是直接崩溃。
+
+---
+
 ### 交互式标定
 
 ```cpp
@@ -319,8 +341,12 @@ t: [t1, t2, t3]
                     fout << out.c_str();
                     fout.close();
                     std::cout << "标定结果已保存到: " << calibPath << std::endl;
+                } else {
+                    std::cerr << "警告：无法写入标定结果文件 " << calibPath << std::endl;
                 }
 ```
+
+如果文件无法打开（如权限不足），打印警告但不中断程序。
 
 ---
 
@@ -441,10 +467,12 @@ mp（地图像素坐标）
 #### 填充 Mappoint
 
 ```cpp
-mappoints.push_back({mp, "", result.idx, result.armorColor});
+mappoints.push_back({mp, "", result.idx, result.armorColor, result.isDead});
 ```
 
 `label` 传空字符串，`drawMap` 内部会根据 `isDead` 和 `classIdx` 以及 `classNames` 自动生成。
+
+注意：最后一个字段 `result.isDead` 表示该目标是否被判定为“死亡”，会影响小地图上的显示样式。
 
 ---
 

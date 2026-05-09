@@ -85,6 +85,7 @@ enum ClassId {
     R3    = 4,  // 3号机器人
     R4    = 5,  // 4号机器人
     S     = 6,  // 哨兵
+    OUTPOST = 7,  // 前哨站
 };
 ```
 
@@ -98,6 +99,7 @@ enum ClassId {
 | 1 | ARMOR | 第二阶段装甲板检测输出（未分类时） |
 | 2~5 | R1~R4 | 分类后的机器人编号 |
 | 6 | S | 分类后的哨兵 |
+| 7 | OUTPOST | 前哨站检测输出 |
 
 ---
 
@@ -158,7 +160,7 @@ inline std::string getRobotNumber(int class_id) {
 
 * `R1~R4` → `"1"~"4"`
 * `S` → `"S"`
-* 其他（CAR、ARMOR）→ `""`
+* 其他（CAR、ARMOR、OUTPOST）→ `""`
 
 ---
 
@@ -193,7 +195,7 @@ BLUE + "S" → "blueS"
 ### 防御性检查
 
 * `team_id == UNKNOWN` → `"?"`
-* `num.empty()`（即 CAR 或 ARMOR）→ `"?"`
+* `num.empty()`（即 CAR、ARMOR、OUTPOST）→ `"?"`
 
 确保只有完整的 `(team_id, class_id)` 组合才能生成有效标签。
 

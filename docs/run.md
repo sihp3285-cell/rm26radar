@@ -49,7 +49,7 @@ source install/setup.bash
 ros2 launch tensorrt_detect detect_pipeline.launch.py
 ```
 
-默认启动 `qt_display_node`（Qt5 界面）。按窗口右上角的关闭按钮可退出，launch 会随之停止所有节点。
+默认启动 `qt_display_node`（Qt5 界面）。关闭 Qt 窗口会终止 `qt_display_node` 进程，但 launch 中的其他节点仍在后台运行，请在 launch 所在终端按 **Ctrl+C** 停止整个系统。
 
 > **注意**：`display_node`（OpenCV 窗口）和 `qt_display_node`（Qt 窗口）**不能同时启动**，因为两个都会创建 GUI 窗口且功能重叠。launch 文件中默认启动 `qt_display_node`。如果需要切换回 `display_node`，请修改 `detect_pipeline.launch.py`。
 
@@ -81,17 +81,39 @@ src/tensorrt_detect/config/ros2_params.yaml
 
 | 节点 | 参数 | 默认值 | 说明 |
 |------|------|--------|------|
-| video_node | `video_path` | `".../005.mp4"` | 视频文件路径 |
+| video_node | `video_path` | `"/home/delphine/rm/car_project/test/007.mp4"` | 视频文件路径 |
+| video_node | `topic_name` | `/image_raw` | 发布图像话题 |
 | video_node | `fps` | `30` | 发布帧率 |
+| detect_node | `config_dir` | `"/home/delphine/rm/tensorrt10_detect/configs"` | 配置目录 |
+| detect_node | `input_topic` | `/image_raw` | 输入图像话题 |
+| detect_node | `output_topic` | `/detected_image` | 输出调试图像话题 |
 | detect_node | `publish_debug_image` | `true` | 是否发布带框调试图像 |
 | detect_node | `debug_output_max_width` | `1280` | 调试图像最大宽度 |
-| display_node | `window_width` | `1920` | 显示窗口宽度（OpenCV 版本） |
-| display_node | `window_height` | `720` | 显示窗口高度（OpenCV 版本） |
-| calibrate_node | `image_topic` | `/image_raw` | 标定图像话题 |
-| calibrate_node | `reprojection_threshold` | `10.0` | 重投影误差阈值（px） |
-| calibrate_node | `auto_calibrate` | `true` | 启动时自动检测标定 |
+| display_node | `topic` | `/detected_image` | 主图像话题 |
+| display_node | `window_name` | `"Video & Radar"` | 窗口标题 |
+| display_node | `window_width` | `1920` | 显示窗口宽度 |
+| display_node | `window_height` | `720` | 显示窗口高度 |
+| display_node | `map_topic` | `/map_image` | 小地图图像话题 |
+| pose_node | `config_dir` | `"/home/delphine/rm/tensorrt10_detect/configs"` | 配置目录 |
+| pose_node | `input_topic` | `/armor_detections` | 输入检测话题 |
+| pose_node | `output_topic` | `/world_targets` | 输出世界坐标话题 |
+| map_node | `config_dir` | `"/home/delphine/rm/tensorrt10_detect/configs"` | 配置目录 |
+| map_node | `input_topic` | `/world_targets` | 输入世界坐标话题 |
+| map_node | `output_image_topic` | `/map_image` | 输出地图图像话题 |
+| map_node | `output_map_topic` | `/radar_map` | 输出结构化雷达数据话题 |
+| map_node | `flip_team` | `false` | 默认是否翻转阵营视角 |
 | qt_display_node | `video_topic` | `/detected_image` | 视频图像话题 |
 | qt_display_node | `map_image_topic` | `/map_image` | 地图图像话题 |
+| qt_display_node | `armor_topic` | `/armor_detections` | 检测结果话题（提取前哨站状态） |
+| calibrate_node | `config_dir` | `"/home/delphine/rm/tensorrt10_detect/configs"` | 配置目录 |
+| calibrate_node | `image_topic` | `/image_raw` | 标定图像话题 |
+| calibrate_node | `calib_result_path` | `"/home/delphine/rm/tensorrt10_detect/configs/calib_result.yaml"` | 标定结果保存路径 |
+| calibrate_node | `reprojection_threshold` | `10.0` | 重投影误差阈值（px） |
+| calibrate_node | `auto_calibrate` | `true` | 启动时自动检测标定 |
+| calibrate_node | `auto_calibrate_delay_sec` | `2` | 自动标定前的等待秒数 |
+| roi_set_node | `config_dir` | `"/home/delphine/rm/tensorrt10_detect/configs"` | 配置目录 |
+| roi_set_node | `image_topic` | `/image_raw` | ROI 框定图像话题 |
+| roi_set_node | `outpost_roi_path` | `"/home/delphine/rm/tensorrt10_detect/configs/outpost_roi.yaml"` | ROI 配置保存路径 |
 | roi_set_node | `auto_set_roi` | `true` | 启动时自动检测 ROI 是否为空 |
 | roi_set_node | `auto_set_delay_sec` | `3` | 自动框定前的等待秒数 |
 
@@ -141,7 +163,7 @@ source install/setup.bash
 ros2 run tensorrt_detect display_node
 ```
 
-**终端 5 —— 标定节点：**
+**终端 6 —— 标定节点：**
 ```bash
 cd /home/delphine/rm/tensorrt10_detect
 source /opt/ros/jazzy/setup.bash
@@ -149,7 +171,7 @@ source install/setup.bash
 ros2 run tensorrt_detect calibrate_node
 ```
 
-**终端 6 —— ROI 设置节点（自动检测/框定前哨站 ROI）：**
+**终端 7 —— ROI 设置节点（自动检测/框定前哨站 ROI）：**
 ```bash
 cd /home/delphine/rm/tensorrt10_detect
 source /opt/ros/jazzy/setup.bash
@@ -159,7 +181,7 @@ ros2 run tensorrt_detect roi_set_node
 
 > `roi_set_node` 默认 `auto_set_roi: true`。若 `outpost_roi.yaml` 无效或为空，会在延迟 3 秒后自动暂停视频并弹出 ROI 框定窗口。框定完成后自动保存并通知 `detect_node` 重载配置，随后恢复视频播放。
 
-**终端 7 —— 显示（Qt5 版本，推荐）：**
+**终端 8 —— 显示（Qt5 版本，推荐）：**
 ```bash
 cd /home/delphine/rm/tensorrt10_detect
 source /opt/ros/jazzy/setup.bash
@@ -265,7 +287,7 @@ rviz2
 
 ---
 
-## 七、Standalone 模式
+## 八、Standalone 模式
 
 项目同时保留了非 ROS2 的单进程入口，适合快速验证算法本身：
 

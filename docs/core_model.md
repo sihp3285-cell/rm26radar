@@ -1017,7 +1017,7 @@ YOLO 类模型的输出有两种常见格式：
                 x1 = det_output.at<float>(i, 0);
                 y1 = det_output.at<float>(i, 1);
                 x2 = det_output.at<float>(i, 2);
-                x2 = det_output.at<float>(i, 3);
+                y2 = det_output.at<float>(i, 3);
                 class_id = static_cast<int>(det_output.at<float>(i, 5));
             } else {
                 score = det_output.at<float>(4, i);

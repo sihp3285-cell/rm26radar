@@ -150,8 +150,10 @@ public:
 
 运行时动态切换阵营视角：
 
-* `setFlipTeam(true)` → 蓝方视角（坐标和底图翻转 180°）
-* `setFlipTeam(false)` → 红方视角（不翻转）
+* `setFlipTeam(true)` → 蓝方视角（底图旋转 180°）
+* `setFlipTeam(false)` → 红方视角（不旋转）
+
+> **注意**：`worldtomap()` 本身**不**根据 `flip_team_` 做任何坐标符号翻转。翻转效果完全由 `drawMap()` 中的 `cv::rotate(frame, ..., ROTATE_180)` 实现。这意味着世界坐标到地图坐标的线性映射关系始终不变，视觉上的"翻转"是通过旋转整张底图 180° 来完成的。
 
 ---
 
@@ -280,8 +282,8 @@ scale_y = 地图像素高 / 场地物理长（米）
 cv::Point2f RadarMap::worldtomap(const cv::Point2f& worldPoint) const
 {
     cv::Point2f mapPoint;
-    float wx = flip_team_ ? -worldPoint.x : worldPoint.x;
-    float wy = flip_team_ ? -worldPoint.y : worldPoint.y;
+    float wx = worldPoint.x;
+    float wy = worldPoint.y;
     mapPoint.x = wx * scale_x + offset_x;
     mapPoint.y = wy * scale_y + offset_y;
     return mapPoint;
@@ -299,23 +301,7 @@ map_y = world_y × scale_y + offset_y
 
 这是一个**线性映射**（仿射变换的简化版）：先缩放，再平移。
 
----
-
-### 阵营翻转逻辑
-
-```cpp
-float wx = flip_team_ ? -worldPoint.x : worldPoint.x;
-float wy = flip_team_ ? -worldPoint.y : worldPoint.y;
-```
-
-当 `flip_team_ = true` 时，世界坐标被绕场地中心翻转 180°（取反）：
-
-* `world_x → -world_x`
-* `world_y → -world_y`
-
-这意味着红方和蓝方的基地位置在地图上互换，实现从蓝方视角看地图的效果。旋转中心是 `(0, 0)`，即场地中心，与 `offset_x/offset_y` 的对齐方式一致。
-
-假设：
+例如：
 
 * `worldPoint = (4, 7)`（米）
 * `scale_x = 100`, `scale_y = 100`（像素/米）
@@ -354,13 +340,13 @@ if (flip_team_) {
 }
 ```
 
-当 `flip_team_ = true` 时，不仅坐标通过 `worldtomap` 翻转了，底图本身也要旋转 180°，确保：
+当 `flip_team_ = true` 时，底图本身旋转 180°，确保：
 
-* 地图上的基地、地形等视觉元素与翻转后的坐标对齐
-* 红方和蓝方的基地位置在地图上互换
-* 文字标签保持正向可读（因为是在翻转后的坐标系上绘制的）
+* 地图上的基地、地形等视觉元素与目标点一起"翻转"
+* 红方和蓝方的基地位置在视觉上互换
+* 文字标签保持正向可读（因为是在旋转后的底图上绘制的）
 
-如果只翻转坐标而不旋转底图，会出现"圆点在对面，但底图还在原位"的错位现象。
+> 注意：这里**不**存在"坐标翻转"操作。`worldtomap()` 始终返回原始线性映射坐标，`drawMap()` 只是将整个底图旋转 180°。由于底图和目标点一起旋转，视觉上产生了"阵营互换"的效果。如果只做底图旋转而不旋转目标点（或反之），才会出现错位现象。
 
 ---
 
@@ -433,9 +419,9 @@ if (flip_team_) {
 
         if (!label.empty()) {
             cv::Point textPt(pt.x + 10, pt.y - 10);
-            cv::putText(frame, label, textPt, cv::FONT_HERSHEY_SIMPLEX, 0.5,
+            cv::putText(frame, label, textPt, cv::FONT_HERSHEY_SIMPLEX, 0.8,
                         cv::Scalar(255, 255, 255), 5, cv::LINE_AA);
-            cv::putText(frame, label, textPt, cv::FONT_HERSHEY_SIMPLEX, 0.5,
+            cv::putText(frame, label, textPt, cv::FONT_HERSHEY_SIMPLEX, 0.8,
                         drawColor, 2, cv::LINE_AA);
         }
     }

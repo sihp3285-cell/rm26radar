@@ -35,6 +35,7 @@ qt_display_node
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <std_msgs/msg/header.hpp>
+#include <std_srvs/srv/trigger.hpp>
 #include <opencv2/opencv.hpp>
 #include <yaml-cpp/yaml.h>
 #include <filesystem>
@@ -45,6 +46,7 @@ qt_display_node
 #include "tensorrt_detect_msgs/msg/detection_box.hpp"
 #include "ConfigManager.hpp"
 #include "posesolver.hpp"
+#include "robot_id.hpp"
 ```
 
 ---
@@ -58,6 +60,12 @@ ROS2 C++ 节点基础头文件。
 ### `#include <sensor_msgs/msg/image.hpp>` / `#include <std_msgs/msg/header.hpp>`
 
 这个节点本身不传输完整图像，但 `header` 会被继承。`std_msgs::msg::Header` 是 ROS2 所有消息的时间戳和坐标系载体。
+
+---
+
+### `#include <std_srvs/srv/trigger.hpp>`
+
+`/pose_node/reload_calibration` 服务的消息类型。
 
 ---
 
@@ -102,6 +110,12 @@ ROS2 C++ 节点基础头文件。
 * PnP（Perspective-n-Point）解算
 * 射线与地面/3D Mesh 的碰撞检测
 * 像素坐标 → 世界坐标的映射
+
+---
+
+### `#include "robot_id.hpp"`
+
+定义了队伍 ID（RED/BLUE/UNKNOWN）和机器人类别的枚举。在 `armor_callback` 中用于判断死亡装甲板的 `team_id` 赋值。
 
 ---
 
@@ -158,23 +172,23 @@ this->declare_parameter<std::string>("output_topic", "/world_targets");
 # 五、读取参数并打印
 
 ```cpp
-std::string config_dir = this->get_parameter("config_dir").as_string();
+config_dir_ = this->get_parameter("config_dir").as_string();
 input_topic_ = this->get_parameter("input_topic").as_string();
 output_topic_ = this->get_parameter("output_topic").as_string();
 
-RCLCPP_INFO(this->get_logger(), "配置目录: %s", config_dir.c_str());
+RCLCPP_INFO(this->get_logger(), "配置目录: %s", config_dir_.c_str());
 RCLCPP_INFO(this->get_logger(), "订阅话题: %s", input_topic_.c_str());
 RCLCPP_INFO(this->get_logger(), "发布话题: %s", output_topic_.c_str());
 ```
 
-日志打印三个关键配置，方便排查问题。
+日志打印三个关键配置，方便排查问题。注意 `config_dir` 被保存为成员变量 `config_dir_`，供后续 `reloadCalibration` 服务使用。
 
 ---
 
 # 六、初始化 Config 和 PoseSolver
 
 ```cpp
-cfg_ = std::make_unique<Config>(config_dir);
+cfg_ = std::make_unique<Config>(config_dir_);
 pose_solver_ = std::make_unique<PoseSolver>(cfg_->camera.cameraMatrix, cfg_->camera.distCoeffs);
 ```
 
@@ -202,49 +216,61 @@ pose_solver_ = std::make_unique<PoseSolver>(cfg_->camera.cameraMatrix, cfg_->cam
 # 七、加载外参（Extrinsic Parameters）
 
 ```cpp
-if (cfg_->calib.valid) {
-    pose_solver_->setExtrinsic(cfg_->calib.R, cfg_->calib.T);
-    RCLCPP_INFO(this->get_logger(), "成功从 Config 加载校准结果，已设置外参");
-} else {
-    // ... 尝试从 calib_result.yaml 加载
-}
+loadCalibrationAtStartup();
 ```
 
-这段代码展示了一个非常实用的**配置降级（Fallback）策略**。
+启动时调用 `loadCalibrationAtStartup()`，这段代码展示了一个非常实用的**配置降级（Fallback）策略**。
 
 ---
 
-## 7.1 第一优先级：Config 内存中的标定结果
-
-如果 `camera.yaml` 里已经包含了有效的 `R` 和 `T`，直接用它。
-
----
-
-## 7.2 第二优先级：calib_result.yaml 文件
+## 7.1 `loadCalibrationAtStartup()` 内部逻辑
 
 ```cpp
-std::filesystem::path configDir = std::filesystem::path(config_dir);
-std::string calibPath = (configDir / "calib_result.yaml").string();
-if (std::filesystem::exists(calibPath)) {
+void loadCalibrationAtStartup()
+{
+    if (cfg_->calib.valid) {
+        pose_solver_->setExtrinsic(cfg_->calib.R, cfg_->calib.T);
+        is_calibrated_ = true;
+        RCLCPP_INFO(this->get_logger(), "成功从 Config 加载校准结果，已设置外参");
+        return;
+    }
+
+    std::filesystem::path configDir = std::filesystem::path(config_dir_);
+    std::string calibPath = (configDir / "calib_result.yaml").string();
+    if (!std::filesystem::exists(calibPath)) {
+        RCLCPP_WARN(this->get_logger(), "未找到校准文件: %s", calibPath.c_str());
+        return;
+    }
+
     try {
         YAML::Node node = YAML::LoadFile(calibPath);
-        if (node["r"].IsSequence() && node["t"].IsSequence()) {
-            std::vector<double> r_data = node["r"].as<std::vector<double>>();
-            std::vector<double> t_data = node["t"].as<std::vector<double>>();
-            if (r_data.size() == 9 && t_data.size() == 3) {
-                cv::Mat R(3, 3, CV_64F);
-                cv::Mat T(3, 1, CV_64F);
-                for (int i = 0; i < 9; ++i) {
-                    R.at<double>(i / 3, i % 3) = r_data[i];
-                }
-                for (int i = 0; i < 3; ++i) {
-                    T.at<double>(i, 0) = t_data[i];
-                }
-                pose_solver_->setExtrinsic(R, T);
-                RCLCPP_INFO(...);
-            }
+        if (!node["r"].IsSequence() || !node["t"].IsSequence()) {
+            RCLCPP_WARN(this->get_logger(), "校准文件格式错误，缺少 r 或 t 数据");
+            return;
         }
-    } catch (...) { ... }
+
+        std::vector<double> r_data = node["r"].as<std::vector<double>>();
+        std::vector<double> t_data = node["t"].as<std::vector<double>>();
+        if (r_data.size() != 9 || t_data.size() != 3) {
+            RCLCPP_WARN(this->get_logger(), "校准文件数据维度不匹配");
+            return;
+        }
+
+        cv::Mat R(3, 3, CV_64F);
+        cv::Mat T(3, 1, CV_64F);
+        for (int i = 0; i < 9; ++i) {
+            R.at<double>(i / 3, i % 3) = r_data[i];
+        }
+        for (int i = 0; i < 3; ++i) {
+            T.at<double>(i, 0) = t_data[i];
+        }
+
+        pose_solver_->setExtrinsic(R, T);
+        is_calibrated_ = true;
+        RCLCPP_INFO(this->get_logger(), "成功从 %s 加载校准结果，已设置外参", calibPath.c_str());
+    } catch (const std::exception& e) {
+        RCLCPP_ERROR(this->get_logger(), "加载校准文件失败: %s", e.what());
+    }
 }
 ```
 
@@ -280,9 +306,9 @@ if (std::filesystem::exists(calibPath)) {
 if (!cfg_->camera.meshPath.empty()) {
     bool mesh_ok = pose_solver_->getRaycaster().loadingMesh(cfg_->camera.meshPath);
     if (mesh_ok) {
-        RCLCPP_INFO(this->get_logger(), "成功加载 3D 网格: %s", ...);
+        RCLCPP_INFO(this->get_logger(), "成功加载 3D 网格: %s", cfg_->camera.meshPath.c_str());
     } else {
-        RCLCPP_WARN(this->get_logger(), "加载 3D 网格失败...将使用平地 fallback");
+        RCLCPP_WARN(this->get_logger(), "加载 3D 网格失败: %s，将使用平地 fallback", cfg_->camera.meshPath.c_str());
     }
 } else {
     RCLCPP_WARN(this->get_logger(), "未配置 meshPath，将使用平地 fallback");
@@ -344,7 +370,7 @@ reload_service_ = this->create_service<std_srvs::srv::Trigger>(
 
 ---
 
-### Service：/pose_node/reload_calibration
+### Service：`/pose_node/reload_calibration`
 
 * 类型：`std_srvs::srv::Trigger`
 * 作用：运行时重新加载 `calib_result.yaml` 中的外参
@@ -365,7 +391,7 @@ bool is_calibrated_ = false;
 
 **启动时的加载逻辑**：
 
-1. 优先尝试 `cfg_->calib`（ConfigManager 从 `calib_result.yaml` 加载的内存配置）
+1. 优先尝试 `cfg_->calib`（ConfigManager 从内存配置加载的标定数据）
 2. 如果无效，再尝试直接读取 `configs/calib_result.yaml` 文件
 3. 任一方式成功，`is_calibrated_ = true`；否则保持 `false`
 
@@ -605,12 +631,15 @@ catch (const std::exception& e) {
 ```cpp
 std::unique_ptr<Config> cfg_;
 std::unique_ptr<PoseSolver> pose_solver_;
+bool is_calibrated_ = false;
 
+std::string config_dir_;
 std::string input_topic_;
 std::string output_topic_;
 
 rclcpp::Subscription<tensorrt_detect_msgs::msg::DetectionArray>::SharedPtr armor_sub_;
 rclcpp::Publisher<tensorrt_detect_msgs::msg::WorldTargetArray>::SharedPtr world_pub_;
+rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reload_service_;
 ```
 
 ---
@@ -624,6 +653,24 @@ rclcpp::Publisher<tensorrt_detect_msgs::msg::WorldTargetArray>::SharedPtr world_
 ### `pose_solver_`
 
 位姿解算器。持有相机模型、外参、射线碰撞器。是节点的核心算法对象。
+
+---
+
+### `is_calibrated_`
+
+标定状态标志。`true` 表示外参已就绪，可以正常解算世界坐标；`false` 表示未标定，回调会直接返回。
+
+---
+
+### `config_dir_`
+
+配置目录路径，保存为成员变量供 `reloadCalibration` 服务回调使用。
+
+---
+
+### `reload_service_`
+
+重载标定服务。必须作为成员变量长期保存，否则服务会被销毁。
 
 ---
 
