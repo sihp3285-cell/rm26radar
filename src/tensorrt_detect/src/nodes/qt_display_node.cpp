@@ -19,6 +19,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "tensorrt_detect_msgs/msg/detection_array.hpp"
+#include "tensorrt_detect_msgs/msg/map_tactics.hpp"
 
 class QtDisplayNode;
 
@@ -124,16 +125,43 @@ public:
             map_label_->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
     }
 
-    void updateStatus(double fps, double delay_ms, bool outpost_alive)
+    void updateStatus(double fps, double delay_ms, bool outpost_alive,
+                       bool engineer_on_island, bool opponent_attack, bool our_attack)
     {
         QString outpost_text = outpost_alive
             ? QStringLiteral("前哨站: 存活")
             : QStringLiteral("前哨站: 摧毁");
-        QString text = QString("FPS: %1  |  Delay: %2 ms  |  %3")
+
+        QStringList tactics;
+        if (engineer_on_island) tactics << "敌方工程上岛";
+        if (opponent_attack)    tactics << "敌方大攻";
+        if (our_attack)         tactics << "我方大攻";
+        QString tactics_text = tactics.isEmpty() ? QStringLiteral("战术: 正常") : tactics.join(" | ");
+
+        QString text = QString("FPS: %1  |  Delay: %2 ms  |  %3  |  %4")
                            .arg(fps, 0, 'f', 1)
                            .arg(delay_ms, 0, 'f', 2)
-                           .arg(outpost_text);
+                           .arg(outpost_text)
+                           .arg(tactics_text);
         status_label_->setText(text);
+
+        // 根据威胁程度改变状态栏背景色
+        if (opponent_attack || engineer_on_island) {
+            status_label_->setStyleSheet(
+                "color: #ff4444; background-color: #1a0505; font-size: 22px; "
+                "font-family: 'Microsoft YaHei', 'Consolas', monospace; "
+                "padding: 10px 16px; border-radius: 4px; font-weight: bold;");
+        } else if (our_attack) {
+            status_label_->setStyleSheet(
+                "color: #44ff44; background-color: #051a05; font-size: 22px; "
+                "font-family: 'Microsoft YaHei', 'Consolas', monospace; "
+                "padding: 10px 16px; border-radius: 4px; font-weight: bold;");
+        } else {
+            status_label_->setStyleSheet(
+                "color: #00ff88; background-color: #0d0d0d; font-size: 22px; "
+                "font-family: 'Microsoft YaHei', 'Consolas', monospace; "
+                "padding: 10px 16px; border-radius: 4px;");
+        }
     }
 
 protected:
@@ -249,6 +277,16 @@ public:
                 }
             });
 
+        // 订阅战术分析消息
+        tactics_sub_ = this->create_subscription<tensorrt_detect_msgs::msg::MapTactics>(
+            "/map_tactics", rclcpp::QoS(10),
+            [this](const tensorrt_detect_msgs::msg::MapTactics::SharedPtr msg) {
+                QMutexLocker lock(&mutex_);
+                latest_engineer_on_island_ = msg->engineer_on_island;
+                latest_opponent_attack_ = msg->opponent_attack;
+                latest_our_attack_ = msg->our_attack;
+            });
+
         // 发布阵营翻转话题
         team_flip_pub_ = this->create_publisher<std_msgs::msg::Bool>("/flip_team", rclcpp::QoS(1).reliable());
     }
@@ -262,7 +300,8 @@ public:
     }
 
     // 供 DisplayWindow 在主线程调用，安全取出最新数据
-    void fetchData(cv::Mat &frame, cv::Mat &map, double &fps, double &delay_ms, bool &outpost_alive)
+    void fetchData(cv::Mat &frame, cv::Mat &map, double &fps, double &delay_ms, bool &outpost_alive,
+                   bool &engineer_on_island, bool &opponent_attack, bool &our_attack)
     {
         QMutexLocker lock(&mutex_);
         frame = latest_frame_.clone();
@@ -270,6 +309,9 @@ public:
         fps = latest_fps_;
         delay_ms = latest_delay_ms_;
         outpost_alive = latest_outpost_alive_;
+        engineer_on_island = latest_engineer_on_island_;
+        opponent_attack = latest_opponent_attack_;
+        our_attack = latest_our_attack_;
     }
 
 private:
@@ -283,6 +325,7 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr video_sub_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr map_sub_;
     rclcpp::Subscription<tensorrt_detect_msgs::msg::DetectionArray>::SharedPtr armor_sub_;
+    rclcpp::Subscription<tensorrt_detect_msgs::msg::MapTactics>::SharedPtr tactics_sub_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr team_flip_pub_;
 
     cv::Mat latest_frame_;
@@ -290,6 +333,9 @@ private:
     double latest_fps_{0.0};
     double latest_delay_ms_{0.0};
     bool latest_outpost_alive_ = false;
+    bool latest_engineer_on_island_ = false;
+    bool latest_opponent_attack_ = false;
+    bool latest_our_attack_ = false;
 
     std::chrono::steady_clock::time_point last_time_ = std::chrono::steady_clock::now();
     double fps_{0.0};
@@ -302,10 +348,12 @@ void DisplayWindow::updateFromNode()
     cv::Mat frame, map;
     double fps = 0.0, delay = 0.0;
     bool outpost_alive = false;
-    node_->fetchData(frame, map, fps, delay, outpost_alive);
+    bool engineer_on_island = false, opponent_attack = false, our_attack = false;
+    node_->fetchData(frame, map, fps, delay, outpost_alive,
+                     engineer_on_island, opponent_attack, our_attack);
     updateVideo(frame);
     updateMap(map);
-    updateStatus(fps, delay, outpost_alive);
+    updateStatus(fps, delay, outpost_alive, engineer_on_island, opponent_attack, our_attack);
 }
 
 int main(int argc, char *argv[])

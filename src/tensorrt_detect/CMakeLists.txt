@@ -56,6 +56,7 @@ add_library(tensorrt_detect_core STATIC
     src/core/mouseback.cpp
     src/core/radarmap.cpp
     src/core/raycaster.cpp
+    src/core/map_analyzer.cpp
     src/visualization/draw.cpp
     src/visualization/ui.cpp
     src/config/ConfigManager.cpp
@@ -64,13 +65,12 @@ add_library(tensorrt_detect_core STATIC
 target_include_directories(tensorrt_detect_core PUBLIC ${COMMON_INCLUDE_DIRS})
 
 target_link_libraries(tensorrt_detect_core
-    PUBLIC
     ${OpenCV_LIBS}
     yaml-cpp::yaml-cpp
     curl
     tensorrt_interface
     Open3D::Open3D
-    PRIVATE
+    tensorrt_detect_msgs::tensorrt_detect_msgs__rosidl_generator_cpp
     pthread
     nvinfer
     nvinfer_plugin

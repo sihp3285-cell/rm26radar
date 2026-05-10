@@ -11,6 +11,8 @@
 #include "ConfigManager.hpp"
 #include "radarmap.hpp"
 #include "robot_id.hpp"
+#include "map_analyzer.hpp"
+#include "tensorrt_detect_msgs/msg/map_tactics.hpp"
 
 class MapNode : public rclcpp::Node
 {
@@ -22,12 +24,16 @@ public:
         this->declare_parameter<std::string>("input_topic", "/world_targets");
         this->declare_parameter<std::string>("output_image_topic", "/map_image");
         this->declare_parameter<std::string>("output_map_topic", "/radar_map");
+        this->declare_parameter<std::string>("output_tactics_topic", "/map_tactics");
+        this->declare_parameter<int>("out_team_id", robot_id::RED);
         this->declare_parameter<bool>("flip_team", false);
 
         std::string config_dir = this->get_parameter("config_dir").as_string();
         input_topic_ = this->get_parameter("input_topic").as_string();
         output_image_topic_ = this->get_parameter("output_image_topic").as_string();
         output_map_topic_ = this->get_parameter("output_map_topic").as_string();
+        output_tactics_topic_ = this->get_parameter("output_tactics_topic").as_string();
+        out_team_id_ = this->get_parameter("out_team_id").as_int();
         flip_team_ = this->get_parameter("flip_team").as_bool();
 
         RCLCPP_INFO(this->get_logger(), "配置目录: %s", config_dir.c_str());
@@ -49,9 +55,11 @@ public:
         } else {
             RCLCPP_INFO(this->get_logger(), "RadarMap 校准完成");
         }
+        analyzer_ = std::make_unique<MapAnalyzer>(out_team_id_);
 
         image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(output_image_topic_, rclcpp::QoS(1));
         radar_map_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::RadarMap>(output_map_topic_, 10);
+        tactics_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::MapTactics>(output_tactics_topic_, 10);
 
         flip_team_sub_ = this->create_subscription<std_msgs::msg::Bool>(
             "/flip_team", rclcpp::QoS(1),
@@ -142,7 +150,26 @@ private:
             radar_msg->header = msg->header;
             radar_map_pub_->publish(*radar_msg);
 
-            cv::Mat map_frame = radar_map_->drawMap(mappoints, cfg_->model.classNames);
+            analyzer_->evaluate(msg->targets);
+
+            auto tactics_msg = std::make_shared<tensorrt_detect_msgs::msg::MapTactics>();
+            tactics_msg->header = msg->header;
+            tactics_msg->engineer_on_island = analyzer_->engineer_on_island();
+            tactics_msg->opponent_attack = analyzer_->opponent_attack();
+            tactics_msg->our_attack = analyzer_->our_attack();
+            tactics_pub_->publish(*tactics_msg);
+
+            if (analyzer_->opponent_attack()) {
+                RCLCPP_WARN(this->get_logger(), "⚠️ 敌方大攻!");
+            }
+            if (analyzer_->our_attack()) {
+                RCLCPP_INFO(this->get_logger(), "✅ 我方大攻!");
+            }
+            if (analyzer_->engineer_on_island()) {
+                RCLCPP_WARN(this->get_logger(), "⚠️ 敌方工程上岛!");
+            }
+
+                       cv::Mat map_frame = radar_map_->drawMap(mappoints, cfg_->model.classNames);
 
             // ========== 前哨站叠加绘制（在 drawMap 之后） ==========
             const auto& outpostPts = cfg_->map.getOutpostMapPoints(flip_team_);
@@ -214,13 +241,17 @@ private:
     std::unique_ptr<RadarMap> radar_map_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr flip_team_sub_;
 
+    int out_team_id_ = robot_id::RED;
     std::string input_topic_;
     std::string output_image_topic_;
     std::string output_map_topic_;
+    std::string output_tactics_topic_;
 
     rclcpp::Subscription<tensorrt_detect_msgs::msg::WorldTargetArray>::SharedPtr target_sub_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_pub_;
     rclcpp::Publisher<tensorrt_detect_msgs::msg::RadarMap>::SharedPtr radar_map_pub_;
+    rclcpp::Publisher<tensorrt_detect_msgs::msg::MapTactics>::SharedPtr tactics_pub_;
+    std::unique_ptr<MapAnalyzer> analyzer_;
 };
 
 int main(int argc, char** argv)
