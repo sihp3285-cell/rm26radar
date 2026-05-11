@@ -9,6 +9,7 @@ class MapAnalyzer{
     public:
         explicit MapAnalyzer(int our_team_id = robot_id::RED);
         void evaluate(const std::vector<tensorrt_detect_msgs::msg::WorldTarget>& targets);
+        void setFlipTeam(bool flip);
         int engineer_on_island() const {return engineer_on_island_;}
         int opponent_attack() const {return opponent_attack_;}
         int our_attack() const {return our_attack_;}

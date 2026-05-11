@@ -68,6 +68,9 @@ public:
                 if (radar_map_) {
                     radar_map_->setFlipTeam(flip_team_);
                 }
+                if (analyzer_) {
+                    analyzer_->setFlipTeam(flip_team_);
+                }
                 RCLCPP_INFO(this->get_logger(), "阵营视角已切换为: %s", flip_team_ ? "蓝方" : "红方");
             });
 
@@ -241,7 +244,7 @@ private:
     std::unique_ptr<RadarMap> radar_map_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr flip_team_sub_;
 
-    int out_team_id_ = robot_id::RED;
+    int out_team_id_ = robot_id::BLUE;
     std::string input_topic_;
     std::string output_image_topic_;
     std::string output_map_topic_;

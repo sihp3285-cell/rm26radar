@@ -197,6 +197,7 @@ ament_target_dependencies(qt_display_node
     sensor_msgs
     cv_bridge
     std_msgs
+    std_srvs
     tensorrt_detect_msgs
 )
 

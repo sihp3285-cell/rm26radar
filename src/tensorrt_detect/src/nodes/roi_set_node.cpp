@@ -250,16 +250,23 @@ private:
 
     std::pair<bool, std::string> callCalibrationStart()
     {
-        auto client = this->create_client<std_srvs::srv::Trigger>("/calibration/start");
+        static int temp_counter = 0;
+        auto temp_node = std::make_shared<rclcpp::Node>("_roi_calib_" + std::to_string(++temp_counter));
+
+        auto client = temp_node->create_client<std_srvs::srv::Trigger>("/calibration/start");
         if (!client->wait_for_service(std::chrono::seconds(5))) {
             return {false, "calibrate_node 的 /calibration/start 服务未上线"};
         }
 
         auto request = std::make_shared<std_srvs::srv::Trigger::Request>();
         auto future = client->async_send_request(request);
-        auto status = future.wait_for(std::chrono::seconds(60));
 
-        if (status == std::future_status::timeout) {
+        rclcpp::executors::SingleThreadedExecutor temp_exec;
+        temp_exec.add_node(temp_node);
+        auto status = temp_exec.spin_until_future_complete(future, std::chrono::seconds(60));
+        temp_exec.remove_node(temp_node);
+
+        if (status != rclcpp::FutureReturnCode::SUCCESS) {
             return {false, "调用 /calibration/start 超时"};
         }
 
@@ -269,7 +276,10 @@ private:
 
     bool callVideoPause(bool pause)
     {
-        auto client = this->create_client<std_srvs::srv::SetBool>("/video_node/set_pause");
+        static int temp_counter = 0;
+        auto temp_node = std::make_shared<rclcpp::Node>("_roi_vp_" + std::to_string(++temp_counter));
+
+        auto client = temp_node->create_client<std_srvs::srv::SetBool>("/video_node/set_pause");
         if (!client->wait_for_service(std::chrono::seconds(3))) {
             RCLCPP_WARN(this->get_logger(),
                 "video_node 的 set_pause 服务未上线（等待 3 秒超时）");
@@ -279,9 +289,13 @@ private:
         auto request = std::make_shared<std_srvs::srv::SetBool::Request>();
         request->data = pause;
         auto future = client->async_send_request(request);
-        auto status = future.wait_for(std::chrono::seconds(2));
 
-        if (status == std::future_status::timeout) {
+        rclcpp::executors::SingleThreadedExecutor temp_exec;
+        temp_exec.add_node(temp_node);
+        auto status = temp_exec.spin_until_future_complete(future, std::chrono::seconds(2));
+        temp_exec.remove_node(temp_node);
+
+        if (status != rclcpp::FutureReturnCode::SUCCESS) {
             RCLCPP_WARN(this->get_logger(), "调用 video_node set_pause 超时");
             return false;
         }
@@ -298,7 +312,10 @@ private:
 
     bool callDetectNodeReload()
     {
-        auto client = this->create_client<std_srvs::srv::Trigger>("/detect_node/reload_roi");
+        static int temp_counter = 0;
+        auto temp_node = std::make_shared<rclcpp::Node>("_roi_reload_" + std::to_string(++temp_counter));
+
+        auto client = temp_node->create_client<std_srvs::srv::Trigger>("/detect_node/reload_roi");
         // detect_node 初始化 TensorRT 模型可能较慢，给予足够等待时间
         if (!client->wait_for_service(std::chrono::seconds(10))) {
             RCLCPP_ERROR(this->get_logger(),
@@ -308,9 +325,13 @@ private:
 
         auto request = std::make_shared<std_srvs::srv::Trigger::Request>();
         auto future = client->async_send_request(request);
-        auto status = future.wait_for(std::chrono::seconds(10));
 
-        if (status == std::future_status::timeout) {
+        rclcpp::executors::SingleThreadedExecutor temp_exec;
+        temp_exec.add_node(temp_node);
+        auto status = temp_exec.spin_until_future_complete(future, std::chrono::seconds(10));
+        temp_exec.remove_node(temp_node);
+
+        if (status != rclcpp::FutureReturnCode::SUCCESS) {
             RCLCPP_ERROR(this->get_logger(), "调用 detect_node reload_roi 超时");
             return false;
         }
@@ -379,7 +400,11 @@ int main(int argc, char** argv)
     if (!node) {
         return -1;
     }
-    rclcpp::spin(node);
+    // 使用多线程 Executor：ROI 框定流程在 service callback 中阻塞执行，
+    // 需要另一个线程来处理嵌套 service 调用（calibration/start, detect_node/reload_roi 等）的响应
+    rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 2);
+    executor.add_node(node);
+    executor.spin();
     rclcpp::shutdown();
     return 0;
 }

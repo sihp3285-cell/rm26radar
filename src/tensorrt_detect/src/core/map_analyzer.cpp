@@ -6,6 +6,17 @@ MapAnalyzer::MapAnalyzer(int our_team_id)
       opponent_team_((our_team_id == robot_id::RED) ? robot_id::BLUE : robot_id::RED)
 {}
 
+void MapAnalyzer::setFlipTeam(bool flip)
+{
+    if (flip) {
+        my_team_ = our_team_id_;
+        opponent_team_ = (our_team_id_ == robot_id::RED) ? robot_id::BLUE : robot_id::RED;
+    } else {
+        my_team_ = (our_team_id_ == robot_id::RED) ? robot_id::BLUE : robot_id::RED;
+        opponent_team_ = our_team_id_;
+    }
+}
+
 
 std::pair<float, float> MapAnalyzer::toFieldCoord(float world_x, float world_z)
 {

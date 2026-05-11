@@ -11,12 +11,18 @@
 #include <QMutex>
 #include <QMutexLocker>
 #include <QPushButton>
+#include <QMessageBox>
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <std_msgs/msg/bool.hpp>
+#include <std_srvs/srv/trigger.hpp>
 #include <cv_bridge/cv_bridge.hpp>
 #include <opencv2/opencv.hpp>
+
+#include <thread>
+#include <atomic>
+#include <string>
 
 #include "tensorrt_detect_msgs/msg/detection_array.hpp"
 #include "tensorrt_detect_msgs/msg/map_tactics.hpp"
@@ -39,13 +45,36 @@ public:
         main_layout->setContentsMargins(8, 8, 8, 8);
         main_layout->setSpacing(6);
 
-        // 顶部：状态栏（放大字体，醒目显示）
+        // 顶部状态栏：FPS/Delay + 前哨站 + 战术 同行显示
+        auto *top_bar_layout = new QHBoxLayout();
+        top_bar_layout->setSpacing(8);
+
         status_label_ = new QLabel("FPS: --  |  Delay: -- ms", this);
         status_label_->setStyleSheet(
-            "color: #00ff88; background-color: #0d0d0d; font-size: 25px; "
+            "color: #00ff88; background-color: #0d0d0d; font-size: 20px; "
             "font-family: 'Microsoft YaHei', 'Consolas', monospace; "
-            "padding: 10px 16px; border-radius: 4px;");
-        main_layout->addWidget(status_label_);
+            "padding: 8px 16px; border-radius: 4px;");
+        top_bar_layout->addWidget(status_label_, 2);
+
+        outpost_label_ = new QLabel("前哨站: --", this);
+        outpost_label_->setStyleSheet(
+            "color: #00ff88; background-color: #0d0d0d; font-size: 20px; "
+            "font-family: 'Microsoft YaHei', 'Consolas', monospace; "
+            "padding: 8px 16px; border-radius: 4px; font-weight: bold;");
+        outpost_label_->setAlignment(Qt::AlignCenter);
+        outpost_label_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        top_bar_layout->addWidget(outpost_label_, 1);
+
+        tactics_label_ = new QLabel("战术: --", this);
+        tactics_label_->setStyleSheet(
+            "color: #00ff88; background-color: #0d0d0d; font-size: 20px; "
+            "font-family: 'Microsoft YaHei', 'Consolas', monospace; "
+            "padding: 8px 16px; border-radius: 4px; font-weight: bold;");
+        tactics_label_->setAlignment(Qt::AlignCenter);
+        tactics_label_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        top_bar_layout->addWidget(tactics_label_, 2);
+
+        main_layout->addLayout(top_bar_layout);
 
         // 中部：视频 + 地图 水平排列
         auto *content_layout = new QHBoxLayout();
@@ -65,11 +94,60 @@ public:
 
         main_layout->addLayout(content_layout, 1);
 
-        // 底部：阵营切换按钮
+        // 底部：操作按钮栏
         auto *bottom_layout = new QHBoxLayout();
         bottom_layout->setSpacing(8);
         bottom_layout->addStretch(1);
 
+        // --- 重新标定按钮 ---
+        calibrate_button_ = new QPushButton("重新标定", this);
+        calibrate_button_->setCursor(Qt::PointingHandCursor);
+        calibrate_button_->setStyleSheet(
+            "QPushButton {"
+            "  background-color: #e67e22;"
+            "  color: white;"
+            "  font-size: 16px;"
+            "  font-weight: bold;"
+            "  font-family: 'Microsoft YaHei', 'Consolas', monospace;"
+            "  padding: 8px 24px;"
+            "  border-radius: 4px;"
+            "  border: none;"
+            "}"
+            "QPushButton:hover { background-color: #d35400; }"
+            "QPushButton:disabled { background-color: #666666; color: #999999; }");
+        connect(calibrate_button_, &QPushButton::clicked, this, [this]() {
+            if (calibrate_cb_) {
+                setCalibrateButtonsEnabled(false);
+                calibrate_cb_();
+            }
+        });
+        bottom_layout->addWidget(calibrate_button_);
+
+        // --- 重新框定 ROI 按钮 ---
+        roi_button_ = new QPushButton("重新框定 ROI", this);
+        roi_button_->setCursor(Qt::PointingHandCursor);
+        roi_button_->setStyleSheet(
+            "QPushButton {"
+            "  background-color: #8e44ad;"
+            "  color: white;"
+            "  font-size: 16px;"
+            "  font-weight: bold;"
+            "  font-family: 'Microsoft YaHei', 'Consolas', monospace;"
+            "  padding: 8px 24px;"
+            "  border-radius: 4px;"
+            "  border: none;"
+            "}"
+            "QPushButton:hover { background-color: #732d91; }"
+            "QPushButton:disabled { background-color: #666666; color: #999999; }");
+        connect(roi_button_, &QPushButton::clicked, this, [this]() {
+            if (roi_cb_) {
+                setCalibrateButtonsEnabled(false);
+                roi_cb_();
+            }
+        });
+        bottom_layout->addWidget(roi_button_);
+
+        // --- 阵营切换按钮 ---
         team_button_ = new QPushButton("蓝方视角", this);
         team_button_->setCheckable(true);
         team_button_->setCursor(Qt::PointingHandCursor);
@@ -96,6 +174,15 @@ public:
         bottom_layout->addWidget(team_button_);
 
         main_layout->addLayout(bottom_layout);
+
+        // 底部操作结果提示栏
+        op_status_label_ = new QLabel("", this);
+        op_status_label_->setStyleSheet(
+            "color: #aaaaaa; background-color: #0d0d0d; font-size: 14px; "
+            "font-family: 'Microsoft YaHei', 'Consolas', monospace; "
+            "padding: 4px 12px; border-radius: 4px;");
+        op_status_label_->setAlignment(Qt::AlignCenter);
+        main_layout->addWidget(op_status_label_);
 
         setWindowTitle("TensorRT Detect Qt Display");
         resize(1280, 720);
@@ -128,40 +215,77 @@ public:
     void updateStatus(double fps, double delay_ms, bool outpost_alive,
                        bool engineer_on_island, bool opponent_attack, bool our_attack)
     {
+        // 更新基础状态栏
+        QString text = QString("FPS: %1  |  Delay: %2 ms")
+                           .arg(fps, 0, 'f', 1)
+                           .arg(delay_ms, 0, 'f', 2);
+        status_label_->setText(text);
+
+        // 更新前哨站状态
         QString outpost_text = outpost_alive
             ? QStringLiteral("前哨站: 存活")
             : QStringLiteral("前哨站: 摧毁");
+        outpost_label_->setText(outpost_text);
 
+        if (outpost_alive) {
+            outpost_label_->setStyleSheet(
+                "color: #00ff88; background-color: #0d0d0d; font-size: 20px; "
+                "font-family: 'Microsoft YaHei', 'Consolas', monospace; "
+                "padding: 8px 16px; border-radius: 4px; font-weight: bold;");
+        } else {
+            outpost_label_->setStyleSheet(
+                "color: #ff4444; background-color: #1a0505; font-size: 20px; "
+                "font-family: 'Microsoft YaHei', 'Consolas', monospace; "
+                "padding: 8px 16px; border-radius: 4px; font-weight: bold;");
+        }
+
+        // 更新战术状态
         QStringList tactics;
         if (engineer_on_island) tactics << "敌方工程上岛";
         if (opponent_attack)    tactics << "敌方大攻";
         if (our_attack)         tactics << "我方大攻";
         QString tactics_text = tactics.isEmpty() ? QStringLiteral("战术: 正常") : tactics.join(" | ");
+        tactics_label_->setText(tactics_text);
 
-        QString text = QString("FPS: %1  |  Delay: %2 ms  |  %3  |  %4")
-                           .arg(fps, 0, 'f', 1)
-                           .arg(delay_ms, 0, 'f', 2)
-                           .arg(outpost_text)
-                           .arg(tactics_text);
-        status_label_->setText(text);
-
-        // 根据威胁程度改变状态栏背景色
+        // 根据威胁程度改变战术栏背景色
         if (opponent_attack || engineer_on_island) {
-            status_label_->setStyleSheet(
-                "color: #ff4444; background-color: #1a0505; font-size: 22px; "
+            tactics_label_->setStyleSheet(
+                "color: #ff4444; background-color: #1a0505; font-size: 20px; "
                 "font-family: 'Microsoft YaHei', 'Consolas', monospace; "
-                "padding: 10px 16px; border-radius: 4px; font-weight: bold;");
+                "padding: 8px 16px; border-radius: 4px; font-weight: bold;");
         } else if (our_attack) {
-            status_label_->setStyleSheet(
-                "color: #44ff44; background-color: #051a05; font-size: 22px; "
+            tactics_label_->setStyleSheet(
+                "color: #44ff44; background-color: #051a05; font-size: 20px; "
                 "font-family: 'Microsoft YaHei', 'Consolas', monospace; "
-                "padding: 10px 16px; border-radius: 4px; font-weight: bold;");
+                "padding: 8px 16px; border-radius: 4px; font-weight: bold;");
         } else {
-            status_label_->setStyleSheet(
-                "color: #00ff88; background-color: #0d0d0d; font-size: 22px; "
+            tactics_label_->setStyleSheet(
+                "color: #00ff88; background-color: #0d0d0d; font-size: 20px; "
                 "font-family: 'Microsoft YaHei', 'Consolas', monospace; "
-                "padding: 10px 16px; border-radius: 4px;");
+                "padding: 8px 16px; border-radius: 4px; font-weight: bold;");
         }
+    }
+
+    /**
+     * @brief 设置操作结果提示（线程安全，可通过 invokeMethod 跨线程调用）
+     */
+    void showOperationStatus(const QString &text, bool success)
+    {
+        QString style = success
+            ? "color: #00ff88; background-color: #0d1a0d; font-size: 14px; "
+              "font-family: 'Microsoft YaHei', 'Consolas', monospace; "
+              "padding: 4px 12px; border-radius: 4px;"
+            : "color: #ff4444; background-color: #1a0505; font-size: 14px; "
+              "font-family: 'Microsoft YaHei', 'Consolas', monospace; "
+              "padding: 4px 12px; border-radius: 4px;";
+        op_status_label_->setText(text);
+        op_status_label_->setStyleSheet(style);
+    }
+
+    void setCalibrateButtonsEnabled(bool enabled)
+    {
+        calibrate_button_->setEnabled(enabled);
+        roi_button_->setEnabled(enabled);
     }
 
 protected:
@@ -174,6 +298,8 @@ protected:
 public:
     void setCloseCallback(std::function<void()> cb) { close_cb_ = std::move(cb); }
     void setTeamFlipCallback(std::function<void(bool)> cb) { team_flip_cb_ = std::move(cb); }
+    void setCalibrateCallback(std::function<void()> cb) { calibrate_cb_ = std::move(cb); }
+    void setROICallback(std::function<void()> cb) { roi_cb_ = std::move(cb); }
 
 private:
     void updateFromNode();  // 实现在 QtDisplayNode 定义之后
@@ -181,10 +307,17 @@ private:
     QLabel *video_label_{nullptr};
     QLabel *map_label_{nullptr};
     QLabel *status_label_{nullptr};
+    QLabel *outpost_label_{nullptr};
+    QLabel *tactics_label_{nullptr};
+    QLabel *op_status_label_{nullptr};
     QPushButton *team_button_{nullptr};
+    QPushButton *calibrate_button_{nullptr};
+    QPushButton *roi_button_{nullptr};
     QtDisplayNode *node_{nullptr};
     std::function<void()> close_cb_;
     std::function<void(bool)> team_flip_cb_;
+    std::function<void()> calibrate_cb_;
+    std::function<void()> roi_cb_;
 
     static QPixmap cvMatToQPixmap(const cv::Mat &cv_img)
     {
@@ -299,6 +432,73 @@ public:
         RCLCPP_INFO(this->get_logger(), "发布阵营切换: %s", is_blue_team ? "红方视角" : "蓝方视角");
     }
 
+    /**
+     * @brief 异步调用 ROS2 service（在后台线程执行，不阻塞 Qt 主线程）
+     * @param service_name 服务名称
+     * @param operation_name 操作名称（用于日志和 UI 提示）
+     */
+    void callServiceAsync(const std::string &service_name, const std::string &operation_name)
+    {
+        if (is_operation_running_.exchange(true)) {
+            RCLCPP_WARN(this->get_logger(), "%s 正在进行中，请勿重复触发", operation_name.c_str());
+            return;
+        }
+
+        // 在后台线程执行 service 调用
+        std::thread([this, service_name, operation_name]() {
+            RCLCPP_INFO(this->get_logger(), "发起 %s 请求...", operation_name.c_str());
+
+            auto client = this->create_client<std_srvs::srv::Trigger>(service_name);
+
+            // 等待服务上线（最多 5 秒）
+            if (!client->wait_for_service(std::chrono::seconds(5))) {
+                RCLCPP_ERROR(this->get_logger(), "%s 服务未上线: %s", operation_name.c_str(), service_name.c_str());
+                QMetaObject::invokeMethod(window_, [this, operation_name]() {
+                    window_->showOperationStatus(
+                        QString::fromStdString(operation_name + " 失败: 服务未上线"), false);
+                    window_->setCalibrateButtonsEnabled(true);
+                });
+                is_operation_running_ = false;
+                return;
+            }
+
+            auto request = std::make_shared<std_srvs::srv::Trigger::Request>();
+
+            // 标定/框定可能需要较长时间（用户手动点选），给予 5 分钟超时
+            auto future = client->async_send_request(request);
+            auto status = future.wait_for(std::chrono::seconds(300));
+
+            if (status == std::future_status::timeout) {
+                RCLCPP_ERROR(this->get_logger(), "%s 调用超时", operation_name.c_str());
+                QMetaObject::invokeMethod(window_, [this, operation_name]() {
+                    window_->showOperationStatus(
+                        QString::fromStdString(operation_name + " 超时"), false);
+                    window_->setCalibrateButtonsEnabled(true);
+                });
+                is_operation_running_ = false;
+                return;
+            }
+
+            auto result = future.get();
+            bool success = result->success;
+            std::string msg = result->message;
+
+            RCLCPP_INFO(this->get_logger(), "%s 结果: %s - %s",
+                        operation_name.c_str(), success ? "成功" : "失败", msg.c_str());
+
+            // 回到 Qt 主线程更新 UI
+            QMetaObject::invokeMethod(window_, [this, operation_name, success, msg]() {
+                QString status_text = success
+                    ? QString::fromStdString(operation_name + " 成功: " + msg)
+                    : QString::fromStdString(operation_name + " 失败: " + msg);
+                window_->showOperationStatus(status_text, success);
+                window_->setCalibrateButtonsEnabled(true);
+            });
+
+            is_operation_running_ = false;
+        }).detach();
+    }
+
     // 供 DisplayWindow 在主线程调用，安全取出最新数据
     void fetchData(cv::Mat &frame, cv::Mat &map, double &fps, double &delay_ms, bool &outpost_alive,
                    bool &engineer_on_island, bool &opponent_attack, bool &our_attack)
@@ -339,6 +539,8 @@ private:
 
     std::chrono::steady_clock::time_point last_time_ = std::chrono::steady_clock::now();
     double fps_{0.0};
+
+    std::atomic<bool> is_operation_running_{false};
 };
 
 // DisplayWindow 的刷新实现：从节点取数据并更新 UI
@@ -376,6 +578,16 @@ int main(int argc, char *argv[])
     });
     window.setTeamFlipCallback([node](bool is_blue_team) {
         node->publishTeamFlip(is_blue_team);
+    });
+
+    // 重新标定按钮 → 调用 /calibration/start 服务
+    window.setCalibrateCallback([node]() {
+        node->callServiceAsync("/calibration/start", "相机标定");
+    });
+
+    // 重新框定 ROI 按钮 → 调用 /roi_set/start 服务
+    window.setROICallback([node]() {
+        node->callServiceAsync("/roi_set/start", "ROI 框定");
     });
 
     // Qt 定时器在主线程驱动 UI 刷新（30 FPS）

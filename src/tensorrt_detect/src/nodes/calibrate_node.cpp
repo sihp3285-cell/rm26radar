@@ -330,7 +330,10 @@ private:
 
     bool callVideoPause(bool pause)
     {
-        auto client = this->create_client<std_srvs::srv::SetBool>("/video_node/set_pause");
+        static int temp_counter = 0;
+        auto temp_node = std::make_shared<rclcpp::Node>("_calib_vp_" + std::to_string(++temp_counter));
+
+        auto client = temp_node->create_client<std_srvs::srv::SetBool>("/video_node/set_pause");
         if (!client->wait_for_service(std::chrono::seconds(3))) {
             RCLCPP_WARN(this->get_logger(),
                 "video_node 的 set_pause 服务未上线（等待 3 秒超时）");
@@ -340,9 +343,13 @@ private:
         auto request = std::make_shared<std_srvs::srv::SetBool::Request>();
         request->data = pause;
         auto future = client->async_send_request(request);
-        auto status = future.wait_for(std::chrono::seconds(2));
 
-        if (status == std::future_status::timeout) {
+        rclcpp::executors::SingleThreadedExecutor temp_exec;
+        temp_exec.add_node(temp_node);
+        auto status = temp_exec.spin_until_future_complete(future, std::chrono::seconds(2));
+        temp_exec.remove_node(temp_node);
+
+        if (status != rclcpp::FutureReturnCode::SUCCESS) {
             RCLCPP_WARN(this->get_logger(), "调用 video_node set_pause 超时");
             return false;
         }
@@ -359,7 +366,10 @@ private:
 
     bool callPoseNodeReload()
     {
-        auto client = this->create_client<std_srvs::srv::Trigger>("/pose_node/reload_calibration");
+        static int temp_counter = 0;
+        auto temp_node = std::make_shared<rclcpp::Node>("_calib_reload_" + std::to_string(++temp_counter));
+
+        auto client = temp_node->create_client<std_srvs::srv::Trigger>("/pose_node/reload_calibration");
         if (!client->wait_for_service(std::chrono::seconds(3))) {
             RCLCPP_ERROR(this->get_logger(),
                 "pose_node 的 reload 服务未上线（等待 3 秒超时）");
@@ -368,9 +378,13 @@ private:
 
         auto request = std::make_shared<std_srvs::srv::Trigger::Request>();
         auto future = client->async_send_request(request);
-        auto status = future.wait_for(std::chrono::seconds(5));
 
-        if (status == std::future_status::timeout) {
+        rclcpp::executors::SingleThreadedExecutor temp_exec;
+        temp_exec.add_node(temp_node);
+        auto status = temp_exec.spin_until_future_complete(future, std::chrono::seconds(5));
+        temp_exec.remove_node(temp_node);
+
+        if (status != rclcpp::FutureReturnCode::SUCCESS) {
             RCLCPP_ERROR(this->get_logger(), "调用 pose_node reload 超时");
             return false;
         }
@@ -409,8 +423,11 @@ int main(int argc, char** argv)
     if (!node) {
         return -1;
     }
-    // 使用单线程 Executor 即可，图像接收在 doCalibration 内部的临时 Executor 中完成
-    rclcpp::spin(node);
+    // 使用多线程 Executor：标定流程在 service callback 中阻塞执行，
+    // 需要另一个线程来处理 pose_node reload 等嵌套 service 调用的响应
+    rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 2);
+    executor.add_node(node);
+    executor.spin();
     rclcpp::shutdown();
     return 0;
 }
