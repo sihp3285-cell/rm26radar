@@ -241,19 +241,20 @@ public:
 
         // 更新战术状态
         QStringList tactics;
-        if (engineer_on_island) tactics << "敌方工程上岛";
+        if (engineer_on_island==1) tactics << "我方工程上岛";
+        if (engineer_on_island==2) tactics << "敌方工程上岛";
         if (opponent_attack)    tactics << "敌方大攻";
         if (our_attack)         tactics << "我方大攻";
         QString tactics_text = tactics.isEmpty() ? QStringLiteral("战术: 正常") : tactics.join(" | ");
         tactics_label_->setText(tactics_text);
 
         // 根据威胁程度改变战术栏背景色
-        if (opponent_attack || engineer_on_island) {
+        if (opponent_attack || engineer_on_island == 2) {
             tactics_label_->setStyleSheet(
                 "color: #ff4444; background-color: #1a0505; font-size: 20px; "
                 "font-family: 'Microsoft YaHei', 'Consolas', monospace; "
                 "padding: 8px 16px; border-radius: 4px; font-weight: bold;");
-        } else if (our_attack) {
+        } else if (our_attack || engineer_on_island == 1) {
             tactics_label_->setStyleSheet(
                 "color: #44ff44; background-color: #051a05; font-size: 20px; "
                 "font-family: 'Microsoft YaHei', 'Consolas', monospace; "

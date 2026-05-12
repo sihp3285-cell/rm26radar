@@ -51,8 +51,10 @@ std::vector<cv::Point2f> MouseBack::getPoints(const cv::Mat& frame)
             break;
         }
         if (key == ' ') {
-            std::cout << "撤销上一点！" << std::endl;
-            points.pop_back();
+            if (!points.empty()) {
+                points.pop_back();
+                std::cout << "撤销上一点，剩余点数：" << points.size() << std::endl;
+            }
             continue;
         }
     }

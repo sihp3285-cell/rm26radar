@@ -46,16 +46,22 @@ void MapAnalyzer::evaluate(const std::vector<tensorrt_detect_msgs::msg::WorldTar
             float dist_from_opponent = (opponent_team_ == robot_id::RED) ? dist_red : dist_blue;
             float dist_from_our = (my_team_ == robot_id::RED) ? dist_red : dist_blue;
 
-            if(target.team_id == opponent_team_ && target.class_id == robot_id::R2){
-            if (dist_from_opponent >= 10.0f && dist_from_opponent <= 14.0f &&
+            if(target.team_id == my_team_ && target.class_id == robot_id::R2){
+            if (dist_from_our >= 10.0f && dist_from_our <= 16.0f &&
                 fy >= 6.0f && fy <= 9.0f) {
                 engineer_on_island_ = 1;
             }
-           }
+            else if(dist_from_opponent >= 10.0f && dist_from_opponent <= 16.0f &&
+            fy >= 6.0f && fy <= 9.0f){
+                engineer_on_island_ = 2;
+            }
+            else{
+                engineer_on_island_ = 0;
+            }
 
             if (target.team_id == opponent_team_ && 
            (target.class_id == robot_id::R2 || target.class_id == robot_id::R3 || target.class_id == robot_id::R4)){
-            if (dist_from_opponent > 10.0f) {
+            if (dist_from_opponent > 18.0f) {
                 opponent_attack_count++;
             }
         }
@@ -73,4 +79,5 @@ void MapAnalyzer::evaluate(const std::vector<tensorrt_detect_msgs::msg::WorldTar
     if (our_attack_count >= 2) {
         our_attack_ = 1;
     }
+  }
 }

@@ -177,6 +177,7 @@ private:
 
         RCLCPP_INFO(this->get_logger(), "成功捕获图像，分辨率: %dx%d",
                     captured_frame.cols, captured_frame.rows);
+        RCLCPP_INFO(this->get_logger(), "操作提示: 左键选点, 空格=撤销上一点, Q=取消框定");
 
         // ========== 3. 暂停视频 ==========
         struct VideoPauseGuard {

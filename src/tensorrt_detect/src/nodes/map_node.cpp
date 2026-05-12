@@ -168,9 +168,14 @@ private:
             if (analyzer_->our_attack()) {
                 RCLCPP_INFO(this->get_logger(), "✅ 我方大攻!");
             }
-            if (analyzer_->engineer_on_island()) {
+            if (analyzer_->engineer_on_island() == 1) {
+                RCLCPP_WARN(this->get_logger(), "⚠️ 我方工程上岛!");
+            }
+            if (analyzer_->engineer_on_island() == 2) {
                 RCLCPP_WARN(this->get_logger(), "⚠️ 敌方工程上岛!");
             }
+
+
 
                        cv::Mat map_frame = radar_map_->drawMap(mappoints, cfg_->model.classNames);
 
