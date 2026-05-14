@@ -213,7 +213,7 @@ public:
     }
 
     void updateStatus(double fps, double delay_ms, bool outpost_alive,
-                       bool engineer_on_island, bool opponent_attack, bool our_attack)
+                       bool engineer_on_island, bool opponent_attack, bool our_attack, bool opponent_near_fortress)
     {
         // 更新基础状态栏
         QString text = QString("FPS: %1  |  Delay: %2 ms")
@@ -245,11 +245,13 @@ public:
         if (engineer_on_island==2) tactics << "敌方工程上岛";
         if (opponent_attack)    tactics << "敌方大攻";
         if (our_attack)         tactics << "我方大攻";
+        if (opponent_near_fortress == 1) tactics << "敌方接近堡垒!";
+
         QString tactics_text = tactics.isEmpty() ? QStringLiteral("战术: 正常") : tactics.join(" | ");
         tactics_label_->setText(tactics_text);
 
         // 根据威胁程度改变战术栏背景色
-        if (opponent_attack || engineer_on_island == 2) {
+        if (opponent_attack || engineer_on_island == 2 || opponent_near_fortress == 1) {
             tactics_label_->setStyleSheet(
                 "color: #ff4444; background-color: #1a0505; font-size: 20px; "
                 "font-family: 'Microsoft YaHei', 'Consolas', monospace; "
@@ -419,6 +421,7 @@ public:
                 latest_engineer_on_island_ = msg->engineer_on_island;
                 latest_opponent_attack_ = msg->opponent_attack;
                 latest_our_attack_ = msg->our_attack;
+                latest_opponent_near_fortress_ = msg->opponent_near_fortress;
             });
 
         // 发布阵营翻转话题
@@ -502,7 +505,7 @@ public:
 
     // 供 DisplayWindow 在主线程调用，安全取出最新数据
     void fetchData(cv::Mat &frame, cv::Mat &map, double &fps, double &delay_ms, bool &outpost_alive,
-                   bool &engineer_on_island, bool &opponent_attack, bool &our_attack)
+                   bool &engineer_on_island, bool &opponent_attack, bool &our_attack, bool &opponent_near_fortress)
     {
         QMutexLocker lock(&mutex_);
         frame = latest_frame_.clone();
@@ -513,6 +516,7 @@ public:
         engineer_on_island = latest_engineer_on_island_;
         opponent_attack = latest_opponent_attack_;
         our_attack = latest_our_attack_;
+        opponent_near_fortress = latest_opponent_near_fortress_;
     }
 
 private:
@@ -537,6 +541,7 @@ private:
     bool latest_engineer_on_island_ = false;
     bool latest_opponent_attack_ = false;
     bool latest_our_attack_ = false;
+    bool latest_opponent_near_fortress_ = false;
 
     std::chrono::steady_clock::time_point last_time_ = std::chrono::steady_clock::now();
     double fps_{0.0};
@@ -551,12 +556,12 @@ void DisplayWindow::updateFromNode()
     cv::Mat frame, map;
     double fps = 0.0, delay = 0.0;
     bool outpost_alive = false;
-    bool engineer_on_island = false, opponent_attack = false, our_attack = false;
+    bool engineer_on_island = false, opponent_attack = false, our_attack = false, opponent_near_fortress = false;
     node_->fetchData(frame, map, fps, delay, outpost_alive,
-                     engineer_on_island, opponent_attack, our_attack);
+                     engineer_on_island, opponent_attack, our_attack, opponent_near_fortress);
     updateVideo(frame);
     updateMap(map);
-    updateStatus(fps, delay, outpost_alive, engineer_on_island, opponent_attack, our_attack);
+    updateStatus(fps, delay, outpost_alive, engineer_on_island, opponent_attack, our_attack, opponent_near_fortress);
 }
 
 int main(int argc, char *argv[])

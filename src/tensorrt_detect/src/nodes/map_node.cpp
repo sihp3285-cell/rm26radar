@@ -160,6 +160,8 @@ private:
             tactics_msg->engineer_on_island = analyzer_->engineer_on_island();
             tactics_msg->opponent_attack = analyzer_->opponent_attack();
             tactics_msg->our_attack = analyzer_->our_attack();
+            tactics_msg->opponent_near_fortress = analyzer_->opponent_near_fortress();
+
             tactics_pub_->publish(*tactics_msg);
 
             if (analyzer_->opponent_attack()) {
@@ -173,6 +175,9 @@ private:
             }
             if (analyzer_->engineer_on_island() == 2) {
                 RCLCPP_WARN(this->get_logger(), "⚠️ 敌方工程上岛!");
+            }
+            if (analyzer_->opponent_near_fortress() == 1) {
+                RCLCPP_WARN(this->get_logger(), "⚠️ 敌方接近堡垒!");
             }
 
 
