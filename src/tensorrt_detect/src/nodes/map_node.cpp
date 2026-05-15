@@ -27,6 +27,7 @@ public:
         this->declare_parameter<std::string>("output_tactics_topic", "/map_tactics");
         this->declare_parameter<int>("out_team_id", robot_id::RED);
         this->declare_parameter<bool>("flip_team", false);
+        this->declare_parameter<bool>("field_x_flip", false);
 
         std::string config_dir = this->get_parameter("config_dir").as_string();
         input_topic_ = this->get_parameter("input_topic").as_string();
@@ -35,6 +36,7 @@ public:
         output_tactics_topic_ = this->get_parameter("output_tactics_topic").as_string();
         out_team_id_ = this->get_parameter("out_team_id").as_int();
         flip_team_ = this->get_parameter("flip_team").as_bool();
+        bool field_x_flip = this->get_parameter("field_x_flip").as_bool();
 
         RCLCPP_INFO(this->get_logger(), "配置目录: %s", config_dir.c_str());
         RCLCPP_INFO(this->get_logger(), "订阅话题: %s", input_topic_.c_str());
@@ -56,6 +58,9 @@ public:
             RCLCPP_INFO(this->get_logger(), "RadarMap 校准完成");
         }
         analyzer_ = std::make_unique<MapAnalyzer>(out_team_id_);
+        analyzer_->setTeamByFlip(flip_team_);
+        analyzer_->setFieldXFlip(!flip_team_);
+        RCLCPP_INFO(this->get_logger(), "初始阵营: %s", flip_team_ ? "红方" : "蓝方");
 
         image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(output_image_topic_, rclcpp::QoS(1));
         radar_map_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::RadarMap>(output_map_topic_, 10);
@@ -69,9 +74,10 @@ public:
                     radar_map_->setFlipTeam(flip_team_);
                 }
                 if (analyzer_) {
-                    analyzer_->setFlipTeam(flip_team_);
+                    analyzer_->setTeamByFlip(flip_team_);
+                    analyzer_->setFieldXFlip(!flip_team_);
                 }
-                RCLCPP_INFO(this->get_logger(), "阵营视角已切换为: %s", flip_team_ ? "蓝方" : "红方");
+                RCLCPP_INFO(this->get_logger(), "阵营视角已切换为: %s", flip_team_ ? "红方" : "蓝方");
             });
 
         target_sub_ = this->create_subscription<tensorrt_detect_msgs::msg::WorldTargetArray>(
