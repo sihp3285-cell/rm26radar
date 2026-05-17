@@ -13,7 +13,7 @@
 #include "ConfigManager.hpp"
 #include "posesolver.hpp"
 #include "robot_id.hpp"
-
+#include "tracker.hpp"
 
 class PoseNode : public rclcpp::Node
 {
@@ -181,41 +181,53 @@ private:
         }
 
         try {
+            // ---- 1. 解算所有检测的世界坐标，构建观测输入 ----
+            std::vector<WorldMeasurement> meas;
+            meas.reserve(msg->detections.size());
+
+            for (const auto& det : msg->detections) {
+                cv::Rect car_box(det.car_x, det.car_y, det.car_width, det.car_height);
+                cv::Point2f world_pos;
+                if (car_box.width > 0 && car_box.height > 0) {
+                    world_pos = pose_solver_->middletoworld(car_box);
+                } else {
+                    cv::Rect armor_box(det.x, det.y, det.width, det.height);
+                    world_pos = pose_solver_->middletoworld(armor_box);
+                }
+
+                WorldMeasurement m;
+                m.class_id = det.idx;
+                m.team_id  = det.is_dead ? robot_id::UNKNOWN : det.armor_color;
+                m.score    = det.confidence;
+                m.is_dead  = det.is_dead;
+                m.box      = cv::Rect(det.x, det.y, det.width, det.height);
+                m.world    = world_pos;  // x=world_x, y=world_z
+                meas.push_back(m);
+            }
+
+            // ---- 2. Tracker 更新（Kalman 平滑 + 数据关联）----
+            tracker_.update(meas);
+            auto outputs = tracker_.get_outputs();
+
+            // ---- 3. 将跟踪结果转回 WorldTargetArray 发布 ----
             auto world_msg = std::make_shared<tensorrt_detect_msgs::msg::WorldTargetArray>();
             world_msg->header = msg->header;
 
-            for (const auto& det : msg->detections) {
+            for (const auto& out : outputs) {
                 tensorrt_detect_msgs::msg::WorldTarget target;
-                target.idx = det.idx;
-                target.class_id = det.idx;
-                target.is_dead = det.is_dead;
-                target.score = det.confidence;
-                target.valid = true;
-                target.bbox_x = det.x;
-                target.bbox_y = det.y;
-                target.bbox_w = det.width;
-                target.bbox_h = det.height;
-
-                if (det.is_dead) {
-                    target.team_id = robot_id::UNKNOWN;
-                } else {
-                    target.team_id = det.armor_color;
-                }
-
-                cv::Rect car_box(det.car_x, det.car_y, det.car_width, det.car_height);
-                if (car_box.width > 0 && car_box.height > 0) {
-                    cv::Point2f world_pos = pose_solver_->middletoworld(car_box);
-                    target.world_x = world_pos.x;
-                    target.world_y = 0.0f;
-                    target.world_z = world_pos.y;
-                } else {
-                    cv::Rect armor_box(det.x, det.y, det.width, det.height);
-                    cv::Point2f world_pos = pose_solver_->middletoworld(armor_box);
-                    target.world_x = world_pos.x;
-                    target.world_y = 0.0f;
-                    target.world_z = world_pos.y;
-                }
-
+                target.idx       = out.class_id;
+                target.class_id  = out.class_id;
+                target.team_id   = out.team_id;
+                target.is_dead   = out.is_dead;
+                target.score     = out.score;
+                target.valid     = true;
+                target.bbox_x    = out.smoothed_box.x;
+                target.bbox_y    = out.smoothed_box.y;
+                target.bbox_w    = out.smoothed_box.width;
+                target.bbox_h    = out.smoothed_box.height;
+                target.world_x   = out.smoothed_world.x;
+                target.world_y   = 0.0f;
+                target.world_z   = out.smoothed_world.y;
                 world_msg->targets.push_back(target);
             }
 
@@ -225,7 +237,7 @@ private:
                 this->get_logger(),
                 *this->get_clock(),
                 10000,
-                "接收到 %zu 个检测，发布了 %zu 个世界坐标目标",
+                "接收到 %zu 个检测，跟踪输出 %zu 个世界坐标目标",
                 msg->detections.size(), world_msg->targets.size());
         }
         catch (const std::exception& e) {
@@ -235,6 +247,7 @@ private:
 
     std::unique_ptr<Config> cfg_;
     std::unique_ptr<PoseSolver> pose_solver_;
+    Tracker tracker_;
     bool is_calibrated_ = false;
 
     std::string config_dir_;

@@ -51,7 +51,7 @@ cv::Mat RadarMap::drawMap(const std::vector<Mappoint>& mappoints,const std::vect
     }
     for (const auto& mappoint : mappoints)
     {
-        cv::Point pt(static_cast<int>(mappoint.map_point.x), 
+        cv::Point pt(static_cast<int>(mappoint.map_point.x),
                      static_cast<int>(mappoint.map_point.y));
         cv::Scalar drawColor;
         if (mappoint.isDead) {
@@ -63,6 +63,8 @@ cv::Mat RadarMap::drawMap(const std::vector<Mappoint>& mappoints,const std::vect
         } else {
             drawColor = cv::Scalar(0, 255, 255);
         }
+
+        // 统一绘制样式（白边 + 纯色圆点）
         int baseRadius = 6;
         int strokeSize = 2;
         cv::circle(frame, pt, baseRadius + strokeSize, cv::Scalar(255, 255, 255), -1, cv::LINE_AA);

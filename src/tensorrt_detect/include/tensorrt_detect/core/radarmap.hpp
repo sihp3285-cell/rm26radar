@@ -4,6 +4,8 @@
 #include <opencv2/opencv.hpp>
 #include <string>
 #include <vector>
+#include "tracker_types.hpp"
+
 struct Mappoint
 {
     cv::Point2f map_point;
@@ -11,6 +13,7 @@ struct Mappoint
     int classIdx;
     int armorColor;
     bool isDead = false;
+    TrackState track_state = TrackState::ACTIVE;  // 用于区分平滑/预测绘制样式
 };
 class RadarMap
 {

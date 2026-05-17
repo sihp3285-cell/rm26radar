@@ -57,6 +57,9 @@ add_library(tensorrt_detect_core STATIC
     src/core/radarmap.cpp
     src/core/raycaster.cpp
     src/core/map_analyzer.cpp
+    src/core/kalman.cpp
+    src/core/tracker.cpp
+    src/core/hungarian.cpp
     src/visualization/draw.cpp
     src/visualization/ui.cpp
     src/config/ConfigManager.cpp

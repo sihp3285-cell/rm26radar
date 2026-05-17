@@ -13,6 +13,7 @@
 #include "robot_id.hpp"
 #include "map_analyzer.hpp"
 #include "tensorrt_detect_msgs/msg/map_tactics.hpp"
+#include "kalman.hpp"
 
 class MapNode : public rclcpp::Node
 {
@@ -92,7 +93,6 @@ private:
     void target_callback(const tensorrt_detect_msgs::msg::WorldTargetArray::SharedPtr msg)
     {
         try {
-            std::vector<Mappoint> mappoints;
             auto radar_msg = std::make_shared<tensorrt_detect_msgs::msg::RadarMap>();
 
             // 初始化数组为 0
@@ -114,44 +114,107 @@ private:
                 }
             }
 
-            for (const auto& target : msg->targets) {
-                if (!target.valid) {
-                    continue;
-                }
-                // 过滤掉车辆检测和前哨站，它们不进入动态目标列表
-                if (target.class_id == robot_id::CAR || target.class_id == robot_id::OUTPOST) {
-                    continue;
+            // ---- 1. 所有现有 map_track 先 predict ----
+            for (auto& track : map_tracks_) {
+                if (track->state == TrackState::DEAD) continue;
+                auto pred = track->kf.predict();
+                track->smoothed_point = cv::Point2f(pred[0], pred[1]);
+            }
+
+            // ---- 2. 按 (team_id, class_id) 贪心关联并 update ----
+            std::vector<bool> target_matched(msg->targets.size(), false);
+
+            for (auto& track : map_tracks_) {
+                if (track->state == TrackState::DEAD) continue;
+
+                int best_idx = -1;
+                float best_dist = 1e9f;
+
+                for (size_t i = 0; i < msg->targets.size(); ++i) {
+                    if (target_matched[i]) continue;
+                    const auto& t = msg->targets[i];
+                    if (!t.valid) continue;
+                    if (t.team_id != track->team_id || t.class_id != track->class_id) continue;
+
+                    cv::Point2f raw_pt = radar_map_->worldtomap(cv::Point2f(t.world_x, t.world_z));
+                    float d = std::hypot(raw_pt.x - track->smoothed_point.x,
+                                         raw_pt.y - track->smoothed_point.y);
+                    if (d < best_dist) {
+                        best_dist = d;
+                        best_idx = static_cast<int>(i);
+                    }
                 }
 
-                // pose_node 中 world_x 为场地 X（宽），world_z 为场地 Z（长）
-                cv::Point2f world_pt(target.world_x, target.world_z);
-                cv::Point2f map_pt = radar_map_->worldtomap(world_pt);
+                if (best_idx >= 0) {
+                    const auto& t = msg->targets[best_idx];
+                    cv::Point2f raw_pt = radar_map_->worldtomap(cv::Point2f(t.world_x, t.world_z));
+                    auto upd = track->kf.update({raw_pt.x, raw_pt.y});
+                    track->smoothed_point = cv::Point2f(upd[0], upd[1]);
+                    track->hit_count++;
+                    track->miss_count = 0;
+                    track->state = TrackState::ACTIVE;
+                    track->is_dead = t.is_dead;
+                    target_matched[best_idx] = true;
+                } else {
+                    track->miss_count++;
+                    if (track->miss_count > map_max_miss_) {
+                        track->state = TrackState::DEAD;
+                    } else {
+                        track->state = TrackState::LOST;
+                    }
+                }
+            }
+
+            // ---- 3. 未匹配的 target 初始化新 map_track ----
+            for (size_t i = 0; i < msg->targets.size(); ++i) {
+                if (target_matched[i]) continue;
+                const auto& t = msg->targets[i];
+                if (!t.valid) continue;
+                if (t.class_id == robot_id::CAR || t.class_id == robot_id::OUTPOST) continue;
+
+                cv::Point2f raw_pt = radar_map_->worldtomap(cv::Point2f(t.world_x, t.world_z));
+                auto track = std::make_unique<MapTrack>();
+                track->team_id = t.team_id;
+                track->class_id = t.class_id;
+                track->kf.reset({raw_pt.x, raw_pt.y});
+                track->smoothed_point = raw_pt;
+                track->hit_count = 1;
+                track->miss_count = 0;
+                track->state = TrackState::ACTIVE;
+                track->is_dead = t.is_dead;
+                map_tracks_.push_back(std::move(track));
+            }
+
+            // ---- 4. 用平滑后的坐标构建 Mappoints 并填充 RadarMap ----
+            std::vector<Mappoint> mappoints;
+            for (const auto& track : map_tracks_) {
+                if (track->state == TrackState::DEAD) continue;
 
                 Mappoint mp;
-                mp.map_point = map_pt;
-                mp.label = "";
-                mp.classIdx = target.class_id;
-                mp.armorColor = target.team_id;
-                mp.isDead = target.is_dead;
+                mp.map_point = track->smoothed_point;
+                mp.classIdx = track->class_id;
+                mp.armorColor = track->team_id;
+                mp.isDead = track->is_dead;
+                mp.track_state = track->state;
+                if (track->class_id >= 0 && track->class_id < static_cast<int>(cfg_->model.classNames.size())) {
+                    mp.label = cfg_->model.classNames[track->class_id];
+                }
                 mappoints.push_back(mp);
 
-                // 填充 RadarMap 消息
-                // class_id 映射: R1=2, R2=3, R3=4, R4=5, S=6
-                // RadarMap 数组: [1号, 2号, 3号, 4号, 5号, 哨兵]
+                // 填充 RadarMap 消息（用平滑后的坐标）
                 int idx = -1;
-                if (target.class_id >= robot_id::R1 && target.class_id <= robot_id::R4) {
-                    idx = target.class_id - robot_id::R1; // 2->0, 3->1, 4->2, 5->3
-                } else if (target.class_id == robot_id::S) {
-                    idx = 5; // 哨兵放在索引 5
+                if (track->class_id >= robot_id::R1 && track->class_id <= robot_id::R4) {
+                    idx = track->class_id - robot_id::R1;
+                } else if (track->class_id == robot_id::S) {
+                    idx = 5;
                 }
-
-                if (!target.is_dead && idx >= 0 && idx < 6) {
-                    if (target.team_id == robot_id::BLUE) {
-                        radar_msg->blue_x[idx] = map_pt.x;
-                        radar_msg->blue_y[idx] = map_pt.y;
-                    } else if (target.team_id == robot_id::RED) {
-                        radar_msg->red_x[idx] = map_pt.x;
-                        radar_msg->red_y[idx] = map_pt.y;
+                if (!track->is_dead && idx >= 0 && idx < 6) {
+                    if (track->team_id == robot_id::BLUE) {
+                        radar_msg->blue_x[idx] = track->smoothed_point.x;
+                        radar_msg->blue_y[idx] = track->smoothed_point.y;
+                    } else if (track->team_id == robot_id::RED) {
+                        radar_msg->red_x[idx] = track->smoothed_point.x;
+                        radar_msg->red_y[idx] = track->smoothed_point.y;
                     }
                 }
             }
@@ -186,9 +249,7 @@ private:
                 RCLCPP_WARN(this->get_logger(), "⚠️ 敌方接近堡垒!");
             }
 
-
-
-                       cv::Mat map_frame = radar_map_->drawMap(mappoints, cfg_->model.classNames);
+            cv::Mat map_frame = radar_map_->drawMap(mappoints, cfg_->model.classNames);
 
             // ========== 前哨站叠加绘制（在 drawMap 之后） ==========
             const auto& outpostPts = cfg_->map.getOutpostMapPoints(flip_team_);
@@ -200,7 +261,7 @@ private:
                 if (cfg_->map.isFlip) {
                     if (flip_team_) {
                         pt.x = 387 - y;
-                        pt.y = x; 
+                        pt.y = x;
                     } else {
                         pt.x = y;
                         pt.y = 721 - x;
@@ -209,10 +270,9 @@ private:
                     if (flip_team_) {
                         pt.x = y;
                         pt.y = 721 - x;
-                    } else { 
+                    } else {
                         pt.x = 387 - y;
                         pt.y = x;
-
                     }
                 }
 
@@ -247,8 +307,8 @@ private:
                 this->get_logger(),
                 *this->get_clock(),
                 10000,
-                "接收到 %zu 个世界坐标目标，发布了 RadarMap 和地图图像",
-                msg->targets.size());
+                "接收到 %zu 个世界坐标目标，地图跟踪输出 %zu 个目标",
+                msg->targets.size(), mappoints.size());
         }
         catch (const std::exception& e) {
             RCLCPP_ERROR(this->get_logger(), "地图回调异常: %s", e.what());
@@ -271,6 +331,20 @@ private:
     rclcpp::Publisher<tensorrt_detect_msgs::msg::RadarMap>::SharedPtr radar_map_pub_;
     rclcpp::Publisher<tensorrt_detect_msgs::msg::MapTactics>::SharedPtr tactics_pub_;
     std::unique_ptr<MapAnalyzer> analyzer_;
+
+    // ---- 2D Kalman 地图坐标平滑 ----
+    struct MapTrack {
+        int team_id = 0;
+        int class_id = 0;
+        KalmanFilter2d kf;
+        int hit_count = 0;
+        int miss_count = 0;
+        TrackState state = TrackState::ACTIVE;
+        cv::Point2f smoothed_point;
+        bool is_dead = false;
+    };
+    std::vector<std::unique_ptr<MapTrack>> map_tracks_;
+    int map_max_miss_ = 5;
 };
 
 int main(int argc, char** argv)

@@ -37,14 +37,26 @@ Model::Model(const std::string modelPath, const int &inputSize, const float &sco
         engineFile.close();
     }
 
+    int deviceCount = 0;
+    cudaError_t cudaErr = cudaGetDeviceCount(&deviceCount);
+    if (cudaErr != cudaSuccess || deviceCount == 0) {
+        throw std::runtime_error("没有可用的 CUDA 设备，无法加载 TensorRT 模型");
+    }
+
     this->runtime = nvinfer1::createInferRuntime(gLogger);
-    assert(this->runtime != nullptr);
+    if (!this->runtime) {
+        throw std::runtime_error("TensorRT runtime 创建失败，请检查 CUDA 驱动和 GPU 可用性");
+    }
 
     this->engine = this->runtime->deserializeCudaEngine(engineData.data(), fsize);
-    assert(this->engine != nullptr);
+    if (!this->engine) {
+        throw std::runtime_error("TensorRT engine 反序列化失败，请检查模型文件是否有效");
+    }
 
     this->context = this->engine->createExecutionContext();
-    assert(this->context != nullptr);
+    if (!this->context) {
+        throw std::runtime_error("TensorRT execution context 创建失败");
+    }
 
     std::string inputName, outputName;
     int nbTensors = this->engine->getNbIOTensors();
