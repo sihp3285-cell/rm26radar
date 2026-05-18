@@ -67,6 +67,13 @@ Config::Config(const std::string& configDir) {
     loadCameraConfig(cameraYaml);
     loadMapConfig(mapYaml);
     loadRuntimeConfig(runtimeYaml);
+    if (fs::exists(trackerYaml)) {
+        try {
+            loadTrackerConfig(trackerYaml);
+        } catch (const std::exception& e) {
+            // tracker.yaml 可选，加载失败不阻断
+        }
+    }
     if (fs::exists(calibYaml)) {
         try {
             loadCalibConfig(calibYaml);
@@ -181,6 +188,14 @@ void Config::loadMapConfig(const std::string& path) {
     map.race_size       = cfg["race_size"].as<std::vector<float>>();
     map.map_size        = cfg["map_size"].as<std::vector<int>>();
     map.isFlip          = cfg["isflip"].as<bool>();
+}
+
+void Config::loadTrackerConfig(const std::string& path) {
+    YAML::Node cfg = YAML::LoadFile(path);
+
+    tracker.maxMiss = cfg["max_miss"] ? cfg["max_miss"].as<int>() : 4;
+    tracker.minHit = cfg["min_hit"] ? cfg["min_hit"].as<int>() : 2;
+    tracker.maxGateBox = cfg["max_gate_box"] ? cfg["max_gate_box"].as<float>() : 200.0f;
 }
 
 void Config::loadRuntimeConfig(const std::string& path) {

@@ -36,6 +36,14 @@ public:
         cfg_ = std::make_unique<Config>(config_dir_);
         pose_solver_ = std::make_unique<PoseSolver>(cfg_->camera.cameraMatrix, cfg_->camera.distCoeffs);
 
+        TrackerParams tp;
+        tp.max_miss = cfg_->tracker.maxMiss;
+        tp.min_hit = cfg_->tracker.minHit;
+        tp.max_gate_box = cfg_->tracker.maxGateBox;
+        tracker_ = Tracker(tp);
+        RCLCPP_INFO(this->get_logger(), "Tracker 参数: max_miss=%d, min_hit=%d, max_gate_box=%.1f",
+                    tp.max_miss, tp.min_hit, tp.max_gate_box);
+
         loadCalibrationAtStartup();
 
         if (!cfg_->camera.meshPath.empty()) {

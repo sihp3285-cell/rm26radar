@@ -78,6 +78,12 @@ struct MapConfig {
     }
 };
 
+struct TrackerConfig {
+    int maxMiss = 4;
+    int minHit = 2;
+    float maxGateBox = 200.0f;
+};
+
 struct RuntimeConfig {
     bool showFlag = true;
 };
@@ -103,6 +109,7 @@ public:
     ModelConfig model;
     CameraConfig camera;
     MapConfig map;
+    TrackerConfig tracker;
     RuntimeConfig runtime;
     CalibConfig calib;
 
@@ -110,6 +117,7 @@ private:
     void loadModelConfig(const std::string& path);
     void loadCameraConfig(const std::string& path);
     void loadMapConfig(const std::string& path);
+    void loadTrackerConfig(const std::string& path);
     void loadRuntimeConfig(const std::string& path);
     void loadCalibConfig(const std::string& path);
 
