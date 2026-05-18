@@ -40,30 +40,34 @@
                           ↓                ↓                │
                    ┌─────────────┐   ┌─────────────┐       │
                    │ qt_display  │   │  pose_node  │       │
-                   │   _node     │   │ (几何变换层) │       │
-                   └─────────────┘   └──────┬──────┘       │
-                          ↑                 │              │
+                   │   _node     │   │(几何变换+跟踪)│       │
+                   └─────────────┘   │ PoseSolver  │       │
+                          ↑          │ Tracker     │       │
+                          │          └──────┬──────┘       │
+                   /flip_team               │              │
                           │                 ↓              │
-                   /flip_team        /world_targets        │
+                          │          /world_targets        │
                           │                 │              │
                           │                 ↓              │
                           │          ┌─────────────┐       │
                           │          │   map_node  │       │
-                          │          │ (汇聚输出层) │       │
+                          │          │(汇聚+战术分析)│       │
+                          │          │ RadarMap    │       │
+                          │          │ MapAnalyzer │       │
                           │          └──────┬──────┘       │
                           │                 │              │
                           └─────────────────┼──────────────┘
                                             │
-                          ┌─────────────────┼────────────────┐
-                          │                 │                │
-                          ↓                 ↓                ↓
-                   /map_image        /radar_map       /pose_node/reload_calibration
-                          │                 │                (服务)
-                          ↓                 ↓
-                   ┌─────────────┐    ┌─────────────┐
-                   │ qt_display  │    │ (决策节点)   │
-                   │   _node     │    │             │
-                   └─────────────┘    └─────────────┘
+                     ┌──────────────────────┼──────────────────────┐
+                     │                      │                      │
+                     ↓                      ↓                      ↓
+              /map_image              /radar_map            /map_tactics
+                     │                      │                      │
+                     ↓                      ↓                      ↓
+              ┌─────────────┐       ┌─────────────┐       ┌─────────────┐
+              │ qt_display  │       │ (决策节点)   │       │ (决策节点)   │
+              │   _node     │       │             │       │             │
+              └─────────────┘       └─────────────┘       └─────────────┘
 ```
 
 > 注：`display_node`（OpenCV 版本）同样订阅 `/detected_image` 与 `/map_image`，提供水平拼接的显示窗口。Launch 文件中默认不启动，可手动运行。
@@ -107,36 +111,46 @@
 
 ---
 
-## 2.3 几何变换层（Geometric Transform Layer）
+## 2.3 几何变换 + 跟踪层（Geometric Transform + Tracking Layer）
 
 **节点**：`pose_node`
 
-**职责**：像素坐标 → 世界坐标。
+**职责**：像素坐标 → 世界坐标 + 多目标跟踪 + Kalman 平滑。
 
 * 接收 `DetectionArray`（像素坐标 + 检测框）
 * 用相机内参、外参、PnP 解算、射线碰撞，得到世界坐标
-* 发布 `WorldTargetArray`
+* **通过固定槽位 Tracker 做多目标跟踪和 Kalman 平滑**
+* **三路分流处理**：
+  * 前哨站（Outpost）→ 直接透传（索引 10）
+  * 死亡装甲板 → 动态追加（索引 11+）
+  * 正常装甲板 → 进入 Tracker 固定槽位（索引 0~9）
+* 发布 `WorldTargetArray`（固定槽位 + Outpost + 死亡装甲板）
 
-这个节点是**纯数学节点**，不碰图像、不碰硬件。它的输入输出都是结构化消息，非常适合单元测试：
+`pose_node` 内部包含 `PoseSolver`（几何变换）和 `Tracker`（跟踪平滑）两个核心模块。Tracker 使用 `KalmanFilterBox`（像素框平滑）、`KalmanFilter2d`（世界坐标平滑）和 `HungarianAlgorithm`（贪心数据关联），为每个兵种维护一个固定槽位，消除 ID 跳变和坐标抖动。
 
-> 你可以手写一个 `DetectionArray`，喂给 `pose_node`，验证输出的世界坐标是否等于预期值。
+> 你可以手写一个 `DetectionArray`，喂给 `pose_node`，验证输出的世界坐标和跟踪结果是否等于预期值。
 
 ---
 
-## 2.4 汇聚输出层（Aggregation & Output Layer）
+## 2.4 汇聚输出 + 战术分析层（Aggregation + Tactical Analysis Layer）
 
 **节点**：`map_node`
 
-**职责**：接收世界坐标，生成最终输出。
+**职责**：接收世界坐标，生成最终输出，分析战术态势。
 
 * 把世界坐标转成地图像素坐标
-* 绘制小地图图像 → `/map_image`
+* 绘制小地图图像 → `/map_image`（含前哨站存活/摧毁状态叠加）
 * 整理成结构化 `RadarMap` → `/radar_map`
+* **通过 `MapAnalyzer` 分析战术态势** → `/map_tactics`
+  * 工程上岛检测
+  * 攻防态势判断（大攻）
+  * 堡垒威胁检测
 
-这个节点有两个消费者：
+这个节点有三个消费者：
 
 * `display_node`：看 `/map_image`
 * 决策/通信节点：读 `/radar_map`，把敌方位置发给下位机或队友
+* 决策节点：读 `/map_tactics`，获取战术层面的浓缩信息
 
 ---
 
@@ -198,6 +212,7 @@
 | `/world_targets` | `WorldTargetArray` | pose_node | map_node | 世界坐标目标 |
 | `/map_image` | `sensor_msgs/Image` | map_node | qt_display_node、display_node | 小地图图像 |
 | `/radar_map` | `RadarMap` | map_node | (决策节点) | 结构化雷达数据 |
+| `/map_tactics` | `MapTactics` | map_node | (决策节点) | 战术态势分析数据 |
 | `/flip_team` | `std_msgs/Bool` | qt_display_node | map_node | 红蓝方阵营视角切换 |
 | `/calibration/start` | `std_srvs/Trigger` (Service) | calibrate_node | (用户/roi_set_node) | 手动触发标定 |
 | `/roi_set/start` | `std_srvs/Trigger` (Service) | roi_set_node | (用户/脚本) | 手动触发 ROI 框定 |
@@ -253,7 +268,7 @@ pose_node 可以换标定参数，map_node 不用改
 
 # 四、自定义消息设计
 
-你的自定义消息定义在 `tensorrt_detect_msgs` 包里，共 5 种：
+你的自定义消息定义在 `tensorrt_detect_msgs` 包里，共 7 种：
 
 ## 4.1 `DetectionBox`（单条检测）
 
@@ -340,6 +355,40 @@ float red3_x = msg.red_x[2];
 ```
 
 不需要遍历、不需要查表、不需要字符串匹配。
+
+---
+
+## 4.6 `MapTactics`（战术态势）
+
+```yaml
+std_msgs/Header header
+bool engineer_on_island   # 工程上岛：false=无, true=有
+bool opponent_attack      # 对方大攻
+bool our_attack           # 我方大攻
+bool opponent_near_fortress  # 对方接近堡垒
+```
+
+**设计要点**：
+
+* 用 4 个布尔值浓缩全场战术态势
+* `map_node` 中的 `MapAnalyzer` 基于规则分析后填充
+* 下游决策节点无需自己解析世界坐标，直接读取战术标志
+* 信息密度极高：4 个字段覆盖了工程上岛、攻防态势、堡垒威胁
+
+---
+
+## 4.7 `WorldTargetArray` 中的固定索引约定
+
+`pose_node` 发布的 `WorldTargetArray` 使用固定索引：
+
+| 索引 | 内容 | 来源 |
+|------|------|------|
+| 0~4 | Red R1~R4, Red S | Tracker 固定槽位（Kalman 平滑） |
+| 5~9 | Blue R1~R4, Blue S | Tracker 固定槽位（Kalman 平滑） |
+| 10 | Outpost（前哨站） | 直接透传（无平滑） |
+| 11+ | 死亡装甲板 | 动态追加（无平滑） |
+
+这种固定索引设计让下游 `map_node` 可以直接用下标访问，不需要遍历查找。
 
 ---
 
@@ -604,15 +653,21 @@ radar_map_pub_ = this->create_publisher<RadarMap>(output_map_topic_, 10);
 
 基于你当前的架构，未来可以很方便地扩展：
 
-## 8.1 加入 Tracker（目标跟踪）
+## 8.1 Tracker 已内置（固定槽位多目标跟踪）
 
-```text
-detect_node ──/armor_detections──→ tracker_node ──/tracked_targets──→ pose_node
-```
+> **注意：Tracker 已在当前版本中实现，内置于 `pose_node` 内部。**
 
-在 `detect_node` 和 `pose_node` 之间插入 `tracker_node`，做卡尔曼滤波或 DeepSORT 跟踪，给每个目标分配稳定的 ID。
+`pose_node` 内部集成了固定槽位 Tracker，包含：
 
-不需要改 `detect_node` 或 `pose_node` 的任何代码，只需改 launch 文件里的 `input_topic`。
+* `KalmanFilterBox`：像素框 8 维卡尔曼平滑（位置 + 速度）
+* `KalmanFilter2d`：世界坐标 4 维卡尔曼平滑
+* `HungarianAlgorithm`：贪心数据关联（10×N 代价矩阵）
+
+每个兵种（Red R1~R4, S, Blue R1~R4, S）预分配一个永久槽位，`team_id` 和 `class_id` 在构造时"焊死"，从根源上消除 ID 跳变。
+
+如果未来需要更高级的跟踪算法（如 DeepSORT 的外观特征匹配），可以在 Tracker 框架内替换 `HungarianAlgorithm` 的 `Solve` 实现，接口不变。
+
+详见 `docs/core_tracker.md`、`docs/core_kalman.md`、`docs/core_hungarian.md`。
 
 ## 8.2 加入决策节点
 
@@ -672,5 +727,7 @@ ros2 bag play my_bag
 4. **Header 传递**：时间戳沿消息链继承，支持时序对齐
 5. **参数化配置**：launch 文件集中管理，无需重新编译
 6. **异常隔离**：try/catch 保护回调，单帧失败不崩节点
+7. **固定槽位跟踪**：每个兵种一个永久槽位，消除 ID 管理复杂度
+8. **战术态势浓缩**：从原始世界坐标到 4 个战术标志的语义蒸馏
 
 这套架构不是过度设计，而是为未来的扩展、替换、调试、部署打下了坚实基础。

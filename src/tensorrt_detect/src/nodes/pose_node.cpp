@@ -182,8 +182,14 @@ private:
 
         try {
             // ---- 1. 解算所有检测的世界坐标，构建观测输入 ----
+            // Outpost 不走 Tracker，直接透传
+            // 死亡装甲板（ARMOR + is_dead）不走固定槽位，动态追加
+            // 正常装甲板（R1~S）进入固定槽位跟踪
             std::vector<WorldMeasurement> meas;
             meas.reserve(msg->detections.size());
+            std::vector<tensorrt_detect_msgs::msg::WorldTarget> dead_targets;
+            tensorrt_detect_msgs::msg::WorldTarget outpost_target;
+            bool has_outpost = false;
 
             for (const auto& det : msg->detections) {
                 cv::Rect car_box(det.car_x, det.car_y, det.car_width, det.car_height);
@@ -195,9 +201,48 @@ private:
                     world_pos = pose_solver_->middletoworld(armor_box);
                 }
 
+                // Outpost 直接透传，不进入 Tracker
+                if (det.idx == robot_id::OUTPOST) {
+                    outpost_target.idx      = 10;
+                    outpost_target.class_id = det.idx;
+                    outpost_target.team_id  = det.armor_color;
+                    outpost_target.is_dead  = det.is_dead;
+                    outpost_target.score    = det.confidence;
+                    outpost_target.valid    = true;
+                    outpost_target.bbox_x   = det.x;
+                    outpost_target.bbox_y   = det.y;
+                    outpost_target.bbox_w   = det.width;
+                    outpost_target.bbox_h   = det.height;
+                    outpost_target.world_x  = world_pos.x;
+                    outpost_target.world_y  = 0.0f;
+                    outpost_target.world_z  = world_pos.y;
+                    has_outpost = true;
+                    continue;
+                }
+
+                // 死亡装甲板动态追加，不走固定槽位（固定槽位没有 ARMOR 类别）
+                if (det.idx == robot_id::ARMOR && det.is_dead) {
+                    tensorrt_detect_msgs::msg::WorldTarget t;
+                    t.idx      = 11 + static_cast<int>(dead_targets.size());
+                    t.class_id = robot_id::ARMOR;
+                    t.team_id  = robot_id::UNKNOWN;
+                    t.is_dead  = true;
+                    t.score    = det.confidence;
+                    t.valid    = true;
+                    t.bbox_x   = det.x;
+                    t.bbox_y   = det.y;
+                    t.bbox_w   = det.width;
+                    t.bbox_h   = det.height;
+                    t.world_x  = world_pos.x;
+                    t.world_y  = 0.0f;
+                    t.world_z  = world_pos.y;
+                    dead_targets.push_back(t);
+                    continue;
+                }
+
                 WorldMeasurement m;
                 m.class_id = det.idx;
-                m.team_id  = det.is_dead ? robot_id::UNKNOWN : det.armor_color;
+                m.team_id  = det.armor_color;
                 m.score    = det.confidence;
                 m.is_dead  = det.is_dead;
                 m.box      = cv::Rect(det.x, det.y, det.width, det.height);
@@ -205,30 +250,50 @@ private:
                 meas.push_back(m);
             }
 
-            // ---- 2. Tracker 更新（Kalman 平滑 + 数据关联）----
+            // ---- 2. Tracker 更新（Kalman 平滑 + 固定槽位数据关联，不含 Outpost/死亡装甲板）----
             tracker_.update(meas);
-            auto outputs = tracker_.get_outputs();
 
-            // ---- 3. 将跟踪结果转回 WorldTargetArray 发布 ----
+            // ---- 3. 固定槽位 + Outpost + 动态死亡装甲板 发布 ----
             auto world_msg = std::make_shared<tensorrt_detect_msgs::msg::WorldTargetArray>();
             world_msg->header = msg->header;
+            // 0-9: Tracker 固定槽位；10: Outpost 透传
+            world_msg->targets.resize(11);
 
-            for (const auto& out : outputs) {
-                tensorrt_detect_msgs::msg::WorldTarget target;
-                target.idx       = out.class_id;
-                target.class_id  = out.class_id;
-                target.team_id   = out.team_id;
-                target.is_dead   = out.is_dead;
-                target.score     = out.score;
-                target.valid     = true;
-                target.bbox_x    = out.smoothed_box.x;
-                target.bbox_y    = out.smoothed_box.y;
-                target.bbox_w    = out.smoothed_box.width;
-                target.bbox_h    = out.smoothed_box.height;
-                target.world_x   = out.smoothed_world.x;
-                target.world_y   = 0.0f;
-                target.world_z   = out.smoothed_world.y;
-                world_msg->targets.push_back(target);
+            int valid_count = 0;
+            for (int i = 0; i < Tracker::NUM_SLOTS; ++i) {
+                auto slot = tracker_.get_slot(i);
+                auto& target = world_msg->targets[i];
+                target.idx      = i;
+                target.class_id = slot.class_id;
+                target.team_id  = slot.team_id;
+                target.is_dead  = slot.is_dead;
+                target.score    = slot.score;
+                target.valid    = slot.valid;
+                target.bbox_x   = slot.smoothed_box.x;
+                target.bbox_y   = slot.smoothed_box.y;
+                target.bbox_w   = slot.smoothed_box.width;
+                target.bbox_h   = slot.smoothed_box.height;
+                target.world_x  = slot.smoothed_world.x;
+                target.world_y  = 0.0f;
+                target.world_z  = slot.smoothed_world.y;
+                if (slot.valid) valid_count++;
+            }
+
+            // Outpost 直接放到索引 10
+            if (has_outpost) {
+                world_msg->targets[10] = outpost_target;
+                valid_count++;
+            } else {
+                auto& target = world_msg->targets[10];
+                target.idx      = 10;
+                target.class_id = robot_id::OUTPOST;
+                target.team_id  = robot_id::UNKNOWN;
+                target.valid    = false;
+            }
+
+            // 动态追加死亡装甲板
+            for (const auto& dt : dead_targets) {
+                world_msg->targets.push_back(dt);
             }
 
             world_pub_->publish(*world_msg);
@@ -237,8 +302,8 @@ private:
                 this->get_logger(),
                 *this->get_clock(),
                 10000,
-                "接收到 %zu 个检测，跟踪输出 %zu 个世界坐标目标",
-                msg->detections.size(), world_msg->targets.size());
+                "接收到 %zu 个检测，固定槽位有效 %d / %d，死亡装甲板 %zu",
+                msg->detections.size(), valid_count, Tracker::NUM_SLOTS, dead_targets.size());
         }
         catch (const std::exception& e) {
             RCLCPP_ERROR(this->get_logger(), "姿态解算回调异常: %s", e.what());

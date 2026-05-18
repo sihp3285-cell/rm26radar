@@ -2,17 +2,48 @@
 #include "hungarian.hpp"
 #include <cmath>
 #include <algorithm>
-#include <map>
 
 // ==========================================
-// Tracker 实现
+// Tracker 实现 - 固定槽位版
 // ==========================================
 
-Tracker::Tracker(const TrackerParams& params) : params_(params) {}
+Tracker::Tracker(const TrackerParams& params) : params_(params) {
+    slots_.resize(NUM_SLOTS);
+
+    auto init_slot = [this](int idx, int team, int cls) {
+        slots_[idx].slot_idx = idx;
+        slots_[idx].team_id  = team;
+        slots_[idx].class_id = cls;
+        slots_[idx].state    = TrackState::DEAD;
+        slots_[idx].initialized = false;
+        slots_[idx].hit_count = 0;
+        slots_[idx].miss_count = 0;
+    };
+
+    // Red
+    init_slot(SLOT_RED_R1, robot_id::RED, robot_id::R1);
+    init_slot(SLOT_RED_R2, robot_id::RED, robot_id::R2);
+    init_slot(SLOT_RED_R3, robot_id::RED, robot_id::R3);
+    init_slot(SLOT_RED_R4, robot_id::RED, robot_id::R4);
+    init_slot(SLOT_RED_S,  robot_id::RED, robot_id::S);
+    // Blue
+    init_slot(SLOT_BLUE_R1, robot_id::BLUE, robot_id::R1);
+    init_slot(SLOT_BLUE_R2, robot_id::BLUE, robot_id::R2);
+    init_slot(SLOT_BLUE_R3, robot_id::BLUE, robot_id::R3);
+    init_slot(SLOT_BLUE_R4, robot_id::BLUE, robot_id::R4);
+    init_slot(SLOT_BLUE_S,  robot_id::BLUE, robot_id::S);
+    // 注：Outpost 不走 Tracker，由 pose_node 直接透传
+}
 
 void Tracker::reset() {
-    tracks_.clear();
-    next_track_id_ = 1;
+    for (auto& slot : slots_) {
+        slot.state = TrackState::DEAD;
+        slot.initialized = false;
+        slot.hit_count = 0;
+        slot.miss_count = 0;
+        slot.last_box = cv::Rect();
+        slot.last_world = cv::Point2f();
+    }
 }
 
 float Tracker::box_center_distance(const cv::Rect& a, const cv::Rect& b) {
@@ -23,194 +54,152 @@ float Tracker::box_center_distance(const cv::Rect& a, const cv::Rect& b) {
     return std::hypot(cx1 - cx2, cy1 - cy2);
 }
 
-float Tracker::world_distance(const cv::Point2f& a, const cv::Point2f& b) {
-    return std::hypot(a.x - b.x, a.y - b.y);
+Tracker::SlotOutput Tracker::get_slot(int idx) const {
+    SlotOutput out;
+    if (idx < 0 || idx >= NUM_SLOTS) return out;
+
+    const auto& s = slots_[idx];
+    out.slot_idx  = s.slot_idx;
+    out.team_id   = s.team_id;
+    out.class_id  = s.class_id;
+    out.state     = s.state;
+    out.smoothed_box   = s.last_box;
+    out.smoothed_world = s.last_world;
+    out.is_dead   = s.last_is_dead;
+    out.score     = s.last_score;
+
+    // valid = 非 DEAD 且满足 min_hit
+    out.valid = (s.state != TrackState::DEAD) && (s.hit_count >= params_.min_hit);
+    return out;
 }
 
-TrackedTarget Tracker::track_to_target(const Track& t) {
-    TrackedTarget tgt;
-    tgt.track_id = t.track_id;
-    tgt.team_id = t.team_id;
-    tgt.class_id = t.class_id;
-    tgt.hit_count = t.hit_count;
-    tgt.miss_count = t.miss_count;
-    tgt.state = t.state;
-    tgt.smoothed_box = t.last_box;
-    tgt.smoothed_world = t.last_world;
-    tgt.is_dead = t.last_is_dead;
-    tgt.score = t.last_score;
-    return tgt;
-}
+void Tracker::update(const std::vector<WorldMeasurement>& detections) {
+    // ---- Step 1: ACTIVE/LOST 槽位先 predict；DEAD / 死亡车辆 保持原位不动 ----
+    for (auto& slot : slots_) {
+        if (!slot.initialized || slot.state == TrackState::DEAD) continue;
+        // 死亡车辆冻结显示：不再 predict，位置保持在最后已知坐标
+        if (slot.last_is_dead) continue;
 
-void Tracker::associate_and_update(const std::vector<WorldMeasurement>& detections) {
+        auto box_pred = slot.kf_box.predict();
+        slot.last_box = cv::Rect(
+            static_cast<int>(box_pred[0] - box_pred[2] / 2.0f),
+            static_cast<int>(box_pred[1] - box_pred[3] / 2.0f),
+            static_cast<int>(box_pred[2]),
+            static_cast<int>(box_pred[3])
+        );
+        auto world_pred = slot.kf_world.predict();
+        slot.last_world = cv::Point2f(world_pred[0], world_pred[1]);
+    }
+
+    // ---- Step 2: 全局匈牙利匹配（槽位 vs detections）----
+    int n_rows = NUM_SLOTS;
+    int n_cols = static_cast<int>(detections.size());
     std::vector<bool> det_matched(detections.size(), false);
 
-    // 按 (team_id, class_id) 对非 DEAD tracks 分组
-    std::map<std::pair<int, int>, std::vector<size_t>> group_tracks;
-    for (size_t i = 0; i < tracks_.size(); ++i) {
-        if (tracks_[i]->state == TrackState::DEAD) continue;
-        group_tracks[{tracks_[i]->team_id, tracks_[i]->class_id}].push_back(i);
-    }
-
-    // 按 (team_id, class_id) 对 detections 分组
-    std::map<std::pair<int, int>, std::vector<size_t>> group_dets;
-    for (size_t i = 0; i < detections.size(); ++i) {
-        group_dets[{detections[i].team_id, detections[i].class_id}].push_back(i);
-    }
-
-    radar_core::tracker::HungarianAlgorithm hungarian;
-
-    // 对每个类别组分别执行匈牙利匹配
-    for (const auto& [key, track_indices] : group_tracks) {
-        auto it = group_dets.find(key);
-        if (it == group_dets.end()) {
-            // 该组无任何观测，所有 track 标记为丢失
-            for (size_t ti : track_indices) {
-                auto& track = tracks_[ti];
-                track->miss_count++;
-                if (track->miss_count > params_.max_miss) {
-                    track->state = TrackState::DEAD;
-                } else {
-                    track->state = TrackState::LOST;
-                }
-            }
-            continue;
-        }
-
-        const auto& det_indices = it->second;
-        int n_rows = static_cast<int>(track_indices.size());
-        int n_cols = static_cast<int>(det_indices.size());
-
-        // 构建代价矩阵：像素框中心欧氏距离
+    if (n_cols > 0) {
+        radar_core::tracker::HungarianAlgorithm hungarian;
         std::vector<std::vector<float>> cost_matrix(
             n_rows, std::vector<float>(n_cols, 1e6f));
+
         for (int r = 0; r < n_rows; ++r) {
-            const auto& track = *tracks_[track_indices[r]];
+            const auto& slot = slots_[r];
             for (int c = 0; c < n_cols; ++c) {
-                const auto& det = detections[det_indices[c]];
-                cost_matrix[r][c] = box_center_distance(track.last_box, det.box);
+                const auto& det = detections[c];
+                // 硬过滤：team/class 必须严格匹配槽位（焊死）
+                if (det.team_id != slot.team_id || det.class_id != slot.class_id) {
+                    cost_matrix[r][c] = 1e6f;
+                    continue;
+                }
+                // 未初始化或 DEAD 槽位：放宽门限，允许复活/首次激活
+                float gate = (slot.initialized && slot.state != TrackState::DEAD)
+                                 ? params_.max_gate_box : 1e6f;
+                float d = box_center_distance(slot.last_box, det.box);
+                if (d >= gate) {
+                    cost_matrix[r][c] = 1e6f;
+                    continue;
+                }
+                cost_matrix[r][c] = d;
             }
         }
 
         std::vector<int> assignment;
         hungarian.Solve(cost_matrix, assignment);
 
-        // 处理匹配结果
         for (int r = 0; r < n_rows; ++r) {
-            auto& track = tracks_[track_indices[r]];
+            auto& slot = slots_[r];
             int c = assignment[r];
+            // 未初始化或 DEAD 槽位放宽门限，与代价矩阵构建逻辑一致
+            float gate_check = (slot.initialized && slot.state != TrackState::DEAD)
+                                   ? params_.max_gate_box : 1e6f;
+            bool matched = (c >= 0 && c < n_cols && cost_matrix[r][c] < gate_check);
 
-            if (c >= 0 && c < n_cols && cost_matrix[r][c] < params_.max_gate_box) {
-                const auto& det = detections[det_indices[c]];
+            if (matched) {
+                const auto& det = detections[c];
 
-                // ---- 更新 Kalman 像素框 ----
+                // ---- Kalman 更新（未初始化则 reset）----
                 std::vector<float> box_meas = {
                     det.box.x + det.box.width  / 2.0f,
                     det.box.y + det.box.height / 2.0f,
                     static_cast<float>(det.box.width),
                     static_cast<float>(det.box.height)
                 };
-                auto box_upd = track->kf_box.update(box_meas);
-                track->last_box = cv::Rect(
-                    static_cast<int>(box_upd[0] - box_upd[2] / 2.0f),
-                    static_cast<int>(box_upd[1] - box_upd[3] / 2.0f),
-                    static_cast<int>(box_upd[2]),
-                    static_cast<int>(box_upd[3])
-                );
+                if (!slot.initialized || slot.state == TrackState::DEAD) {
+                    // 首次激活或 DEAD 复活：重置 Kalman，以当前观测为基准
+                    slot.kf_box.reset(box_meas);
+                    slot.kf_world.reset({det.world.x, det.world.y});
+                    slot.initialized = true;
+                } else {
+                    auto box_upd = slot.kf_box.update(box_meas);
+                    slot.last_box = cv::Rect(
+                        static_cast<int>(box_upd[0] - box_upd[2] / 2.0f),
+                        static_cast<int>(box_upd[1] - box_upd[3] / 2.0f),
+                        static_cast<int>(box_upd[2]),
+                        static_cast<int>(box_upd[3])
+                    );
+                    auto world_upd = slot.kf_world.update({det.world.x, det.world.y});
+                    slot.last_world = cv::Point2f(world_upd[0], world_upd[1]);
+                }
+                // 如果是首次激活，reset 后也要把 last_box/last_world 同步
+                if (slot.hit_count == 0) {
+                    slot.last_box = det.box;
+                    slot.last_world = det.world;
+                }
 
-                // ---- 更新 Kalman 世界坐标 ----
-                auto world_upd = track->kf_world.update({det.world.x, det.world.y});
-                track->last_world = cv::Point2f(world_upd[0], world_upd[1]);
-
-                // ---- 更新统计量 ----
-                track->hit_count++;
-                track->miss_count = 0;
-                track->state = TrackState::ACTIVE;
-                track->last_score = det.score;
-                track->last_is_dead = det.is_dead;
-
-                det_matched[det_indices[c]] = true;
+                // ---- 状态更新 ----
+                slot.hit_count++;
+                slot.miss_count = 0;
+                slot.state = TrackState::ACTIVE;
+                slot.last_score = det.score;
+                slot.last_is_dead = det.is_dead;
+                det_matched[c] = true;
             } else {
                 // 未匹配到观测
-                track->miss_count++;
-                if (track->miss_count > params_.max_miss) {
-                    track->state = TrackState::DEAD;
+                if (slot.last_is_dead) {
+                    // 死亡车辆冻结：不增加 miss，保持 ACTIVE，持续显示在地图上
                 } else {
-                    track->state = TrackState::LOST;
+                    slot.miss_count++;
+                    if (slot.miss_count > params_.max_miss) {
+                        slot.state = TrackState::DEAD;
+                    } else {
+                        slot.state = TrackState::LOST;
+                    }
                 }
+            }
+        }
+    } else {
+        // 无 detection，所有已初始化且非死亡槽位标记为丢失
+        for (auto& slot : slots_) {
+            if (!slot.initialized || slot.last_is_dead) continue;
+            slot.miss_count++;
+            if (slot.miss_count > params_.max_miss) {
+                slot.state = TrackState::DEAD;
+            } else {
+                slot.state = TrackState::LOST;
             }
         }
     }
 
-    // 未匹配的 detection 初始化新 track
-    for (size_t i = 0; i < detections.size(); ++i) {
-        if (det_matched[i]) continue;
-        const auto& det = detections[i];
-
-        auto track = std::make_unique<Track>();
-        track->track_id = next_track_id_++;
-        track->team_id = det.team_id;
-        track->class_id = det.class_id;
-        track->hit_count = 1;
-        track->miss_count = 0;
-        track->state = TrackState::ACTIVE;
-        track->last_score = det.score;
-        track->last_is_dead = det.is_dead;
-
-        // 初始化像素框 Kalman
-        track->kf_box.reset({
-            det.box.x + det.box.width  / 2.0f,
-            det.box.y + det.box.height / 2.0f,
-            static_cast<float>(det.box.width),
-            static_cast<float>(det.box.height)
-        });
-        track->last_box = det.box;
-
-        // 初始化世界坐标 Kalman
-        track->kf_world.reset({det.world.x, det.world.y});
-        track->last_world = det.world;
-
-        tracks_.push_back(std::move(track));
-    }
-}
-
-void Tracker::update(const std::vector<WorldMeasurement>& detections) {
-    // Step 1: 所有现有 track 先执行 predict（LOST 时提供预测值）
-    for (auto& track : tracks_) {
-        if (track->state == TrackState::DEAD) continue;
-
-        auto box_pred = track->kf_box.predict();
-        track->last_box = cv::Rect(
-            static_cast<int>(box_pred[0] - box_pred[2] / 2.0f),
-            static_cast<int>(box_pred[1] - box_pred[3] / 2.0f),
-            static_cast<int>(box_pred[2]),
-            static_cast<int>(box_pred[3])
-        );
-
-        auto world_pred = track->kf_world.predict();
-        track->last_world = cv::Point2f(world_pred[0], world_pred[1]);
-    }
-
-    // Step 2: 匈牙利关联并更新
-    associate_and_update(detections);
-}
-
-std::vector<TrackedTarget> Tracker::get_tracks() const {
-    std::vector<TrackedTarget> out;
-    for (const auto& track : tracks_) {
-        if (track->state != TrackState::DEAD) {
-            out.push_back(track_to_target(*track));
-        }
-    }
-    return out;
-}
-
-std::vector<TrackedTarget> Tracker::get_outputs() const {
-    std::vector<TrackedTarget> out;
-    for (const auto& track : tracks_) {
-        if (track->state == TrackState::DEAD) continue;
-        if (track->hit_count < params_.min_hit) continue;
-        out.push_back(track_to_target(*track));
-    }
-    return out;
+    // 未匹配的 detection：在固定槽位架构下，它们只能是对应槽位已满/未激活
+    // 由于每个 class 只有一个槽位，未匹配的 detection 直接丢弃，不会新建槽位
+    // 这保证了“一个目标一个座位”的硬约束
 }

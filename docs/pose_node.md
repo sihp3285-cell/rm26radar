@@ -1,6 +1,6 @@
 # `pose_node.cpp` 逐行讲解
 
-这份文件是**位姿解算节点**，在你当前 ROS2 视觉链路里的位置是：
+这份文件是**位姿解算与跟踪节点**，在你当前 ROS2 视觉链路里的位置是：
 
 ```text
 video_node
@@ -8,24 +8,22 @@ video_node
 detect_node
    ↓  /armor_detections  ← pose_node 订阅这里
 pose_node  ← 你在这里
+   ├── PoseSolver（像素→世界坐标）
+   ├── Tracker（固定槽位多目标跟踪 + Kalman 平滑）
    ↓  /world_targets      ← pose_node 发布这里
 map_node
-   ↓  /map_image, /radar_map
+   ↓  /map_image, /radar_map, /map_tactics
 qt_display_node
 ```
 
-`pose_node` 是系统的**几何转换层**。它负责把像素世界（图像坐标系）翻译成物理世界（场地坐标系）。
-
-具体职责：
+`pose_node` 是系统的**几何变换 + 跟踪层**。它的职责比早期版本更重：
 
 1. 订阅 `detect_node` 输出的结构化检测结果 `/armor_detections`
-2. 用相机内参、外参、畸变系数，把每个目标的像素坐标解算成世界坐标
-3. 优先使用车辆底部中心（更稳定），回退到装甲板中心
-4. 发布 `WorldTargetArray` 给 `map_node` 绘制小地图
-
-在 ROS2 理论中，这种节点属于 **Processing Node（处理节点）**：
-
-> 它不直接和硬件交互，而是订阅上游的算法输出，经过数学变换后，产生新的语义数据供下游消费。
+2. 用相机内参、外参、PnP 解算、射线碰撞，把每个目标的像素坐标解算成世界坐标
+3. **通过固定槽位 Tracker 做多目标跟踪和 Kalman 平滑**（新增）
+4. **前哨站直接透传，不走 Tracker**（新增）
+5. **死亡装甲板动态追加，不走固定槽位**（新增）
+6. 发布 `WorldTargetArray` 给 `map_node` 绘制小地图
 
 ---
 
@@ -47,590 +45,292 @@ qt_display_node
 #include "ConfigManager.hpp"
 #include "posesolver.hpp"
 #include "robot_id.hpp"
+#include "tracker.hpp"        // ← 新增：固定槽位跟踪器
 ```
 
 ---
 
-### `#include <rclcpp/rclcpp.hpp>`
+### 新增依赖：`"tracker.hpp"`
 
-ROS2 C++ 节点基础头文件。
-
----
-
-### `#include <sensor_msgs/msg/image.hpp>` / `#include <std_msgs/msg/header.hpp>`
-
-这个节点本身不传输完整图像，但 `header` 会被继承。`std_msgs::msg::Header` 是 ROS2 所有消息的时间戳和坐标系载体。
+引入 `Tracker` 类和 `WorldMeasurement` 结构体。`Tracker` 内部使用 `KalmanFilterBox`、`KalmanFilter2d` 和 `HungarianAlgorithm`，但 `pose_node` 只需要直接调用 `Tracker` 的接口。
 
 ---
 
-### `#include <std_srvs/srv/trigger.hpp>`
+# 二、构造函数（与旧版相同的部分）
 
-`/pose_node/reload_calibration` 服务的消息类型。
-
----
-
-### `#include <opencv2/opencv.hpp>`
-
-位姿解算底层依赖 OpenCV 的相机模型和几何变换：
-
-* `cv::Mat`：存储相机内参矩阵 `K`、畸变系数 `D`、旋转矩阵 `R`、平移向量 `T`
-* `cv::Rect`：检测框数据结构
+构造函数的前半部分与旧版一致：声明参数、初始化 `Config` 和 `PoseSolver`、加载标定、加载 3D Mesh、创建 Pub/Sub/Service。这些不再赘述，详见旧版文档。
 
 ---
 
-### `#include <yaml-cpp/yaml.h>` / `#include <filesystem>`
-
-用于加载标定结果文件 `calib_result.yaml`。当 `Config` 里没有有效标定数据时，节点会尝试从磁盘文件加载外参。
-
-这体现了**配置系统的降级策略**：优先用内存配置，fallback 到文件系统。
-
----
-
-### `#include "tensorrt_detect_msgs/msg/..."`
-
-这个节点同时涉及三种自定义消息：
-
-| 消息类型 | 方向 | 用途 |
-|---------|------|------|
-| `DetectionArray` / `DetectionBox` | 输入 | 接收检测框像素坐标 |
-| `WorldTargetArray` / `WorldTarget` | 输出 | 发布世界坐标目标 |
-
----
-
-### `#include "ConfigManager.hpp"`
-
-读取相机参数（内参 `K`、畸变 `D`、世界坐标点 `worldPoints`）和标定结果。
-
----
-
-### `#include "posesolver.hpp"`
-
-核心算法类 `PoseSolver`。它封装了：
-
-* PnP（Perspective-n-Point）解算
-* 射线与地面/3D Mesh 的碰撞检测
-* 像素坐标 → 世界坐标的映射
-
----
-
-### `#include "robot_id.hpp"`
-
-定义了队伍 ID（RED/BLUE/UNKNOWN）和机器人类别的枚举。在 `armor_callback` 中用于判断死亡装甲板的 `team_id` 赋值。
-
----
-
-# 二、定义节点类
+# 三、核心回调：`armor_callback`（重大更新）
 
 ```cpp
-class PoseNode : public rclcpp::Node
+void armor_callback(const tensorrt_detect_msgs::msg::DetectionArray::SharedPtr msg)
 ```
 
-固定起手式。
+这是 `pose_node` 的干活函数。每收到一帧 `DetectionArray`，就执行一次。**当前版本的核心变化在于回调内部的处理流程**。
 
 ---
 
-# 三、构造函数
+## 3.1 标定状态检查（与旧版相同）
 
 ```cpp
-public:
-    PoseNode() : Node("pose_node")
-```
-
-节点注册名 `"pose_node"`。
-
----
-
-# 四、声明参数
-
-```cpp
-this->declare_parameter<std::string>("config_dir",
-    "/home/delphine/rm/tensorrt10_detect/configs");
-this->declare_parameter<std::string>("input_topic", "/armor_detections");
-this->declare_parameter<std::string>("output_topic", "/world_targets");
-```
-
----
-
-### `config_dir`
-
-配置目录。PoseNode 需要读取 `camera.yaml`（内参、畸变、3D 标定点）和可能的 `calib_result.yaml`（外参 `R` 和 `T`）。
-
----
-
-### `input_topic`
-
-默认 `/armor_detections`。订阅 `detect_node` 发布的结构化检测结果。
-
----
-
-### `output_topic`
-
-默认 `/world_targets`。发布解算后的世界坐标目标数组。
-
----
-
-# 五、读取参数并打印
-
-```cpp
-config_dir_ = this->get_parameter("config_dir").as_string();
-input_topic_ = this->get_parameter("input_topic").as_string();
-output_topic_ = this->get_parameter("output_topic").as_string();
-
-RCLCPP_INFO(this->get_logger(), "配置目录: %s", config_dir_.c_str());
-RCLCPP_INFO(this->get_logger(), "订阅话题: %s", input_topic_.c_str());
-RCLCPP_INFO(this->get_logger(), "发布话题: %s", output_topic_.c_str());
-```
-
-日志打印三个关键配置，方便排查问题。注意 `config_dir` 被保存为成员变量 `config_dir_`，供后续 `reloadCalibration` 服务使用。
-
----
-
-# 六、初始化 Config 和 PoseSolver
-
-```cpp
-cfg_ = std::make_unique<Config>(config_dir_);
-pose_solver_ = std::make_unique<PoseSolver>(cfg_->camera.cameraMatrix, cfg_->camera.distCoeffs);
-```
-
----
-
-### `Config`
-
-加载所有配置文件。其中 `camera.yaml` 里包含了：
-
-* `cameraMatrix`：3×3 相机内参矩阵 `K`
-* `distCoeffs`：畸变系数向量 `D`
-* `worldPoints`：用于 PnP 的 3D 世界坐标点
-* `meshPath`：场地 3D 网格模型路径（用于射线碰撞）
-
----
-
-### `PoseSolver`
-
-用内参和畸变初始化。此时它只知道"相机怎么看世界"，但还不知道"相机在世界中的位姿"（外参）。
-
-外参需要在下一步加载。
-
----
-
-# 七、加载外参（Extrinsic Parameters）
-
-```cpp
-loadCalibrationAtStartup();
-```
-
-启动时调用 `loadCalibrationAtStartup()`，这段代码展示了一个非常实用的**配置降级（Fallback）策略**。
-
----
-
-## 7.1 `loadCalibrationAtStartup()` 内部逻辑
-
-```cpp
-void loadCalibrationAtStartup()
-{
-    if (cfg_->calib.valid) {
-        pose_solver_->setExtrinsic(cfg_->calib.R, cfg_->calib.T);
-        is_calibrated_ = true;
-        RCLCPP_INFO(this->get_logger(), "成功从 Config 加载校准结果，已设置外参");
-        return;
-    }
-
-    std::filesystem::path configDir = std::filesystem::path(config_dir_);
-    std::string calibPath = (configDir / "calib_result.yaml").string();
-    if (!std::filesystem::exists(calibPath)) {
-        RCLCPP_WARN(this->get_logger(), "未找到校准文件: %s", calibPath.c_str());
-        return;
-    }
-
-    try {
-        YAML::Node node = YAML::LoadFile(calibPath);
-        if (!node["r"].IsSequence() || !node["t"].IsSequence()) {
-            RCLCPP_WARN(this->get_logger(), "校准文件格式错误，缺少 r 或 t 数据");
-            return;
-        }
-
-        std::vector<double> r_data = node["r"].as<std::vector<double>>();
-        std::vector<double> t_data = node["t"].as<std::vector<double>>();
-        if (r_data.size() != 9 || t_data.size() != 3) {
-            RCLCPP_WARN(this->get_logger(), "校准文件数据维度不匹配");
-            return;
-        }
-
-        cv::Mat R(3, 3, CV_64F);
-        cv::Mat T(3, 1, CV_64F);
-        for (int i = 0; i < 9; ++i) {
-            R.at<double>(i / 3, i % 3) = r_data[i];
-        }
-        for (int i = 0; i < 3; ++i) {
-            T.at<double>(i, 0) = t_data[i];
-        }
-
-        pose_solver_->setExtrinsic(R, T);
-        is_calibrated_ = true;
-        RCLCPP_INFO(this->get_logger(), "成功从 %s 加载校准结果，已设置外参", calibPath.c_str());
-    } catch (const std::exception& e) {
-        RCLCPP_ERROR(this->get_logger(), "加载校准文件失败: %s", e.what());
-    }
+if (!is_calibrated_) {
+    RCLCPP_WARN_THROTTLE(..., "标定未就绪，跳过世界坐标计算...");
+    return;
 }
 ```
 
 ---
 
-### 为什么要做 fallback？
-
-因为在实际工程中，标定数据可能来自两个渠道：
-
-1. **预置配置**：部署前已经标定好，直接写在 `camera.yaml` 里
-2. **现场标定**：到了比赛场地重新标定，结果存到 `calib_result.yaml`
-
-现场标定的结果通常比预置的更准，所以优先尝试内存配置，如果没有再读文件。
-
----
-
-### 数据验证
-
-代码里有多层验证：
-
-* 文件是否存在
-* YAML 节点是否是序列
-* `r` 是否有 9 个元素（3×3 旋转矩阵）
-* `t` 是否有 3 个元素（3×1 平移向量）
-
-这体现了**防御式编程**：外参错了，后面所有世界坐标都会错，所以加载时必须严格校验。
-
----
-
-# 八、加载 3D Mesh（用于射线碰撞）
+## 3.2 遍历检测结果，分三路处理（核心变化）
 
 ```cpp
-if (!cfg_->camera.meshPath.empty()) {
-    bool mesh_ok = pose_solver_->getRaycaster().loadingMesh(cfg_->camera.meshPath);
-    if (mesh_ok) {
-        RCLCPP_INFO(this->get_logger(), "成功加载 3D 网格: %s", cfg_->camera.meshPath.c_str());
+std::vector<WorldMeasurement> meas;
+meas.reserve(msg->detections.size());
+std::vector<tensorrt_detect_msgs::msg::WorldTarget> dead_targets;
+tensorrt_detect_msgs::msg::WorldTarget outpost_target;
+bool has_outpost = false;
+
+for (const auto& det : msg->detections) {
+    // 世界坐标解算
+    cv::Rect car_box(det.car_x, det.car_y, det.car_width, det.car_height);
+    cv::Point2f world_pos;
+    if (car_box.width > 0 && car_box.height > 0) {
+        world_pos = pose_solver_->middletoworld(car_box);
     } else {
-        RCLCPP_WARN(this->get_logger(), "加载 3D 网格失败: %s，将使用平地 fallback", cfg_->camera.meshPath.c_str());
+        cv::Rect armor_box(det.x, det.y, det.width, det.height);
+        world_pos = pose_solver_->middletoworld(armor_box);
     }
-} else {
-    RCLCPP_WARN(this->get_logger(), "未配置 meshPath，将使用平地 fallback");
+```
+
+---
+
+### 世界坐标解算（与旧版一致）
+
+优先使用 `car_box`（车辆框）做解算，回退到 `armor_box`（装甲板框）。`PoseSolver::middletoworld` 执行 PnP + 射线碰撞。
+
+---
+
+### 三路分流
+
+每个检测结果根据其类型进入不同的处理路径：
+
+```text
+                    ┌─ idx == OUTPOST  → outpost_target（直接透传）
+检测结果 → 解算世界坐标 ─┤
+                    ├─ idx == ARMOR && is_dead → dead_targets（动态追加）
+                    └─ 正常 R1~S → meas（进入 Tracker）
+```
+
+---
+
+#### 路径 1：前哨站直接透传
+
+```cpp
+if (det.idx == robot_id::OUTPOST) {
+    outpost_target.idx      = 10;
+    outpost_target.class_id = det.idx;
+    outpost_target.team_id  = det.armor_color;
+    outpost_target.is_dead  = det.is_dead;
+    outpost_target.score    = det.confidence;
+    outpost_target.valid    = true;
+    outpost_target.world_x  = world_pos.x;
+    outpost_target.world_y  = 0.0f;
+    outpost_target.world_z  = world_pos.y;
+    has_outpost = true;
+    continue;
 }
 ```
 
----
+前哨站是**固定建筑**，不需要跟踪和 Kalman 平滑。它在场地中的位置不变，直接透传即可。
 
-### 射线碰撞（Ray Casting）是什么？
-
-从相机光心出发，穿过图像上的像素点，形成一条射线。这条射线会和场地地面（或 3D 模型）相交，交点就是目标在世界坐标系中的位置。
-
-如果加载了场地 3D Mesh（比如场地起伏、障碍物、坡道），射线可以和真实地形碰撞，得到更准确的高度和位置。
-
-如果没有 Mesh，就回退到**平地假设**（`z = 0`）。
+前哨站放在 `WorldTargetArray` 的**索引 10**（前 10 个是 Tracker 固定槽位）。
 
 ---
 
-### 为什么用 fallback？
-
-3D Mesh 文件可能很大，加载耗时，或者文件路径配置错了。节点不能因为 Mesh 加载失败就退出，因为平地假设在很多场景下已经足够用了。
-
----
-
-# 九、创建 Publisher、Subscriber 和 Service
+#### 路径 2：死亡装甲板动态追加
 
 ```cpp
-world_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::WorldTargetArray>(output_topic_, 10);
-
-armor_sub_ = this->create_subscription<tensorrt_detect_msgs::msg::DetectionArray>(
-    input_topic_, 10,
-    std::bind(&PoseNode::armor_callback, this, std::placeholders::_1));
-
-reload_service_ = this->create_service<std_srvs::srv::Trigger>(
-    "/pose_node/reload_calibration",
-    std::bind(&PoseNode::reloadCalibration, this,
-              std::placeholders::_1, std::placeholders::_2));
-```
-
----
-
-### Publisher
-
-* 类型：`WorldTargetArray`
-* 话题：`/world_targets`
-* 队列深度：10
-
-发布解算后的世界坐标目标。
-
----
-
-### Subscriber
-
-* 类型：`DetectionArray`
-* 话题：`/armor_detections`
-* 回调：`armor_callback`
-
-订阅结构化检测结果，每收到一帧检测数据，就触发一次解算。
-
----
-
-### Service：`/pose_node/reload_calibration`
-
-* 类型：`std_srvs::srv::Trigger`
-* 作用：运行时重新加载 `calib_result.yaml` 中的外参
-
-`calibrate_node` 完成手动标定并保存 YAML 后，通过调用这个 service 通知 `pose_node` 重新加载新标定结果，无需重启节点。
-
-服务回调会重新读取 `calib_result.yaml`，解析 `r`（9 元素旋转矩阵）和 `t`（3 元素平移向量），验证维度后调用 `pose_solver_->setExtrinsic(R, T)`。
-
----
-
-# 十、标定状态管理
-
-```cpp
-bool is_calibrated_ = false;
-```
-
-`pose_node` 维护一个 `is_calibrated_` 标志，用于判断当前外参是否已就绪。
-
-**启动时的加载逻辑**：
-
-1. 优先尝试 `cfg_->calib`（ConfigManager 从内存配置加载的标定数据）
-2. 如果无效，再尝试直接读取 `configs/calib_result.yaml` 文件
-3. 任一方式成功，`is_calibrated_ = true`；否则保持 `false`
-
-**未标定时的行为**：
-
-```cpp
-void armor_callback(...) {
-    if (!is_calibrated_) {
-        RCLCPP_WARN_THROTTLE(..., "标定未就绪，跳过世界坐标计算...");
-        return;  // 不发布 /world_targets
-    }
-    // ... 正常解算 ...
+if (det.idx == robot_id::ARMOR && det.is_dead) {
+    tensorrt_detect_msgs::msg::WorldTarget t;
+    t.idx      = 11 + static_cast<int>(dead_targets.size());
+    t.class_id = robot_id::ARMOR;
+    t.team_id  = robot_id::UNKNOWN;
+    t.is_dead  = true;
+    t.valid    = true;
+    t.world_x  = world_pos.x;
+    t.world_y  = 0.0f;
+    t.world_z  = world_pos.y;
+    dead_targets.push_back(t);
+    continue;
 }
 ```
 
-当标定文件缺失或损坏时，`pose_node` 不会崩溃，而是进入**等待标定状态**：
-
-* 继续订阅 `/armor_detections`（保持链路活跃）
-* 每 5 秒打印一次警告日志
-* 不发布任何 `/world_targets`（避免 `map_node` 收到错误坐标）
-
-当 `calibrate_node` 完成标定并通过 `/pose_node/reload_calibration` 服务触发重载后，`is_calibrated_` 被设为 `true`，节点立即恢复正常输出。
+死亡装甲板没有固定的"槽位"（它不是 R1~S 中的任何一个），所以**动态追加**到 `WorldTargetArray` 的末尾（索引 11+）。
 
 ---
 
-# 十一、构造函数完成日志
+#### 路径 3：正常装甲板进入 Tracker
 
 ```cpp
-if (is_calibrated_) {
-    RCLCPP_INFO(this->get_logger(), "PoseNode 初始化完成，标定已就绪");
-} else {
-    RCLCPP_WARN(this->get_logger(), "PoseNode 初始化完成，等待标定...");
-}
+WorldMeasurement m;
+m.class_id = det.idx;
+m.team_id  = det.armor_color;
+m.score    = det.confidence;
+m.is_dead  = det.is_dead;
+m.box      = cv::Rect(det.x, det.y, det.width, det.height);
+m.world    = world_pos;  // x=world_x, y=world_z
+meas.push_back(m);
 ```
 
-外参加载、Mesh 加载、Pub/Sub、Service 创建都完成后，节点进入待机状态。
+把检测结果填充为 `WorldMeasurement` 结构体，喂给 Tracker。
 
 ---
 
-# 十二、核心回调：`armor_callback`
+## 3.3 Tracker 更新
 
 ```cpp
-private:
-    void armor_callback(const tensorrt_detect_msgs::msg::DetectionArray::SharedPtr msg)
+tracker_.update(meas);
 ```
 
-这是 `pose_node` 的干活函数。每收到一帧 `DetectionArray`，就执行一次。
+一行调用，内部完成：
+
+1. **Predict**：所有 ACTIVE/LOST 槽位的 Kalman 滤波器预测下一状态
+2. **Associate**：匈牙利匹配把 `meas` 分配给对应槽位（基于 `team_id` + `class_id` + 距离门限）
+3. **Update**：匹配成功的槽位用观测更新 Kalman；未匹配的槽位增加 miss 计数
+
+详见 `docs/core_tracker.md`。
 
 ---
 
-# 十三、构建输出消息
+## 3.4 构建输出消息（固定槽位 + Outpost + 死亡装甲板）
 
 ```cpp
 auto world_msg = std::make_shared<tensorrt_detect_msgs::msg::WorldTargetArray>();
 world_msg->header = msg->header;
+world_msg->targets.resize(11);  // 0-9: Tracker 固定槽位; 10: Outpost
 ```
 
 ---
 
-### Header 继承
-
-直接把输入消息的 `header` 复制到输出消息。
-
-这非常重要：
-
-* 时间戳 `stamp` 被保留 → 下游 `map_node` 知道这批世界坐标对应的是哪一帧图像
-* `frame_id` 被保留 → 坐标系信息不丢失
-
-这就是 ROS2 的 **消息血缘传递**。
-
----
-
-# 十四、遍历每个检测目标
+### 固定槽位输出
 
 ```cpp
-for (const auto& det : msg->detections) {
-    tensorrt_detect_msgs::msg::WorldTarget target;
-    target.idx = det.idx;
-    target.class_id = det.idx;
-    target.is_dead = det.is_dead;
-    target.score = det.confidence;
-    target.valid = true;
-    target.bbox_x = det.x;
-    target.bbox_y = det.y;
-    target.bbox_w = det.width;
-    target.bbox_h = det.height;
-
-    if (det.is_dead) {
-        target.team_id = robot_id::UNKNOWN;
-    } else {
-        target.team_id = det.armor_color;
-    }
-```
-
-先把 `DetectionBox` 里的基础字段复制到 `WorldTarget`。这些字段不经过任何变换，原样传递。
-
----
-
-### `is_dead` 的处理
-
-```cpp
-    target.is_dead = det.is_dead;
-```
-
-死亡状态从上游 `detect_node` 原样传递，**不经过任何变换**。
-
----
-
-### `team_id` 的赋值逻辑
-
-```cpp
-    if (det.is_dead) {
-        target.team_id = robot_id::UNKNOWN;
-    } else {
-        target.team_id = det.armor_color;
-    }
-```
-
-* **死亡装甲板**（`is_dead == true`）：`team_id` 显式设为 `UNKNOWN`（0）。死亡车辆没有队伍归属。
-* **存活装甲板**（`is_dead == false`）：`team_id` 从 `armor_color` 复制，表示红方（1）或蓝方（2）。
-
-> 原始代码直接写 `target.team_id = det.armor_color`，导致死亡装甲板（`armor_color` 被设为 0）的 `team_id` 也是 0。虽然结果一样，但语义不清晰。现在通过显式的 `if/else` 区分，下游节点一看就知道 `UNKNOWN` 可能是因为死亡，也可能是因为颜色未识别。
-
----
-
-# 十五、像素坐标 → 世界坐标（核心算法）
-
-```cpp
-// 优先使用 car_box 底部中心进行世界坐标解算
-cv::Rect car_box(det.car_x, det.car_y, det.car_width, det.car_height);
-if (car_box.width > 0 && car_box.height > 0) {
-    cv::Point2f world_pos = pose_solver_->middletoworld(car_box);
-    target.world_x = world_pos.x;
-    target.world_y = 0.0f;
-    target.world_z = world_pos.y;
-} else {
-    // 若 car_box 无效，回退到 armor box
-    cv::Rect armor_box(det.x, det.y, det.width, det.height);
-    cv::Point2f world_pos = pose_solver_->middletoworld(armor_box);
-    target.world_x = world_pos.x;
-    target.world_y = 0.0f;
-    target.world_z = world_pos.y;
+int valid_count = 0;
+for (int i = 0; i < Tracker::NUM_SLOTS; ++i) {
+    auto slot = tracker_.get_slot(i);
+    auto& target = world_msg->targets[i];
+    target.idx      = i;
+    target.class_id = slot.class_id;
+    target.team_id  = slot.team_id;
+    target.is_dead  = slot.is_dead;
+    target.score    = slot.score;
+    target.valid    = slot.valid;
+    target.bbox_x   = slot.smoothed_box.x;
+    target.bbox_y   = slot.smoothed_box.y;
+    target.bbox_w   = slot.smoothed_box.width;
+    target.bbox_h   = slot.smoothed_box.height;
+    target.world_x  = slot.smoothed_world.x;
+    target.world_y  = 0.0f;
+    target.world_z  = slot.smoothed_world.y;
+    if (slot.valid) valid_count++;
 }
 ```
 
-这是整个节点**最有算法含量**的一段。
+---
+
+#### 固定槽位索引约定
+
+| 索引 | 内容 |
+|------|------|
+| 0~4 | Red R1~R4, Red S |
+| 5~9 | Blue R1~R4, Blue S |
+| 10 | Outpost（前哨站） |
+| 11+ | 动态死亡装甲板 |
 
 ---
 
-### 为什么优先用 `car_box`？
+#### `smoothed_box` 和 `smoothed_world`
 
-在 RoboMaster 场景中，一辆车可能有多个装甲板。用装甲板中心做世界坐标解算，会因为装甲板位置不同（车头、车身、车尾）导致同一辆车的坐标跳动。
+注意这里使用的是 `slot.smoothed_box` 和 `slot.smoothed_world`，即经过 **Kalman 滤波平滑后的坐标**，而不是原始检测框。
 
-而 `car_box` 是整辆车的检测框，用它的**底部中心**做解算，能更好地代表车辆在地面上的真实位置，结果更稳定。
-
----
-
-### `middletoworld` 内部在做什么？
-
-虽然代码没有展开，但它的数学过程大致是：
-
-1. **去畸变**：用畸变系数 `D` 把像素坐标矫正成理想 pinhole 坐标
-2. **反向投影**：用内参矩阵 `K` 的逆，把像素坐标转成归一化平面上的方向向量
-3. **坐标系变换**：用外参 `R` 和 `T`，把相机坐标系下的方向向量转到世界坐标系
-4. **射线碰撞**：从相机光心沿方向向量发射射线，与地面（或 3D Mesh）求交点
-5. **返回交点**：这就是目标在世界坐标系中的 `(x, z)` 位置
+这是 Tracker 的核心价值：即使检测模型逐帧输出有噪声，经过 Kalman 平滑后的坐标在地图上会更稳定。
 
 ---
 
-### `world_y = 0.0f`
+#### `valid` 的含义
 
-`PoseSolver` 返回的是 `(x, z)` 二维坐标（场地平面坐标）。`world_y` 被硬编码为 `0.0f`，表示目标在地面上。
+`slot.valid = (state != DEAD) && (hit_count >= min_hit)`
 
-如果以后加载了真实 3D Mesh，`middletoworld` 内部可能会根据地形起伏返回不同高度，这里可以扩展为接收真实 `y` 值。
+* DEAD 槽位：`valid = false`，`map_node` 不会在地图上绘制
+* 首次激活但 hit_count < 2：`valid = false`，防止误检输出
+* 正常跟踪中：`valid = true`
 
 ---
 
-### 坐标系约定
-
-注意这里的坐标映射：
+### Outpost 透传
 
 ```cpp
-target.world_x = world_pos.x;   // 场地宽度方向（X轴）
-target.world_z = world_pos.y;   // 场地长度方向（Z轴）
+if (has_outpost) {
+    world_msg->targets[10] = outpost_target;
+    valid_count++;
+} else {
+    auto& target = world_msg->targets[10];
+    target.idx      = 10;
+    target.class_id = robot_id::OUTPOST;
+    target.team_id  = robot_id::UNKNOWN;
+    target.valid    = false;
+}
 ```
 
-`PoseSolver` 返回的 `cv::Point2f` 中，`x` 对应场地宽，`y` 对应场地长。这是项目内部的坐标约定，`map_node` 在消费这个数据时也要遵循同一套约定。
+如果当前帧没有检测到前哨站，索引 10 仍然存在，但 `valid = false`。
 
 ---
 
-# 十六、发布结果
+### 动态追加死亡装甲板
+
+```cpp
+for (const auto& dt : dead_targets) {
+    world_msg->targets.push_back(dt);
+}
+```
+
+死亡装甲板追加到数组末尾，索引从 11 开始。`WorldTargetArray` 的大小是动态的。
+
+---
+
+## 3.5 发布
 
 ```cpp
 world_pub_->publish(*world_msg);
 ```
 
-把填充好的 `WorldTargetArray` 发到 `/world_targets`。
-
-`map_node` 订阅这个话题后，就能拿到每个目标在世界坐标系中的位置，进而绘制到小地图上。
-
 ---
 
-# 十七、节流日志
+## 3.6 日志
 
 ```cpp
 RCLCPP_INFO_THROTTLE(
-    this->get_logger(),
-    *this->get_clock(),
-    10000,
-    "接收到 %zu 个检测，发布了 %zu 个世界坐标目标",
-    msg->detections.size(), world_msg->targets.size());
+    this->get_logger(), *this->get_clock(), 10000,
+    "接收到 %zu 个检测，固定槽位有效 %d / %d，死亡装甲板 %zu",
+    msg->detections.size(), valid_count, Tracker::NUM_SLOTS, dead_targets.size());
 ```
 
-每 10 秒打印一次处理统计：
+每 10 秒打印一次：
 
-* 输入多少检测框
-* 输出多少世界坐标目标
-
-如果这两个数字不一致，说明有些检测框因为 `car_box` 无效等原因被丢弃了。
+* 输入检测数量
+* 有效槽位数 / 总槽位数（10）
+* 死亡装甲板数量
 
 ---
 
-# 十八、异常处理
-
-```cpp
-catch (const std::exception& e) {
-    RCLCPP_ERROR(this->get_logger(), "姿态解算回调异常: %s", e.what());
-}
-```
-
-回调里的任何标准异常都被拦截，节点不崩。
-
----
-
-# 十九、成员变量
+# 四、成员变量
 
 ```cpp
 std::unique_ptr<Config> cfg_;
 std::unique_ptr<PoseSolver> pose_solver_;
+Tracker tracker_;                    // ← 新增：固定槽位跟踪器
 bool is_calibrated_ = false;
 
 std::string config_dir_;
@@ -644,37 +344,15 @@ rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reload_service_;
 
 ---
 
-### `cfg_`
+### `Tracker tracker_`
 
-保存配置对象。包含相机参数、标定结果、模型配置等。
+新增的成员变量，使用默认参数构造（`max_miss=4`, `min_hit=2`, `max_gate_box=200`）。
 
----
-
-### `pose_solver_`
-
-位姿解算器。持有相机模型、外参、射线碰撞器。是节点的核心算法对象。
+`tracker_` 的生命周期与 `pose_node` 一致，内部维护 10 个固定槽位的 Kalman 状态。
 
 ---
 
-### `is_calibrated_`
-
-标定状态标志。`true` 表示外参已就绪，可以正常解算世界坐标；`false` 表示未标定，回调会直接返回。
-
----
-
-### `config_dir_`
-
-配置目录路径，保存为成员变量供 `reloadCalibration` 服务回调使用。
-
----
-
-### `reload_service_`
-
-重载标定服务。必须作为成员变量长期保存，否则服务会被销毁。
-
----
-
-# 二十、`main` 函数
+# 五、`main` 函数
 
 ```cpp
 int main(int argc, char** argv)
@@ -687,53 +365,73 @@ int main(int argc, char** argv)
 }
 ```
 
-经典四步法。`spin` 负责让 `armor_callback` 在每次 `/armor_detections` 有新消息时被调用。
+经典四步法，与旧版相同。
 
 ---
 
-# 二十一、完整数据流回顾
+# 六、完整数据流回顾
 
 ```text
 detect_node ──/armor_detections──→ pose_node ──/world_targets──→ map_node
+                                      │
+                                      ├── PoseSolver（PnP + 射线碰撞）
+                                      ├── Tracker（固定槽位跟踪 + Kalman 平滑）
+                                      │     ├── KalmanFilterBox（像素框平滑）
+                                      │     ├── KalmanFilter2d（世界坐标平滑）
+                                      │     └── HungarianAlgorithm（数据关联）
+                                      ├── Outpost 直接透传
+                                      └── 死亡装甲板动态追加
 ```
 
-`pose_node` 是**像素世界到物理世界的桥梁**：
+输出的 `WorldTargetArray` 包含：
 
-* 输入：`DetectionArray`（像素坐标、检测框、置信度）
-* 处理：PnP 解算 + 射线碰撞
-* 输出：`WorldTargetArray`（世界坐标、队伍、类别）
-
-下游 `map_node` 不需要知道任何相机参数，也不需要懂 PnP，它只接收纯粹的几何坐标，这正是**节点分工**的价值。
+| 索引 | 内容 | 来源 |
+|------|------|------|
+| 0~4 | Red R1~R4, Red S | Tracker 固定槽位（Kalman 平滑） |
+| 5~9 | Blue R1~R4, Blue S | Tracker 固定槽位（Kalman 平滑） |
+| 10 | Outpost | 直接透传（无平滑） |
+| 11+ | 死亡装甲板 | 动态追加（无平滑） |
 
 ---
 
-# 二十二、从这份代码里学到的设计要点
+# 七、从这份代码里学到的设计要点
 
-## 1. 处理节点的定位
+## 1. 三路分流的设计
 
-`pose_node` 是经典的**纯处理节点**：
+同一个回调中，根据检测类型走不同路径：
 
-* 不碰硬件
-* 不显示图像
-* 只订阅结构化数据 → 做数学变换 → 发布新的结构化数据
+* **前哨站**：固定建筑，不需要跟踪 → 直接透传
+* **死亡装甲板**：无法预分配槽位 → 动态追加
+* **正常装甲板**：需要跟踪和平滑 → 进入 Tracker
 
-这种节点非常容易单元测试：你甚至可以手写一个 `DetectionArray`，喂给 `PoseNode`，验证输出的 `WorldTargetArray` 坐标是否正确。
+这种分流设计比"统一处理"更精确，避免了不必要的 Kalman 更新和数据关联开销。
 
-## 2. 配置降级策略
+## 2. Tracker 的引入时机
+
+Tracker 被放在 `pose_node` 而不是 `detect_node`，原因是：
+
+* Tracker 需要**世界坐标**（`WorldMeasurement.world`），这只有 `pose_node` 才能提供
+* `detect_node` 只有像素坐标，无法做世界坐标系下的 Kalman 平滑
+
+## 3. 固定索引的约定
+
+`WorldTargetArray` 的前 11 个元素使用**固定索引**（0~10），下游 `map_node` 可以直接用索引访问，不需要遍历查找。
+
+这种设计牺牲了灵活性（数组大小固定为至少 11），但换来了极高的查询效率和代码简洁性。
+
+## 4. 配置降级策略（与旧版一致）
+
+标定加载的 fallback 链：`Config → calib_result.yaml → 等待标定`。
+
+## 5. Header 血缘链（与旧版一致）
 
 ```cpp
-if (cfg_->calib.valid) {
-    // 用内存配置
-} else if (文件存在) {
-    // 用文件配置
-} else {
-    // 报错，但继续运行（如果可能的话）
-}
+world_msg->header = msg->header;
 ```
 
-多层级 fallback 让节点在不同部署环境下都能尽量工作。
+时间戳沿消息链传递，支持下游时序对齐。
 
-## 3. 算法回退策略
+## 6. 算法回退策略（与旧版一致）
 
 ```cpp
 if (car_box 有效) {
@@ -743,23 +441,4 @@ if (car_box 有效) {
 }
 ```
 
-优先用高质量数据，降级时也不放弃，用次优数据顶上。
-
-## 4. Header 血缘链
-
-```cpp
-world_msg->header = msg->header;
-```
-
-输入消息的时间戳原样传递给输出消息。在分布式系统中，这是**数据溯源**和**时间同步**的基础。
-
-## 5. 坐标系约定的文档化
-
-```cpp
-target.world_x = world_pos.x;   // 场地 X（宽）
-target.world_z = world_pos.y;   // 场地 Z（长）
-```
-
-这种约定必须在整个团队内达成一致。`pose_node` 生产 `world_x`/`world_z`，`map_node` 消费 `world_x`/`world_z`，如果双方理解不一致，地图上的点就会错位。
-
-在大型 ROS2 项目中，通常会用 **TF2（Transform Frame）** 来形式化坐标系关系，避免这种"约定靠口头"的问题。
+优先用高质量数据，降级时也不放弃。
