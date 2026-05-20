@@ -22,6 +22,7 @@ enum ClassId {
     R4    = 5,  // 4号机器人
     S     = 6,  // 哨兵
     OUTPOST = 7,  // 前哨站
+    AIRPLANE = 8, // 无人机
 };
 
 // 队伍名称

@@ -8,7 +8,29 @@ DetectPipeline::DetectPipeline(Config& cfg)
       armorDetector_(cfg.model.armorModelPath, cfg.model.imgSize2, cfg.model.scoreThreshold2, cfg.model.iouThreshold2, cfg.model.isNMS2, modelType(cfg.model.modelType2)),
       classifyModel_(cfg.model.classifyModelPath, cfg.model.imgSize3, cfg.model.scoreThreshold3, cfg.model.iouThreshold3, cfg.model.isNMS3, modelType(cfg.model.modelType3)),
       cfg_(cfg)
-{}
+{
+    if (!cfg.model.airplaneModelPath.empty()) {
+        airplaneModel_ = std::make_unique<Model>(
+            cfg.model.airplaneModelPath,
+            cfg.model.imgSize4,
+            cfg.model.scoreThreshold4,
+            cfg.model.iouThreshold4,
+            cfg.model.isNMS4,
+            modelType(cfg.model.modelType4)
+        );
+        airplaneIntervalMs_ = std::max(1, cfg.model.airplaneIntervalMs);
+        airplaneThread_ = std::thread(&DetectPipeline::airplaneThreadLoop, this);
+    }
+}
+
+DetectPipeline::~DetectPipeline()
+{
+    stopThread_ = true;
+    airplaneCv_.notify_all();
+    if (airplaneThread_.joinable()) {
+        airplaneThread_.join();
+    }
+}
 
 
 
@@ -151,7 +173,27 @@ std::vector<Result> DetectPipeline::runOutpostDetect(const cv::Mat& frame) {
     return results;
 }
 
+std::vector<Result> DetectPipeline::runAirplaneDetect(const cv::Mat& frame) {
+    if (!airplaneModel_) {
+        return std::vector<Result>();
+    }
+    airplaneModel_->Detect(frame);
+    std::vector<Result> results = airplaneModel_->detectResults;
+    for (auto& res : results) {
+        res.idx = robot_id::AIRPLANE;
+    }
+    return results;
+}
+
 std::vector<Result> DetectPipeline::process(const cv::Mat& frame) {
+    // 更新共享图像缓存并通知后台线程
+    if (airplaneModel_) {
+        std::lock_guard<std::mutex> lock(frameMutex_);
+        latestFrame_ = frame.clone();
+        newFrameAvailable_ = true;
+    }
+    airplaneCv_.notify_one();
+
     auto cars = runDetect(frame);
     auto armors = runArmorDetect(frame, cars);
     runClassify(frame, armors);
@@ -163,5 +205,43 @@ std::vector<Result> DetectPipeline::process(const cv::Mat& frame) {
     auto outposts = runOutpostDetect(frame);
     all.insert(all.end(), outposts.begin(), outposts.end());
 
+    // 获取最新缓存的无人机结果（非阻塞）
+    {
+        std::lock_guard<std::mutex> lock(resultsMutex_);
+        all.insert(all.end(), cachedAirplaneResults_.begin(), cachedAirplaneResults_.end());
+    }
+
     return all;
+}
+
+void DetectPipeline::airplaneThreadLoop()
+{
+    while (!stopThread_) {
+        cv::Mat frame;
+        bool hasNewFrame = false;
+        {
+            std::unique_lock<std::mutex> lock(frameMutex_);
+            airplaneCv_.wait_for(lock, std::chrono::milliseconds(100),
+                [this] { return newFrameAvailable_ || stopThread_.load(); });
+            if (stopThread_) break;
+            if (newFrameAvailable_) {
+                frame = latestFrame_.clone();
+                newFrameAvailable_ = false;
+                hasNewFrame = true;
+            }
+        }
+
+        if (hasNewFrame && airplaneModel_) {
+            airplaneModel_->Detect(frame);
+            std::vector<Result> results = airplaneModel_->detectResults;
+            for (auto& res : results) {
+                res.idx = robot_id::AIRPLANE;
+            }
+            std::lock_guard<std::mutex> lock(resultsMutex_);
+            cachedAirplaneResults_ = std::move(results);
+        }
+
+        // 低频控制，避免占用过多 GPU/CPU
+        std::this_thread::sleep_for(std::chrono::milliseconds(airplaneIntervalMs_));
+    }
 }

@@ -153,6 +153,14 @@ void Config::loadModelConfig(const std::string& path) {
     model.isNMS3                  = cfg["isNMS3"].as<bool>();
     model.modelType3      = cfg["modelType3"].as<std::string>();
 
+    model.airplaneModelPath = cfg["airplaneModelPath"] ? cfg["airplaneModelPath"].as<std::string>() : "";
+    model.imgSize4          = cfg["imgSize4"] ? cfg["imgSize4"].as<int>() : 0;
+    model.iouThreshold4     = cfg["iouThreshold4"] ? cfg["iouThreshold4"].as<float>() : 0.0f;
+    model.scoreThreshold4   = cfg["scoreThreshold4"] ? cfg["scoreThreshold4"].as<float>() : 0.0f;
+    model.isNMS4            = cfg["isNMS4"] ? cfg["isNMS4"].as<bool>() : false;
+    model.modelType4        = cfg["modelType4"] ? cfg["modelType4"].as<std::string>() : "";
+    model.airplaneIntervalMs = cfg["airplane_interval_ms"] ? cfg["airplane_interval_ms"].as<int>() : 33;
+
     model.minRoiSize  = cfg["minRoiSize"] ? cfg["minRoiSize"].as<int>() : 0;
     model.padRatio    = cfg["padRatio"] ? cfg["padRatio"].as<float>() : 0.0f;
     model.classIdxBase = cfg["classIdxBase"] ? cfg["classIdxBase"].as<int>() : 0;

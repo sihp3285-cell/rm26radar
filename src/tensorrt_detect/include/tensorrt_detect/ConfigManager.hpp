@@ -43,6 +43,14 @@ struct ModelConfig {
     bool isNMS3 = false;
     std::string modelType3 = "";
 
+    std::string airplaneModelPath;
+    int imgSize4 = 0;
+    float iouThreshold4 = 0.0f;
+    float scoreThreshold4 = 0.0f;
+    bool isNMS4 = false;
+    std::string modelType4 = "";
+    int airplaneIntervalMs = 33;
+
     int minRoiSize = 0;
     float padRatio = 0.0f;
     int classIdxBase = 0;

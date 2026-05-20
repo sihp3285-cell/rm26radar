@@ -19,6 +19,14 @@ scoreThreshold3: 0.3
 isNMS3: false
 modelType3: "CLASSIFY"
 
+airplaneModelPath: "/home/delphine/rm/tensorrt10_detect/models/airplane.engine"
+imgSize4: 1280
+iouThreshold4: 0.3
+scoreThreshold4: 0.3
+isNMS4: false
+modelType4: "DETECT"
+airplane_interval_ms: 125
+
 outpost_enabled: true
 outpost_roi: [1807, 1451, 173, 65]
 outpost_score_threshold: 0.400000006
@@ -34,6 +42,7 @@ classNames:
   5: "4"   # 对应 raw_id 3
   6: "s"   # 对应 raw_id 4
   7: "outpost"   # 前哨站
+  8: "airplane"  # 无人机
 
 minRoiSize: 30
 padRatio: 0.25
