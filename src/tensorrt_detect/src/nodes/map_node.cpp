@@ -18,7 +18,8 @@
 class MapNode : public rclcpp::Node
 {
 public:
-    MapNode() : Node("map_node")
+    explicit MapNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions())
+        : Node("map_node", options)
     {
         this->declare_parameter<std::string>("config_dir",
             "/home/delphine/rm/tensorrt10_detect/configs");
@@ -69,7 +70,7 @@ public:
 
         flip_team_sub_ = this->create_subscription<std_msgs::msg::Bool>(
             "/flip_team", rclcpp::QoS(1),
-            [this](const std_msgs::msg::Bool::SharedPtr msg) {
+            [this](const std_msgs::msg::Bool::ConstSharedPtr msg) {
                 flip_team_ = msg->data;
                 if (radar_map_) {
                     radar_map_->setFlipTeam(flip_team_);
@@ -90,10 +91,10 @@ public:
     }
 
 private:
-    void target_callback(const tensorrt_detect_msgs::msg::WorldTargetArray::SharedPtr msg)
+    void target_callback(const tensorrt_detect_msgs::msg::WorldTargetArray::ConstSharedPtr msg)
     {
         try {
-            auto radar_msg = std::make_shared<tensorrt_detect_msgs::msg::RadarMap>();
+            auto radar_msg = std::make_unique<tensorrt_detect_msgs::msg::RadarMap>();
 
             // 初始化数组为 0
             for (int i = 0; i < 6; ++i) {
@@ -124,6 +125,10 @@ private:
 
                 cv::Point2f raw_pt = radar_map_->worldtomap(cv::Point2f(t.world_x, t.world_z));
 
+                // 优先使用 BotIdentity 稳定身份（指数加权历史），无效时回落到单帧 class_id
+                int display_class = (t.stable_class_id >= 0 && t.stable_class_conf > 0.0f)
+                                    ? t.stable_class_id : t.class_id;
+
                 // 前哨站单独处理（不在 Mappoints 中绘制，后面单独叠加）
                 if (t.class_id == robot_id::OUTPOST) continue;
 
@@ -146,19 +151,19 @@ private:
                 // 固定槽位（R1~S）
                 Mappoint mp;
                 mp.map_point = raw_pt;
-                mp.classIdx = t.class_id;
+                mp.classIdx = display_class;
                 mp.armorColor = t.team_id;
                 mp.isDead = t.is_dead;
-                if (t.class_id >= 0 && t.class_id < static_cast<int>(cfg_->model.classNames.size())) {
-                    mp.label = cfg_->model.classNames[t.class_id];
+                if (display_class >= 0 && display_class < static_cast<int>(cfg_->model.classNames.size())) {
+                    mp.label = cfg_->model.classNames[display_class];
                 }
                 mappoints.push_back(mp);
 
                 // 填充 RadarMap 消息（仅固定槽位且非死亡）
                 int idx = -1;
-                if (t.class_id >= robot_id::R1 && t.class_id <= robot_id::R4) {
-                    idx = t.class_id - robot_id::R1;
-                } else if (t.class_id == robot_id::S) {
+                if (display_class >= robot_id::R1 && display_class <= robot_id::R4) {
+                    idx = display_class - robot_id::R1;
+                } else if (display_class == robot_id::S) {
                     idx = 5;
                 }
                 if (!t.is_dead && idx >= 0 && idx < 6) {
@@ -173,18 +178,18 @@ private:
             }
 
             radar_msg->header = msg->header;
-            radar_map_pub_->publish(*radar_msg);
+            radar_map_pub_->publish(std::move(radar_msg));
 
             analyzer_->evaluate(msg->targets);
 
-            auto tactics_msg = std::make_shared<tensorrt_detect_msgs::msg::MapTactics>();
+            auto tactics_msg = std::make_unique<tensorrt_detect_msgs::msg::MapTactics>();
             tactics_msg->header = msg->header;
             tactics_msg->engineer_on_island = analyzer_->engineer_on_island();
             tactics_msg->opponent_attack = analyzer_->opponent_attack();
             tactics_msg->our_attack = analyzer_->our_attack();
             tactics_msg->opponent_near_fortress = analyzer_->opponent_near_fortress();
 
-            tactics_pub_->publish(*tactics_msg);
+            tactics_pub_->publish(std::move(tactics_msg));
 
             if (analyzer_->opponent_attack()) {
                 RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 10000, "⚠️ 敌方大攻!");
@@ -251,8 +256,9 @@ private:
 
             std_msgs::msg::Header header = msg->header;
             header.frame_id = "radar_map";
-            auto out_msg = cv_bridge::CvImage(header, "bgr8", map_frame).toImageMsg();
-            image_pub_->publish(*out_msg);
+            auto out_msg = std::make_unique<sensor_msgs::msg::Image>();
+            cv_bridge::CvImage(header, "bgr8", map_frame).toImageMsg(*out_msg);
+            image_pub_->publish(std::move(out_msg));
 
             RCLCPP_INFO_THROTTLE(
                 this->get_logger(),
@@ -283,6 +289,9 @@ private:
     rclcpp::Publisher<tensorrt_detect_msgs::msg::MapTactics>::SharedPtr tactics_pub_;
     std::unique_ptr<MapAnalyzer> analyzer_;
 };
+
+#include <rclcpp_components/register_node_macro.hpp>
+RCLCPP_COMPONENTS_REGISTER_NODE(MapNode)
 
 int main(int argc, char** argv)
 {

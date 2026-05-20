@@ -49,7 +49,11 @@ private:
     std::vector<Result>   runDetect(const cv::Mat& frame);
     std::vector<Result>   runArmorDetect(const cv::Mat& frame,
                                          const std::vector<Result>& detections);
-    void runClassify(const cv::Mat& frame,std::vector<Result>& detections);
+    std::vector<Result>   runArmorDetectBatch(const cv::Mat& frame,
+                                               const std::vector<Result>& detections,
+                                               std::vector<Result>* outposts = nullptr);
+    void runClassify(const cv::Mat& frame, std::vector<Result>& detections);
+    void runClassifyBatch(const cv::Mat& frame, std::vector<Result>& detections);
     std::vector<Result>   runOutpostDetect(const cv::Mat& frame);
     std::vector<Result>   runAirplaneDetect(const cv::Mat& frame);
 
@@ -59,11 +63,24 @@ private:
     std::mutex frameMutex_;
     std::condition_variable airplaneCv_;
     cv::Mat latestFrame_;
+    int airplaneRoiX_ = 0;
     bool newFrameAvailable_ = false;
     std::atomic<bool> stopThread_{false};
 
     std::mutex resultsMutex_;
     std::vector<Result> cachedAirplaneResults_;
     int airplaneIntervalMs_ = 33;
+
+    // 耗时统计
+    std::atomic<double> lastAirplaneMs_{0.0};
+    double accCarMs_ = 0.0;
+    double accArmorMs_ = 0.0;
+    double accClsMs_ = 0.0;
+    double accOutpostMs_ = 0.0;
+    double accTotalMs_ = 0.0;
+    int accCount_ = 0;
+    std::chrono::steady_clock::time_point lastStatsTime_ = std::chrono::steady_clock::now();
+
+    void updateStats(double carMs, double armorMs, double clsMs, double outpostMs, double totalMs);
 
 };

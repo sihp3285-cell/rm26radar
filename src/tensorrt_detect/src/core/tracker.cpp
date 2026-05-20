@@ -43,6 +43,7 @@ void Tracker::reset() {
         slot.miss_count = 0;
         slot.last_box = cv::Rect();
         slot.last_world = cv::Point2f();
+        slot.detected_world = cv::Point2f();
     }
 }
 
@@ -64,12 +65,19 @@ Tracker::SlotOutput Tracker::get_slot(int idx) const {
     out.class_id  = s.class_id;
     out.state     = s.state;
     out.smoothed_box   = s.last_box;
-    out.smoothed_world = s.last_world;
+    // ACTIVE 状态优先使用原始检测世界坐标，避免卡尔曼融合/外推误差导致路径错乱
+    out.smoothed_world = (s.state == TrackState::ACTIVE) ? s.detected_world : s.last_world;
     out.is_dead   = s.last_is_dead;
     out.score     = s.last_score;
 
-    // valid = 非 DEAD 且满足 min_hit
-    out.valid = (s.state != TrackState::DEAD) && (s.hit_count >= params_.min_hit);
+    // valid = ACTIVE / PREDICTED 且满足 min_hit（LOST 状态不对外输出）
+    out.valid = ((s.state == TrackState::ACTIVE) || (s.state == TrackState::PREDICTED))
+                && (s.hit_count >= params_.min_hit);
+
+    // BotIdentity 稳定身份
+    auto [stable_cls, stable_conf] = s.bot_id.getStableClass();
+    out.stable_class_id  = stable_cls;
+    out.stable_class_conf = stable_conf;
     return out;
 }
 
@@ -144,11 +152,16 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections) {
                     static_cast<float>(det.box.height)
                 };
                 if (!slot.initialized || slot.state == TrackState::DEAD) {
-                    // 首次激活或 DEAD 复活：重置 Kalman，以当前观测为基准
+                    // 首次激活或 DEAD 复活：重置 Kalman 和 BotIdentity，同步所有 last_* 变量
                     slot.kf_box.reset(box_meas);
                     slot.kf_world.reset({det.world.x, det.world.y});
+                    slot.bot_id.reset();
                     slot.initialized = true;
+                    slot.last_box = det.box;
+                    slot.last_world = det.world;
+                    slot.detected_world = det.world;
                 } else {
+                    slot.detected_world = det.world;
                     auto box_upd = slot.kf_box.update(box_meas);
                     slot.last_box = cv::Rect(
                         static_cast<int>(box_upd[0] - box_upd[2] / 2.0f),
@@ -158,12 +171,17 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections) {
                     );
                     auto world_upd = slot.kf_world.update({det.world.x, det.world.y});
                     slot.last_world = cv::Point2f(world_upd[0], world_upd[1]);
+                    slot.detected_world = det.world;
                 }
-                // 如果是首次激活，reset 后也要把 last_box/last_world 同步
+                // 如果是首次激活，reset 后也要把 last_box/last_world/detected_world 同步
                 if (slot.hit_count == 0) {
                     slot.last_box = det.box;
                     slot.last_world = det.world;
+                    slot.detected_world = det.world;
                 }
+
+                // ---- BotIdentity 更新 ----
+                slot.bot_id.update(det.class_id, det.score);
 
                 // ---- 状态更新 ----
                 slot.hit_count++;
@@ -178,8 +196,11 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections) {
                     // 死亡车辆冻结：不增加 miss，保持 ACTIVE，持续显示在地图上
                 } else {
                     slot.miss_count++;
+                    slot.bot_id.markLost();
                     if (slot.miss_count > params_.max_miss) {
                         slot.state = TrackState::DEAD;
+                    } else if (slot.miss_count <= params_.max_predict) {
+                        slot.state = TrackState::PREDICTED;
                     } else {
                         slot.state = TrackState::LOST;
                     }
@@ -191,8 +212,11 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections) {
         for (auto& slot : slots_) {
             if (!slot.initialized || slot.last_is_dead) continue;
             slot.miss_count++;
+            slot.bot_id.markLost();
             if (slot.miss_count > params_.max_miss) {
                 slot.state = TrackState::DEAD;
+            } else if (slot.miss_count <= params_.max_predict) {
+                slot.state = TrackState::PREDICTED;
             } else {
                 slot.state = TrackState::LOST;
             }

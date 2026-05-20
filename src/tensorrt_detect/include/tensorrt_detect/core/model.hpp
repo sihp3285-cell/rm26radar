@@ -44,8 +44,24 @@ private:
     float rx, ry;
 
     cv::Mat resizeFrame;
+
+    // Tensor names stored for batch operations
+    std::string inputName_;
+    std::string outputName_;
+
+    // Pre-allocated batch buffers (grow-on-demand)
+    void* batchInputBuffer_ = nullptr;
+    void* batchOutputBuffer_ = nullptr;
+    size_t batchInputCapacity_ = 0;
+    size_t batchOutputCapacity_ = 0;
+
     void preprocessing(const cv::Mat &frame);
     void postprocessing();
+
+    cv::Mat preprocessSingle(const cv::Mat& frame, float& rx, float& ry);
+    std::vector<Result> postprocessSingle(const cv::Mat& det_output, float rx, float ry);
+    std::vector<std::vector<Result>> postprocessBatch(const std::vector<float>& outputData, int batchSize, const std::vector<float>& rxs, const std::vector<float>& rys);
+    void ensureBatchBuffers(size_t inputBytes, size_t outputBytes);
 
 
 public:
@@ -57,12 +73,18 @@ public:
     };
     std::vector<Result> detectResults;
     ModelType modelType;
-    Model(const std::string modelPath, const int &inputSize, const float &scoreThreshold, const float &nmsThreshold, const bool isNMS = true,const ModelType modelType = ModelType::DETECT);
+    Model(const std::string modelPath, const int &inputSize, const float &scoreThreshold, const float &nmsThreshold, const bool isNMS = true, const ModelType modelType = ModelType::DETECT);
     ~Model();
     int predictClass(const cv::Mat &roi);
     cv::Rect roi;
 
     bool Detect(const cv::Mat &frame);
+
+    // Batch methods
+    std::vector<int> predictClassBatchSlow(const std::vector<cv::Mat>& rois);
+    std::vector<int> predictClassBatch(const std::vector<cv::Mat>& rois);
+    std::vector<std::vector<Result>> DetectBatchSlow(const std::vector<cv::Mat>& rois);
+    std::vector<std::vector<Result>> DetectBatch(const std::vector<cv::Mat>& rois);
    };
 
 #endif

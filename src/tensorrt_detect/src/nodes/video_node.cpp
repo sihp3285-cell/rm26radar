@@ -9,7 +9,8 @@
 class VideoNode : public rclcpp::Node
 {
 public:
-    VideoNode() : Node("video_node")
+    explicit VideoNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions())
+        : Node("video_node", options)
     {
         this->declare_parameter<std::string>("video_path", "/home/delphine/rm/car_project/test/005.mp4");
         this->declare_parameter<std::string>("topic_name", "/image_raw");
@@ -64,13 +65,13 @@ private:
             return;
         }
 
-        auto msg = cv_bridge::CvImage(
-            std_msgs::msg::Header(), "bgr8", frame).toImageMsg();
+        auto msg = std::make_unique<sensor_msgs::msg::Image>();
+        cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", frame).toImageMsg(*msg);
 
         msg->header.stamp = this->now();
         msg->header.frame_id = "video_frame";
 
-        image_pub_->publish(*msg);
+        image_pub_->publish(std::move(msg));
     }
 
     cv::VideoCapture cap_;
@@ -83,6 +84,9 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr pause_service_;
 };
+
+#include <rclcpp_components/register_node_macro.hpp>
+RCLCPP_COMPONENTS_REGISTER_NODE(VideoNode)
 
 int main(int argc, char** argv)
 {

@@ -1,6 +1,7 @@
 #pragma once
 #include "tracker_types.hpp"
 #include "kalman.hpp"
+#include "bot_identity.hpp"
 #include "robot_id.hpp"
 #include <vector>
 
@@ -12,6 +13,7 @@
 // ==========================================
 struct TrackerParams {
     int max_miss = 4;               // 连续丢失多少帧后槽位标记为 DEAD（不再输出）
+    int max_predict = 2;            // 连续丢失多少帧内保持 PREDICTED（卡尔曼外推仍显示）
     int min_hit = 2;                // 最少命中次数才对外输出
     float max_gate_box = 200.0f;     // 像素框中心距离门限
 };
@@ -42,12 +44,16 @@ public:
         int slot_idx = 0;
         int team_id = 0;
         int class_id = 0;
-        bool valid = false;          // 当前是否有效（非 DEAD 且满足 min_hit）
+        bool valid = false;          // 当前是否有效（ACTIVE / PREDICTED 且满足 min_hit）
         TrackState state = TrackState::LOST;
         cv::Rect smoothed_box;
         cv::Point2f smoothed_world;
         bool is_dead = false;
         float score = 0.0f;
+
+        // BotIdentity 稳定身份输出
+        int stable_class_id = -1;
+        float stable_class_conf = 0.0f;
     };
 
     // 获取指定槽位的当前状态（用于 pose_node 固定数组输出）
@@ -67,9 +73,11 @@ private:
 
         KalmanFilterBox kf_box;   // 8维 [cx, cy, w, h, vx, vy, vw, vh]
         KalmanFilter2d kf_world;  // 4维 [x, z, vx, vz]
+        BotIdentity bot_id;       // 身份轨迹池：跨帧持久化 class 历史
 
         cv::Rect last_box;
         cv::Point2f last_world;
+        cv::Point2f detected_world;  // 本帧实际检测到的世界坐标（ACTIVE 时优先使用）
         float last_score = 0.0f;
         bool last_is_dead = false;
     };

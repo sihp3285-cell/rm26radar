@@ -17,7 +17,8 @@
 class DetectNode : public rclcpp::Node
 {
 public:
-    DetectNode() : Node("detect_node")
+    explicit DetectNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions())
+        : Node("detect_node", options)
     {
         this->declare_parameter<std::string>("config_dir",
             "/home/delphine/rm/tensorrt10_detect/configs");
@@ -59,7 +60,7 @@ public:
 
 
 private:
-    void image_callback(const sensor_msgs::msg::Image::SharedPtr msg)
+    void image_callback(const sensor_msgs::msg::Image::ConstSharedPtr msg)
     {
         try {
             double input_delay_ms = (this->now() - msg->header.stamp).seconds() * 1000.0;
@@ -76,7 +77,7 @@ private:
             double instant_fps = 1.0 / std::max(dt, 1e-6);
             fps_ = 0.9 * fps_ + 0.1 * instant_fps;
 
-            auto armor_msg = std::make_shared<tensorrt_detect_msgs::msg::DetectionArray>();
+            auto armor_msg = std::make_unique<tensorrt_detect_msgs::msg::DetectionArray>();
             armor_msg->header = msg->header;   // 复用图像时间戳，方便下游同步
             armor_msg->header.frame_id = "detection";
             armor_msg->detections.reserve(results.size());
@@ -121,7 +122,7 @@ private:
                 armor_msg->detections.push_back(statusBox);
             }
 
-            armor_pub_->publish(*armor_msg);
+            armor_pub_->publish(std::move(armor_msg));
             if (publish_debug_image_) {
                 frame.copyTo(debug_frame_);
                 drawDetect(debug_frame_, results, cfg_->model.classNames);
@@ -137,8 +138,9 @@ private:
 
                 std_msgs::msg::Header header = msg->header;
                 header.frame_id = "detected_frame";
-                auto out_msg = cv_bridge::CvImage(header, "bgr8", debug_output_frame_).toImageMsg();
-                image_pub_->publish(*out_msg);
+                auto out_msg = std::make_unique<sensor_msgs::msg::Image>();
+                cv_bridge::CvImage(header, "bgr8", debug_output_frame_).toImageMsg(*out_msg);
+                image_pub_->publish(std::move(out_msg));
             }
 
 
@@ -215,6 +217,9 @@ private:
     cv::Mat debug_frame_;
     cv::Mat debug_output_frame_;
 };
+
+#include <rclcpp_components/register_node_macro.hpp>
+RCLCPP_COMPONENTS_REGISTER_NODE(DetectNode)
 
 int main(int argc, char** argv)
 {

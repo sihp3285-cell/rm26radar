@@ -1,6 +1,8 @@
 #include "pipeline.hpp"
 #include "ConfigManager.hpp"
 #include "robot_id.hpp"
+#include <iostream>
+#include <iomanip>
 
 
 DetectPipeline::DetectPipeline(Config& cfg)
@@ -36,11 +38,15 @@ DetectPipeline::~DetectPipeline()
 
 std::vector<Result> DetectPipeline::runDetect(const cv::Mat& frame) {
     detectModel_.Detect(frame);
-    cv::Rect roi = detectModel_.roi;
-    if(roi.width >= 150 || roi.height >= 150) {
-        return std::vector<Result>();
+    const cv::Rect imgBound(0, 0, frame.cols, frame.rows);
+    std::vector<Result> filtered;
+    for (const auto& det : detectModel_.detectResults) {
+        cv::Rect safeBox = det.box & imgBound;
+        if (safeBox.width >= cfg_.model.minRoiSize && safeBox.height >= cfg_.model.minRoiSize) {
+            filtered.push_back(det);
+        }
     }
-    return detectModel_.detectResults;   
+    return filtered;
 }
 
 std::vector<Result> DetectPipeline::runArmorDetect(const cv::Mat& frame,
@@ -89,6 +95,118 @@ std::vector<Result> DetectPipeline::runArmorDetect(const cv::Mat& frame,
     return armorResults;
 }
 
+std::vector<Result> DetectPipeline::runArmorDetectBatch(const cv::Mat& frame,
+                                                         const std::vector<Result>& detections,
+                                                         std::vector<Result>* outposts) {
+    std::vector<Result> armorResults;
+    const cv::Rect imgBound(0, 0, frame.cols, frame.rows);
+
+    std::vector<cv::Mat> rois;
+    std::vector<size_t> detIndices;
+    std::vector<cv::Rect> safeRois;
+
+    for (size_t i = 0; i < detections.size(); ++i) {
+        cv::Rect roi = detections[i].box & imgBound;
+        if (roi.width <= 0 || roi.height <= 0) continue;
+
+        rois.push_back(frame(roi));
+        detIndices.push_back(i);
+        safeRois.push_back(roi);
+    }
+
+    cv::Rect safeOutpostRoi;
+    bool hasOutpost = false;
+    if (outposts != nullptr && cfg_.model.outpostEnabled && cfg_.model.outpostRoi.size() == 4) {
+        cv::Rect outpostRoi(
+            cfg_.model.outpostRoi[0],
+            cfg_.model.outpostRoi[1],
+            cfg_.model.outpostRoi[2],
+            cfg_.model.outpostRoi[3]
+        );
+        safeOutpostRoi = outpostRoi & imgBound;
+        if (safeOutpostRoi.width > 0 && safeOutpostRoi.height > 0) {
+            rois.push_back(frame(safeOutpostRoi));
+            hasOutpost = true;
+        }
+    }
+
+    if (rois.empty()) return armorResults;
+
+    auto batchResults = armorDetector_.DetectBatch(rois);
+
+    for (size_t i = 0; i < detIndices.size(); ++i) {
+        const auto& detResults = batchResults[i];
+        if (detResults.empty()) continue;
+
+        const auto& det = detections[detIndices[i]];
+        const auto& roi = safeRois[i];
+
+        auto maxArmor = std::max_element(detResults.begin(), detResults.end(),
+            [](const Result& a, const Result& b) {
+                return a.confidence < b.confidence;
+            });
+
+        Result armor = *maxArmor;
+        int raw_id = armor.idx;
+
+        armor.box.x += roi.x;
+        armor.box.y += roi.y;
+        armor.car_box = det.box;
+
+        constexpr int DEAD_ARMOR_ID = 0;
+        armor.idx = robot_id::ARMOR;
+        armor.isDead = (raw_id == DEAD_ARMOR_ID);
+        if (armor.isDead) {
+            armor.armorColor = robot_id::UNKNOWN;
+        } else {
+            armor.armorColor = raw_id;
+        }
+
+        armor.worldPoint = cv::Point2f(det.box.x + det.box.width  / 2.0f,
+                                       det.box.y + det.box.height / 2.0f);
+        armorResults.push_back(armor);
+    }
+
+    if (outposts != nullptr && hasOutpost) {
+        size_t outpostIdx = detIndices.size();
+        const auto& outpostResults = batchResults[outpostIdx];
+
+        bool hasValidDetection = false;
+        Result bestResult;
+        float bestConf = -1.0f;
+
+        for (const auto& res : outpostResults) {
+            if (res.confidence < cfg_.model.outpostScoreThreshold) continue;
+            if (res.confidence > bestConf) {
+                bestConf = res.confidence;
+                bestResult = res;
+                hasValidDetection = true;
+            }
+        }
+
+        if (hasValidDetection) {
+            outpostMissCount_ = 0;
+            outpostIsDead_ = false;
+
+            bestResult.box.x += safeOutpostRoi.x;
+            bestResult.box.y += safeOutpostRoi.y;
+            bestResult.idx = robot_id::OUTPOST;
+            bestResult.car_box = safeOutpostRoi;
+            bestResult.isDead = false;
+            outpostLastBox_ = bestResult.box;
+            outposts->push_back(bestResult);
+        } else {
+            outpostMissCount_++;
+            if (outpostMissCount_ >= cfg_.model.outpostMissThreshold) {
+                outpostMissCount_ = cfg_.model.outpostMissThreshold;
+                outpostIsDead_ = true;
+            }
+        }
+    }
+
+    return armorResults;
+}
+
 
 void DetectPipeline::runClassify(const cv::Mat& frame, std::vector<Result>& detections) {
     const cv::Rect imgBound(0, 0, frame.cols, frame.rows); // 定义边界
@@ -108,6 +226,45 @@ void DetectPipeline::runClassify(const cv::Mat& frame, std::vector<Result>& dete
         cv::Mat armorROI = frame(safeBox); // 现在这里绝对安全了
         
         int raw_id = classifyModel_.predictClass(armorROI); 
+        if (raw_id == 4) {
+            armor.idx = 6; 
+        } 
+        else if (raw_id >= 0 && raw_id <= 3) {
+            armor.idx = raw_id + 2; 
+        }
+    }
+}
+
+void DetectPipeline::runClassifyBatch(const cv::Mat& frame, std::vector<Result>& detections) {
+    const cv::Rect imgBound(0, 0, frame.cols, frame.rows);
+
+    std::vector<cv::Mat> rois;
+    std::vector<size_t> armorIndices;
+
+    for (size_t i = 0; i < detections.size(); ++i) {
+        auto& armor = detections[i];
+        if (armor.isDead) {
+            armor.idx = robot_id::ARMOR;
+            continue;
+        }
+
+        cv::Rect safeBox = armor.box & imgBound;
+        if (safeBox.width <= 0 || safeBox.height <= 0) {
+            continue;
+        }
+
+        rois.push_back(frame(safeBox));
+        armorIndices.push_back(i);
+    }
+
+    if (rois.empty()) return;
+
+    auto classIds = classifyModel_.predictClassBatch(rois);
+
+    for (size_t i = 0; i < classIds.size(); ++i) {
+        int raw_id = classIds[i];
+        auto& armor = detections[armorIndices[i]];
+        
         if (raw_id == 4) {
             armor.idx = 6; 
         } 
@@ -177,32 +334,50 @@ std::vector<Result> DetectPipeline::runAirplaneDetect(const cv::Mat& frame) {
     if (!airplaneModel_) {
         return std::vector<Result>();
     }
-    airplaneModel_->Detect(frame);
+    int xStart = frame.cols / 2;
+    int width = frame.cols - xStart;
+    cv::Rect rightRoi(xStart, 0, width, frame.rows);
+    airplaneModel_->Detect(frame(rightRoi));
     std::vector<Result> results = airplaneModel_->detectResults;
     for (auto& res : results) {
         res.idx = robot_id::AIRPLANE;
+        res.box.x += xStart;
     }
     return results;
 }
 
+static inline double elapsedMs(const std::chrono::steady_clock::time_point& t0,
+                                 const std::chrono::steady_clock::time_point& t1)
+{
+    return std::chrono::duration<double, std::milli>(t1 - t0).count();
+}
+
 std::vector<Result> DetectPipeline::process(const cv::Mat& frame) {
-    // 更新共享图像缓存并通知后台线程
+    auto t0 = std::chrono::steady_clock::now();
+
+    // 更新共享图像缓存并通知后台线程（只存右半，带宽减半）
     if (airplaneModel_) {
         std::lock_guard<std::mutex> lock(frameMutex_);
-        latestFrame_ = frame.clone();
+        airplaneRoiX_ = frame.cols / 2;
+        int width = frame.cols - airplaneRoiX_;
+        latestFrame_ = frame(cv::Rect(airplaneRoiX_, 0, width, frame.rows)).clone();
         newFrameAvailable_ = true;
     }
     airplaneCv_.notify_one();
 
+    auto t1 = std::chrono::steady_clock::now();
     auto cars = runDetect(frame);
-    auto armors = runArmorDetect(frame, cars);
-    runClassify(frame, armors);
+    auto t2 = std::chrono::steady_clock::now();
+
+    std::vector<Result> outposts;
+    auto armors = runArmorDetectBatch(frame, cars, &outposts);
+    auto t3 = std::chrono::steady_clock::now();
+    runClassifyBatch(frame, armors);
+    auto t4 = std::chrono::steady_clock::now();
 
     std::vector<Result> all;
     all.insert(all.end(), cars.begin(), cars.end());
     all.insert(all.end(), armors.begin(), armors.end());
-
-    auto outposts = runOutpostDetect(frame);
     all.insert(all.end(), outposts.begin(), outposts.end());
 
     // 获取最新缓存的无人机结果（非阻塞）
@@ -211,7 +386,42 @@ std::vector<Result> DetectPipeline::process(const cv::Mat& frame) {
         all.insert(all.end(), cachedAirplaneResults_.begin(), cachedAirplaneResults_.end());
     }
 
+    auto t6 = std::chrono::steady_clock::now();
+    updateStats(elapsedMs(t1, t2), elapsedMs(t2, t3), elapsedMs(t3, t4),
+                0.0, elapsedMs(t0, t6));
+
     return all;
+}
+
+void DetectPipeline::updateStats(double carMs, double armorMs, double clsMs,
+                                 double outpostMs, double totalMs)
+{
+    accCarMs_ += carMs;
+    accArmorMs_ += armorMs;
+    accClsMs_ += clsMs;
+    accOutpostMs_ += outpostMs;
+    accTotalMs_ += totalMs;
+    ++accCount_;
+
+    auto now = std::chrono::steady_clock::now();
+    double elapsedSec = std::chrono::duration<double>(now - lastStatsTime_).count();
+    if (elapsedSec >= 5.0 && accCount_ > 0) {
+        double n = static_cast<double>(accCount_);
+        double fps = n / elapsedSec;
+        std::cout << std::fixed << std::setprecision(1)
+                  << "[Time] car=" << (accCarMs_ / n) << "ms"
+                  << ", armor=" << (accArmorMs_ / n) << "ms"
+                  << ", cls=" << (accClsMs_ / n) << "ms"
+                  << ", outpost=" << (accOutpostMs_ / n) << "ms"
+                  << ", airplane=" << lastAirplaneMs_.load() << "ms"
+                  << ", total=" << (accTotalMs_ / n) << "ms"
+                  << ", fps=" << fps
+                  << std::endl;
+
+        accCarMs_ = accArmorMs_ = accClsMs_ = accOutpostMs_ = accTotalMs_ = 0.0;
+        accCount_ = 0;
+        lastStatsTime_ = now;
+    }
 }
 
 void DetectPipeline::airplaneThreadLoop()
@@ -219,23 +429,30 @@ void DetectPipeline::airplaneThreadLoop()
     while (!stopThread_) {
         cv::Mat frame;
         bool hasNewFrame = false;
+        int xOffset = 0;
         {
             std::unique_lock<std::mutex> lock(frameMutex_);
             airplaneCv_.wait_for(lock, std::chrono::milliseconds(100),
                 [this] { return newFrameAvailable_ || stopThread_.load(); });
             if (stopThread_) break;
             if (newFrameAvailable_) {
-                frame = latestFrame_.clone();
+                frame = latestFrame_;          // 浅拷贝 O(1)，数据已在 process() 里 clone 过
+                xOffset = airplaneRoiX_;       // 同步读取原图偏移
                 newFrameAvailable_ = false;
                 hasNewFrame = true;
             }
         }
 
         if (hasNewFrame && airplaneModel_) {
+            auto ta0 = std::chrono::steady_clock::now();
             airplaneModel_->Detect(frame);
+            auto ta1 = std::chrono::steady_clock::now();
+            lastAirplaneMs_ = elapsedMs(ta0, ta1);
+
             std::vector<Result> results = airplaneModel_->detectResults;
             for (auto& res : results) {
                 res.idx = robot_id::AIRPLANE;
+                res.box.x += xOffset;
             }
             std::lock_guard<std::mutex> lock(resultsMutex_);
             cachedAirplaneResults_ = std::move(results);

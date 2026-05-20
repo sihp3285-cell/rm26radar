@@ -202,6 +202,7 @@ void Config::loadTrackerConfig(const std::string& path) {
     YAML::Node cfg = YAML::LoadFile(path);
 
     tracker.maxMiss = cfg["max_miss"] ? cfg["max_miss"].as<int>() : 4;
+    tracker.maxPredict = cfg["max_predict"] ? cfg["max_predict"].as<int>() : 2;
     tracker.minHit = cfg["min_hit"] ? cfg["min_hit"].as<int>() : 2;
     tracker.maxGateBox = cfg["max_gate_box"] ? cfg["max_gate_box"].as<float>() : 200.0f;
 }

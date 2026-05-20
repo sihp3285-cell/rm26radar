@@ -18,7 +18,8 @@
 class PoseNode : public rclcpp::Node
 {
 public:
-    PoseNode() : Node("pose_node")
+    explicit PoseNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions())
+        : Node("pose_node", options)
     {
         this->declare_parameter<std::string>("config_dir",
             "/home/delphine/rm/tensorrt10_detect/configs");
@@ -38,11 +39,12 @@ public:
 
         TrackerParams tp;
         tp.max_miss = cfg_->tracker.maxMiss;
+        tp.max_predict = cfg_->tracker.maxPredict;
         tp.min_hit = cfg_->tracker.minHit;
         tp.max_gate_box = cfg_->tracker.maxGateBox;
         tracker_ = Tracker(tp);
-        RCLCPP_INFO(this->get_logger(), "Tracker 参数: max_miss=%d, min_hit=%d, max_gate_box=%.1f",
-                    tp.max_miss, tp.min_hit, tp.max_gate_box);
+        RCLCPP_INFO(this->get_logger(), "Tracker 参数: max_miss=%d, max_predict=%d, min_hit=%d, max_gate_box=%.1f",
+                    tp.max_miss, tp.max_predict, tp.min_hit, tp.max_gate_box);
 
         loadCalibrationAtStartup();
 
@@ -177,7 +179,7 @@ private:
         }
     }
 
-    void armor_callback(const tensorrt_detect_msgs::msg::DetectionArray::SharedPtr msg)
+    void armor_callback(const tensorrt_detect_msgs::msg::DetectionArray::ConstSharedPtr msg)
     {
         if (!is_calibrated_) {
             RCLCPP_WARN_THROTTLE(
@@ -244,6 +246,8 @@ private:
                     t.world_x  = world_pos.x;
                     t.world_y  = 0.0f;
                     t.world_z  = world_pos.y;
+                    t.stable_class_id  = -1;
+                    t.stable_class_conf = 0.0f;
                     dead_targets.push_back(t);
                     continue;
                 }
@@ -262,7 +266,7 @@ private:
             tracker_.update(meas);
 
             // ---- 3. 固定槽位 + Outpost + 动态死亡装甲板 发布 ----
-            auto world_msg = std::make_shared<tensorrt_detect_msgs::msg::WorldTargetArray>();
+            auto world_msg = std::make_unique<tensorrt_detect_msgs::msg::WorldTargetArray>();
             world_msg->header = msg->header;
             // 0-9: Tracker 固定槽位；10: Outpost 透传
             world_msg->targets.resize(11);
@@ -284,6 +288,8 @@ private:
                 target.world_x  = slot.smoothed_world.x;
                 target.world_y  = 0.0f;
                 target.world_z  = slot.smoothed_world.y;
+                target.stable_class_id  = slot.stable_class_id;
+                target.stable_class_conf = slot.stable_class_conf;
                 if (slot.valid) valid_count++;
             }
 
@@ -304,7 +310,7 @@ private:
                 world_msg->targets.push_back(dt);
             }
 
-            world_pub_->publish(*world_msg);
+            world_pub_->publish(std::move(world_msg));
 
             RCLCPP_INFO_THROTTLE(
                 this->get_logger(),
@@ -331,6 +337,9 @@ private:
     rclcpp::Publisher<tensorrt_detect_msgs::msg::WorldTargetArray>::SharedPtr world_pub_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reload_service_;
 };
+
+#include <rclcpp_components/register_node_macro.hpp>
+RCLCPP_COMPONENTS_REGISTER_NODE(PoseNode)
 
 int main(int argc, char** argv)
 {

@@ -88,6 +88,7 @@ struct MapConfig {
 
 struct TrackerConfig {
     int maxMiss = 4;
+    int maxPredict = 2;
     int minHit = 2;
     float maxGateBox = 200.0f;
 };

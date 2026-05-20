@@ -13,6 +13,7 @@ list(APPEND CMAKE_INSTALL_RPATH "/home/delphine/open3d-devel-linux-x86_64-cxx11-
 # ========== ROS2 依赖 ==========
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(std_msgs REQUIRED)
@@ -59,6 +60,7 @@ add_library(tensorrt_detect_core STATIC
     src/core/map_analyzer.cpp
     src/core/kalman.cpp
     src/core/tracker.cpp
+    src/core/bot_identity.cpp
     src/core/hungarian.cpp
     src/visualization/draw.cpp
     src/visualization/ui.cpp
@@ -79,6 +81,8 @@ target_link_libraries(tensorrt_detect_core
     nvinfer_plugin
     cudart
 )
+# 静态库被链接进共享库（component），需要 -fPIC
+set_target_properties(tensorrt_detect_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # ========== 原程序（独立运行） ==========
 add_executable(standard apps/standalone_main.cpp)
@@ -88,129 +92,76 @@ target_link_libraries(standard
     tensorrt_detect_core
 )
 
-# ========== ROS2 节点：detect_node ==========
+# ========== Component libraries for intra-process zero-copy ==========
+
+# video_node component
+add_library(video_node_component SHARED src/nodes/video_node.cpp)
+ament_target_dependencies(video_node_component rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs std_srvs)
+target_link_libraries(video_node_component pthread ${OpenCV_LIBS})
+target_include_directories(video_node_component PRIVATE ${COMMON_INCLUDE_DIRS})
+rclcpp_components_register_nodes(video_node_component "VideoNode")
+
+# detect_node component
+add_library(detect_node_component SHARED src/nodes/detect_node.cpp)
+ament_target_dependencies(detect_node_component rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs std_srvs tensorrt_detect_msgs)
+target_link_libraries(detect_node_component tensorrt_detect_core)
+rclcpp_components_register_nodes(detect_node_component "DetectNode")
+
+# pose_node component
+add_library(pose_node_component SHARED src/nodes/pose_node.cpp)
+ament_target_dependencies(pose_node_component rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs std_srvs tensorrt_detect_msgs)
+target_link_libraries(pose_node_component tensorrt_detect_core)
+rclcpp_components_register_nodes(pose_node_component "PoseNode")
+
+# map_node component
+add_library(map_node_component SHARED src/nodes/map_node.cpp)
+ament_target_dependencies(map_node_component rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs tensorrt_detect_msgs)
+target_link_libraries(map_node_component tensorrt_detect_core)
+rclcpp_components_register_nodes(map_node_component "MapNode")
+
+# Standalone executables (backward compatibility)
+add_executable(video_node src/nodes/video_node.cpp)
+ament_target_dependencies(video_node rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs std_srvs)
+target_link_libraries(video_node pthread ${OpenCV_LIBS})
+target_include_directories(video_node PRIVATE ${COMMON_INCLUDE_DIRS})
+
 add_executable(detect_node src/nodes/detect_node.cpp)
-
-ament_target_dependencies(detect_node
-    rclcpp
-    sensor_msgs
-    cv_bridge
-    std_msgs
-    std_srvs
-    tensorrt_detect_msgs
-)
-
+ament_target_dependencies(detect_node rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs std_srvs tensorrt_detect_msgs)
 target_link_libraries(detect_node tensorrt_detect_core)
 
-# ========== ROS2 节点：video_node ==========
-add_executable(video_node src/nodes/video_node.cpp)
+add_executable(pose_node src/nodes/pose_node.cpp)
+ament_target_dependencies(pose_node rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs std_srvs tensorrt_detect_msgs)
+target_link_libraries(pose_node tensorrt_detect_core)
 
-ament_target_dependencies(video_node
-    rclcpp
-    sensor_msgs
-    cv_bridge
-    std_msgs
-    std_srvs
-)
-
-target_link_libraries(video_node pthread ${OpenCV_LIBS})
-
-target_include_directories(video_node PRIVATE ${COMMON_INCLUDE_DIRS})
+add_executable(map_node src/nodes/map_node.cpp)
+ament_target_dependencies(map_node rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs tensorrt_detect_msgs)
+target_link_libraries(map_node tensorrt_detect_core)
 
 # ========== ROS2 节点：display_node ==========
 add_executable(display_node src/nodes/display_node.cpp)
-
-ament_target_dependencies(display_node
-    rclcpp
-    sensor_msgs
-    cv_bridge
-    std_msgs
-)
-
+ament_target_dependencies(display_node rclcpp sensor_msgs cv_bridge std_msgs)
 target_link_libraries(display_node pthread ${OpenCV_LIBS})
-
 target_include_directories(display_node PRIVATE ${COMMON_INCLUDE_DIRS})
-
-# ========== ROS2 节点：pose_node ==========
-add_executable(pose_node src/nodes/pose_node.cpp)
-
-ament_target_dependencies(pose_node
-    rclcpp
-    sensor_msgs
-    cv_bridge
-    std_msgs
-    std_srvs
-    tensorrt_detect_msgs
-)
-
-target_link_libraries(pose_node tensorrt_detect_core)
-
-# ========== ROS2 节点：map_node ==========
-add_executable(map_node src/nodes/map_node.cpp)
-
-ament_target_dependencies(map_node
-    rclcpp
-    sensor_msgs
-    cv_bridge
-    std_msgs
-    tensorrt_detect_msgs
-)
-
-target_link_libraries(map_node tensorrt_detect_core)
 
 # ========== ROS2 节点：calibrate_node ==========
 add_executable(calibrate_node src/nodes/calibrate_node.cpp)
-
-ament_target_dependencies(calibrate_node
-    rclcpp
-    sensor_msgs
-    cv_bridge
-    std_msgs
-    std_srvs
-)
-
-target_link_libraries(calibrate_node
-    tensorrt_detect_core
-)
-
+ament_target_dependencies(calibrate_node rclcpp sensor_msgs cv_bridge std_msgs std_srvs)
+target_link_libraries(calibrate_node tensorrt_detect_core)
 target_include_directories(calibrate_node PRIVATE ${COMMON_INCLUDE_DIRS})
 
 # ========== ROS2 节点：roi_set_node ==========
 add_executable(roi_set_node src/nodes/roi_set_node.cpp)
-
-ament_target_dependencies(roi_set_node
-    rclcpp
-    sensor_msgs
-    cv_bridge
-    std_msgs
-    std_srvs
-)
-
-target_link_libraries(roi_set_node
-    tensorrt_detect_core
-)
-
+ament_target_dependencies(roi_set_node rclcpp sensor_msgs cv_bridge std_msgs std_srvs)
+target_link_libraries(roi_set_node tensorrt_detect_core)
 target_include_directories(roi_set_node PRIVATE ${COMMON_INCLUDE_DIRS})
 
 # ========== ROS2 节点：qt_display_node ==========
 add_executable(qt_display_node src/nodes/qt_display_node.cpp)
-
-ament_target_dependencies(qt_display_node
-    rclcpp
-    sensor_msgs
-    cv_bridge
-    std_msgs
-    std_srvs
-    tensorrt_detect_msgs
-)
-
-target_link_libraries(qt_display_node
-    tensorrt_detect_core
-    Qt5::Core
-    Qt5::Widgets
-)
+ament_target_dependencies(qt_display_node rclcpp sensor_msgs cv_bridge std_msgs std_srvs tensorrt_detect_msgs)
+target_link_libraries(qt_display_node tensorrt_detect_core Qt5::Core Qt5::Widgets)
 
 # ========== 安装 & ament 打包 ==========
+# 可执行文件安装到 lib/${PROJECT_NAME}/
 install(TARGETS
     standard
     detect_node
@@ -222,6 +173,15 @@ install(TARGETS
     roi_set_node
     qt_display_node
     DESTINATION lib/${PROJECT_NAME}
+)
+
+# component library 必须安装到 lib/ 根目录，否则 ament_index 路径对不上
+install(TARGETS
+    video_node_component
+    detect_node_component
+    pose_node_component
+    map_node_component
+    DESTINATION lib
 )
 
 # ========== 安装 launch 文件 ==========

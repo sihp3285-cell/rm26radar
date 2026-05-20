@@ -14,7 +14,7 @@ class Logger : public nvinfer1::ILogger
     }
 } gLogger;
 
-Model::Model(const std::string modelPath, const int &inputSize, const float &scoreThreshold, const float &nmsThreshold, const bool isNMS,const ModelType modelType)
+Model::Model(const std::string modelPath, const int &inputSize, const float &scoreThreshold, const float &nmsThreshold, const bool isNMS, const ModelType modelType)
 {
     this->inputSize = inputSize;
     this->scoreThreshold = scoreThreshold;
@@ -58,19 +58,18 @@ Model::Model(const std::string modelPath, const int &inputSize, const float &sco
         throw std::runtime_error("TensorRT execution context 创建失败");
     }
 
-    std::string inputName, outputName;
     int nbTensors = this->engine->getNbIOTensors();
     for (int i = 0; i < nbTensors; ++i) {
         const char* name = this->engine->getIOTensorName(i);
         if (this->engine->getTensorIOMode(name) == nvinfer1::TensorIOMode::kINPUT) {
-            inputName = name;
+            inputName_ = name;
         } else if (this->engine->getTensorIOMode(name) == nvinfer1::TensorIOMode::kOUTPUT) {
-            outputName = name;
+            outputName_ = name;
         }
     }
 
-    nvinfer1::Dims inputDims = this->engine->getTensorShape(inputName.c_str());
-    nvinfer1::Dims outputDims = this->engine->getTensorShape(outputName.c_str());
+    nvinfer1::Dims inputDims = this->engine->getTensorShape(inputName_.c_str());
+    nvinfer1::Dims outputDims = this->engine->getTensorShape(outputName_.c_str());
 
     this->input_h = inputDims.d[2];
     this->input_w = inputDims.d[3];
@@ -97,6 +96,10 @@ Model::~Model()
         if (buffer)
             cudaFree(buffer);
     }
+    if (batchInputBuffer_)
+        cudaFree(batchInputBuffer_);
+    if (batchOutputBuffer_)
+        cudaFree(batchOutputBuffer_);
     if (this->context)
         delete this->context;
     if (this->engine)
@@ -106,7 +109,8 @@ Model::~Model()
     if (this->stream)
         cudaStreamDestroy(this->stream);
 }
-void Model::preprocessing(const cv::Mat &frame)
+
+cv::Mat Model::preprocessSingle(const cv::Mat& frame, float& rx, float& ry)
 {
     int img_w = frame.cols;
     int img_h = frame.rows;
@@ -123,11 +127,10 @@ void Model::preprocessing(const cv::Mat &frame)
     
     resized_img.copyTo(canvas(cv::Rect(0, 0, new_w, new_h)));
 
-    this->rx = (float)img_w / new_w;
-    this->ry = (float)img_h / new_h;
+    rx = (float)img_w / new_w;
+    ry = (float)img_h / new_h;
 
-    cv::Mat canvas_non_const = canvas.clone();
-    cv::Mat blob = cv::dnn::blobFromImage(canvas_non_const, 1 / 255.0, cv::Size(this->input_w, this->input_h), cv::Scalar(0, 0, 0), true, false);
+    cv::Mat blob = cv::dnn::blobFromImage(canvas, 1 / 255.0, cv::Size(this->input_w, this->input_h), cv::Scalar(0, 0, 0), true, false);
     if (this->output_h == 1 || this->output_w == 1) { 
         float mean[] = {0.485, 0.456, 0.406};
         float std[] = {0.229, 0.224, 0.225};
@@ -139,22 +142,27 @@ void Model::preprocessing(const cv::Mat &frame)
             }
         }
     }
+    return blob;
+}
+
+void Model::preprocessing(const cv::Mat &frame)
+{
+    cv::Mat blob = preprocessSingle(frame, this->rx, this->ry);
     cudaMemcpyAsync(buffers[0], blob.ptr<float>(), 3 * this->input_h * this->input_w * sizeof(float), cudaMemcpyHostToDevice, this->stream);
 }
 
-void Model::postprocessing()
+std::vector<Result> Model::postprocessSingle(const cv::Mat& det_output, float rx, float ry)
 {
+    std::vector<Result> results;
+    
     if (this->modelType == ModelType::CLASSIFY) {
-        return;
+        return results;
     }
-
-    this->detectResults.clear();
-    cv::Mat det_output(this->output_h, this->output_w, CV_32F, (float *)prob.data());
 
     if (this->isNMS) 
     {
-        bool is_transposed = (this->output_h < this->output_w); 
-        int num_boxes = is_transposed ? this->output_w : this->output_h;
+        bool is_transposed = (det_output.rows < det_output.cols); 
+        int num_boxes = is_transposed ? det_output.cols : det_output.rows;
 
         for (int i = 0; i < num_boxes; ++i)
         {
@@ -180,12 +188,12 @@ void Model::postprocessing()
             }
 
             cv::Rect box;
-            box.x = static_cast<int>(x1 * this->rx);
-            box.y = static_cast<int>(y1 * this->ry);
-            box.width = static_cast<int>((x2 - x1) * this->rx);
-            box.height = static_cast<int>((y2 - y1) * this->ry);
+            box.x = static_cast<int>(x1 * rx);
+            box.y = static_cast<int>(y1 * ry);
+            box.width = static_cast<int>((x2 - x1) * rx);
+            box.height = static_cast<int>((y2 - y1) * ry);
 
-            this->detectResults.emplace_back(Result{class_id, score, box});
+            results.emplace_back(Result{class_id, score, box});
         }
     } 
     else 
@@ -194,9 +202,9 @@ void Model::postprocessing()
         std::vector<int> classIds;
         std::vector<float> confidences;
 
-        bool is_transposed = (this->output_h > this->output_w); 
-        int num_anchors = is_transposed ? this->output_h : this->output_w;
-        int num_properties = is_transposed ? this->output_w : this->output_h;
+        bool is_transposed = (det_output.rows > det_output.cols); 
+        int num_anchors = is_transposed ? det_output.rows : det_output.cols;
+        int num_properties = is_transposed ? det_output.cols : det_output.rows;
 
         for (int idx = 0; idx < num_anchors; ++idx)
         {
@@ -241,10 +249,10 @@ void Model::postprocessing()
 
             if (max_score > this->scoreThreshold) {
                 cv::Rect box;
-                box.x = static_cast<int>((cx - 0.5 * ow) * this->rx);
-                box.y = static_cast<int>((cy - 0.5 * oh) * this->ry);
-                box.width = static_cast<int>(ow * this->rx);
-                box.height = static_cast<int>(oh * this->ry);
+                box.x = static_cast<int>((cx - 0.5 * ow) * rx);
+                box.y = static_cast<int>((cy - 0.5 * oh) * ry);
+                box.width = static_cast<int>(ow * rx);
+                box.height = static_cast<int>(oh * ry);
 
                 boxes.push_back(box);
                 classIds.push_back(class_id);
@@ -255,9 +263,36 @@ void Model::postprocessing()
         std::vector<int> indexes;
         cv::dnn::NMSBoxes(boxes, confidences, this->scoreThreshold, this->nmsThreshold, indexes);
         for (int idx : indexes) {
-            this->detectResults.emplace_back(Result{classIds[idx], confidences[idx], boxes[idx]});
+            results.emplace_back(Result{classIds[idx], confidences[idx], boxes[idx]});
         }
     }
+    
+    return results;
+}
+
+void Model::postprocessing()
+{
+    if (this->modelType == ModelType::CLASSIFY) {
+        return;
+    }
+
+    this->detectResults.clear();
+    cv::Mat det_output(this->output_h, this->output_w, CV_32F, (float *)prob.data());
+    this->detectResults = postprocessSingle(det_output, this->rx, this->ry);
+}
+
+std::vector<std::vector<Result>> Model::postprocessBatch(const std::vector<float>& outputData, int batchSize, const std::vector<float>& rxs, const std::vector<float>& rys)
+{
+    std::vector<std::vector<Result>> batchResults(batchSize);
+    if (this->modelType == ModelType::CLASSIFY) {
+        return batchResults;
+    }
+    for (int b = 0; b < batchSize; ++b) {
+        const float* sampleData = outputData.data() + b * output_h * output_w;
+        cv::Mat det_output(this->output_h, this->output_w, CV_32F, const_cast<float*>(sampleData));
+        batchResults[b] = postprocessSingle(det_output, rxs[b], rys[b]);
+    }
+    return batchResults;
 }
 
 bool Model::Detect(const cv::Mat &frame)
@@ -292,4 +327,149 @@ return std::max_element(data, data + (output_h * output_w)) - data;
 
 }
 
+std::vector<int> Model::predictClassBatchSlow(const std::vector<cv::Mat>& rois) {
+    std::vector<int> results;
+    results.reserve(rois.size());
+    for (const auto& roi : rois) {
+        results.push_back(predictClass(roi));
+    }
+    return results;
+}
+
+std::vector<std::vector<Result>> Model::DetectBatchSlow(const std::vector<cv::Mat>& rois) {
+    std::vector<std::vector<Result>> results;
+    results.reserve(rois.size());
+    for (const auto& roi : rois) {
+        Detect(roi);
+        results.push_back(detectResults);
+    }
+    return results;
+}
+
+void Model::ensureBatchBuffers(size_t inputBytes, size_t outputBytes) {
+    if (batchInputCapacity_ < inputBytes) {
+        if (batchInputBuffer_) cudaFree(batchInputBuffer_);
+        cudaMalloc(&batchInputBuffer_, inputBytes);
+        batchInputCapacity_ = inputBytes;
+    }
+    if (batchOutputCapacity_ < outputBytes) {
+        if (batchOutputBuffer_) cudaFree(batchOutputBuffer_);
+        cudaMalloc(&batchOutputBuffer_, outputBytes);
+        batchOutputCapacity_ = outputBytes;
+    }
+}
+
+std::vector<int> Model::predictClassBatch(const std::vector<cv::Mat>& rois) {
+    if (rois.empty()) return {};
     
+    int N = static_cast<int>(rois.size());
+    
+    nvinfer1::Dims inputDims = engine->getTensorShape(inputName_.c_str());
+    bool hasDynamicBatch = (inputDims.nbDims > 0 && inputDims.d[0] == -1);
+    
+    if (!hasDynamicBatch) {
+        return predictClassBatchSlow(rois);
+    }
+    
+    std::vector<float> hInput;
+    hInput.reserve(N * 3 * input_h * input_w);
+    
+    for (int i = 0; i < N; ++i) {
+        float rx, ry;
+        cv::Mat blob = preprocessSingle(rois[i], rx, ry);
+        const float* blobData = blob.ptr<float>();
+        size_t blobSize = blob.total();
+        hInput.insert(hInput.end(), blobData, blobData + blobSize);
+    }
+    
+    size_t inputBytes = N * 3 * input_h * input_w * sizeof(float);
+    size_t outputBytes = N * output_h * output_w * sizeof(float);
+    ensureBatchBuffers(inputBytes, outputBytes);
+    
+    cudaMemcpyAsync(batchInputBuffer_, hInput.data(), inputBytes, cudaMemcpyHostToDevice, stream);
+    
+    bool ok = true;
+    ok = ok && context->setTensorAddress(inputName_.c_str(), batchInputBuffer_);
+    ok = ok && context->setTensorAddress(outputName_.c_str(), batchOutputBuffer_);
+    
+    nvinfer1::Dims4 actualInputDims(N, 3, input_h, input_w);
+    ok = ok && context->setInputShape(inputName_.c_str(), actualInputDims);
+    
+    if (!ok || !context->enqueueV3(stream)) {
+        std::cerr << "Batch classification inference failed, falling back to slow path" << std::endl;
+        nvinfer1::Dims4 resetInputDims(1, 3, input_h, input_w);
+        context->setInputShape(inputName_.c_str(), resetInputDims);
+        return predictClassBatchSlow(rois);
+    }
+    
+    std::vector<float> hOutput(N * output_h * output_w);
+    cudaMemcpyAsync(hOutput.data(), batchOutputBuffer_, outputBytes, cudaMemcpyDeviceToHost, stream);
+    cudaStreamSynchronize(stream);
+    
+    nvinfer1::Dims4 resetInputDims(1, 3, input_h, input_w);
+    context->setInputShape(inputName_.c_str(), resetInputDims);
+    
+    std::vector<int> results(N);
+    int classesPerSample = output_h * output_w;
+    for (int i = 0; i < N; ++i) {
+        const float* data = hOutput.data() + i * classesPerSample;
+        results[i] = std::max_element(data, data + classesPerSample) - data;
+    }
+    return results;
+}
+
+std::vector<std::vector<Result>> Model::DetectBatch(const std::vector<cv::Mat>& rois) {
+    if (rois.empty()) return {};
+    
+    int N = static_cast<int>(rois.size());
+    
+    nvinfer1::Dims inputDims = engine->getTensorShape(inputName_.c_str());
+    bool hasDynamicBatch = (inputDims.nbDims > 0 && inputDims.d[0] == -1);
+    
+    if (!hasDynamicBatch) {
+        return DetectBatchSlow(rois);
+    }
+    
+    std::vector<float> hInput;
+    std::vector<float> rxs(N), rys(N);
+    hInput.reserve(N * 3 * input_h * input_w);
+    
+    for (int i = 0; i < N; ++i) {
+        float rx, ry;
+        cv::Mat blob = preprocessSingle(rois[i], rx, ry);
+        rxs[i] = rx;
+        rys[i] = ry;
+        const float* blobData = blob.ptr<float>();
+        size_t blobSize = blob.total();
+        hInput.insert(hInput.end(), blobData, blobData + blobSize);
+    }
+    
+    size_t inputBytes = N * 3 * input_h * input_w * sizeof(float);
+    size_t outputBytes = N * output_h * output_w * sizeof(float);
+    ensureBatchBuffers(inputBytes, outputBytes);
+    
+    cudaMemcpyAsync(batchInputBuffer_, hInput.data(), inputBytes, cudaMemcpyHostToDevice, stream);
+    
+    bool ok = true;
+    ok = ok && context->setTensorAddress(inputName_.c_str(), batchInputBuffer_);
+    ok = ok && context->setTensorAddress(outputName_.c_str(), batchOutputBuffer_);
+    
+    nvinfer1::Dims4 actualInputDims(N, 3, input_h, input_w);
+    ok = ok && context->setInputShape(inputName_.c_str(), actualInputDims);
+    
+    if (!ok || !context->enqueueV3(stream)) {
+        std::cerr << "Batch detection inference failed, falling back to slow path" << std::endl;
+        nvinfer1::Dims4 resetInputDims(1, 3, input_h, input_w);
+        context->setInputShape(inputName_.c_str(), resetInputDims);
+        return DetectBatchSlow(rois);
+    }
+    
+    std::vector<float> hOutput(N * output_h * output_w);
+    cudaMemcpyAsync(hOutput.data(), batchOutputBuffer_, outputBytes, cudaMemcpyDeviceToHost, stream);
+    cudaStreamSynchronize(stream);
+    
+    nvinfer1::Dims4 resetInputDims(1, 3, input_h, input_w);
+    context->setInputShape(inputName_.c_str(), resetInputDims);
+    
+    return postprocessBatch(hOutput, N, rxs, rys);
+}
