@@ -214,6 +214,7 @@ private:
             if (outpostPts.size() >= 2 && has_outpost) {
                 float x = outpostPts[0];
                 float y = outpostPts[1];
+                if (std::isnan(x) || std::isnan(y)) return;
 
                 cv::Point2f pt;
                 if (cfg_->map.isFlip) {

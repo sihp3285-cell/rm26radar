@@ -70,7 +70,7 @@ cv::Point3f Raycaster::pixelToWorld(const cv::Point2f& pixel,
             auto result = scene_->CastRays(ray);
             float t_hit = result["t_hit"].Item<float>(); 
 
-            if (std::isinf(t_hit)) return fallback_to_flat_ground();
+            if (std::isinf(t_hit) || std::isnan(t_hit)) return fallback_to_flat_ground();
             
 
             return cv::Point3f(ox + t_hit * dx, oy + t_hit * dy, oz + t_hit * dz);

@@ -4,7 +4,7 @@
 
 video_node:
   ros__parameters:
-    video_path: "/home/delphine/rm/car_project/test/005.mp4"
+    video_path: "/home/delphine/rm/car_project/test/007.mp4"
     topic_name: "/image_raw"
     fps: 30
 

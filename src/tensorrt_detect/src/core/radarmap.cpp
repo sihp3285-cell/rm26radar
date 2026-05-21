@@ -51,6 +51,7 @@ cv::Mat RadarMap::drawMap(const std::vector<Mappoint>& mappoints,const std::vect
     }
     for (const auto& mappoint : mappoints)
     {
+        if (std::isnan(mappoint.map_point.x) || std::isnan(mappoint.map_point.y)) continue;
         cv::Point pt(static_cast<int>(mappoint.map_point.x),
                      static_cast<int>(mappoint.map_point.y));
         cv::Scalar drawColor;
