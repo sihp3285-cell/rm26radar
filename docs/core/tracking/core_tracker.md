@@ -60,6 +60,7 @@ map_node
 ```cpp
 struct TrackerParams {
     int max_miss = 4;               // 连续丢失多少帧后标记为 DEAD
+    int max_predict = 2;            // 连续丢失多少帧内保持 PREDICTED（卡尔曼外推仍显示）
     int min_hit = 2;                // 最少命中次数才对外输出
     float max_gate_box = 200.0f;    // 像素框中心距离门限
 };
@@ -72,6 +73,7 @@ struct TrackerParams {
 | 参数 | 默认值 | 含义 |
 |------|--------|------|
 | `max_miss` | 4 | 连续漏检 4 帧后，槽位从 LOST 变为 DEAD |
+| `max_predict` | 2 | 连续漏检 ≤ 2 帧时，槽位保持 PREDICTED 状态（卡尔曼外推，仍对外输出） |
 | `min_hit` | 2 | 至少连续命中 2 次，槽位才对外输出（防误检） |
 | `max_gate_box` | 200 像素 | 匹配门限：检测框与槽位预测位置的距离超过 200 像素则拒绝匹配 |
 
@@ -87,6 +89,20 @@ struct TrackerParams {
 * 太大（如 20）：目标已经离开视野，但地图上还显示旧位置
 
 4 帧是 RoboMaster 场景下的经验值。
+
+---
+
+### `max_predict = 2` 的工程含义
+
+这是新增的参数，配合四状态机（ACTIVE → PREDICTED → LOST → DEAD）使用。
+
+* `miss_count ≤ max_predict`：槽位进入 PREDICTED，卡尔曼滤波器继续外推，目标仍显示在地图上（valid=true）
+* `max_predict < miss_count ≤ max_miss`：槽位进入 LOST，不再对外输出（valid=false）
+* `miss_count > max_miss`：槽位进入 DEAD，释放资源
+
+在 30fps 下，2 帧 = 67ms。这意味着目标短暂丢失 1~2 帧时，地图上仍然显示卡尔曼外推的位置，避免了闪烁。超过 2 帧后才停止显示。
+
+这种设计在**视觉流畅性**和**数据准确性**之间取得了平衡：短暂遮挡时外推位置比突然消失更好，但外推太久会累积误差。
 
 ---
 
@@ -153,29 +169,38 @@ struct SlotOutput {
     int slot_idx = 0;
     int team_id = 0;
     int class_id = 0;
-    bool valid = false;          // 非 DEAD 且满足 min_hit
+    bool valid = false;          // 当前是否有效（ACTIVE / PREDICTED 且满足 min_hit）
     TrackState state = TrackState::LOST;
     cv::Rect smoothed_box;
     cv::Point2f smoothed_world;
     bool is_dead = false;
     float score = 0.0f;
+
+    // BotIdentity 稳定身份输出
+    int stable_class_id = -1;
+    float stable_class_conf = 0.0f;
 };
 ```
 
 `pose_node` 通过 `get_slot(i)` 遍历 10 个槽位，把 `SlotOutput` 填充到 `WorldTargetArray` 的前 10 个元素中。
+
+新增的 `stable_class_id` 和 `stable_class_conf` 来自 `BotIdentity` 模块的跨帧投票结果。详见 `docs/core_bot_identity.md`。
 
 ---
 
 ### `valid` 字段的判断逻辑
 
 ```cpp
-out.valid = (s.state != TrackState::DEAD) && (s.hit_count >= params_.min_hit);
+out.valid = ((s.state == TrackState::ACTIVE) || (s.state == TrackState::PREDICTED))
+            && (s.hit_count >= params_.min_hit);
 ```
 
 两个条件必须同时满足：
 
-1. 槽位不是 DEAD（至少是 ACTIVE 或 LOST）
+1. 槽位是 ACTIVE 或 PREDICTED（LOST 和 DEAD 不对外输出）
 2. 历史命中次数 ≥ `min_hit`（防止误检输出）
+
+> **关键变化**：旧版中 LOST 状态也对外输出（`valid = true`），新版中只有 ACTIVE 和 PREDICTED 才输出。LOST 状态的目标不再显示在地图上，因为此时卡尔曼外推的误差已经较大。
 
 ---
 
@@ -201,10 +226,13 @@ struct Slot {
 };
 ```
 
-每个槽位拥有**独立的两个 Kalman 滤波器**：
+每个槽位拥有**独立的两个 Kalman 滤波器**和一个**身份轨迹池**：
 
 * `kf_box`：平滑像素框位置（8 维：位置 + 速度）
 * `kf_world`：平滑世界坐标位置（4 维：位置 + 速度）
+* `bot_id`：跨帧身份稳定化（BotIdentity，详见 `docs/core_bot_identity.md`）
+
+此外，`detected_world` 字段保存本帧实际检测到的世界坐标（未经 Kalman 平滑）。在 `ACTIVE` 状态下，`get_slot` 优先返回 `detected_world` 而非 Kalman 平滑值，避免卡尔曼融合/外推误差导致路径错乱。
 
 ---
 
@@ -387,11 +415,17 @@ for (int r = 0; r < n_rows; ++r) {
     } else {
         // 未匹配
         if (slot.last_is_dead) {
-            // 死亡车辆冻结：不增加 miss
+            // 死亡车辆冻结：不增加 miss，保持 ACTIVE
         } else {
             slot.miss_count++;
-            slot.state = (slot.miss_count > params_.max_miss)
-                             ? TrackState::DEAD : TrackState::LOST;
+            slot.bot_id.markLost();
+            if (slot.miss_count > params_.max_miss) {
+                slot.state = TrackState::DEAD;
+            } else if (slot.miss_count <= params_.max_predict) {
+                slot.state = TrackState::PREDICTED;
+            } else {
+                slot.state = TrackState::LOST;
+            }
         }
     }
 }
@@ -399,10 +433,44 @@ for (int r = 0; r < n_rows; ++r) {
 
 ---
 
+#### 四状态转换逻辑
+
+未匹配时的状态转换：
+
+```text
+miss_count > max_miss           → DEAD（释放）
+miss_count > max_predict        → LOST（不对外输出）
+miss_count ≤ max_predict        → PREDICTED（卡尔曼外推，仍对外输出）
+```
+
+---
+
+#### BotIdentity 更新
+
+匹配成功时，同时更新身份轨迹池：
+
+```cpp
+slot.bot_id.update(det.class_id, det.score);
+```
+
+未匹配时，通知 BotIdentity 标记丢失：
+
+```cpp
+slot.bot_id.markLost();
+```
+
+首次激活/DEAD 复活时，清空身份历史：
+
+```cpp
+slot.bot_id.reset();
+```
+
+---
+
 #### 首次激活 vs 正常更新
 
-* **首次激活**（`!initialized || DEAD`）：`reset()` 重置 Kalman 滤波器，以当前观测为基准
-* **正常更新**（ACTIVE/LOST）：`update()` 用观测修正预测
+* **首次激活**（`!initialized || DEAD`）：`reset()` 重置 Kalman 滤波器和 BotIdentity，以当前观测为基准
+* **正常更新**（ACTIVE/PREDICTED/LOST）：`update()` 用观测修正预测
 
 ---
 
@@ -431,10 +499,19 @@ Tracker::SlotOutput Tracker::get_slot(int idx) const {
     out.class_id  = s.class_id;
     out.state     = s.state;
     out.smoothed_box   = s.last_box;
-    out.smoothed_world = s.last_world;
+    // ACTIVE 状态优先使用原始检测世界坐标，避免卡尔曼融合/外推误差
+    out.smoothed_world = (s.state == TrackState::ACTIVE) ? s.detected_world : s.last_world;
     out.is_dead   = s.last_is_dead;
     out.score     = s.last_score;
-    out.valid = (s.state != TrackState::DEAD) && (s.hit_count >= params_.min_hit);
+
+    // valid = ACTIVE / PREDICTED 且满足 min_hit（LOST 状态不对外输出）
+    out.valid = ((s.state == TrackState::ACTIVE) || (s.state == TrackState::PREDICTED))
+                && (s.hit_count >= params_.min_hit);
+
+    // BotIdentity 稳定身份
+    auto [stable_cls, stable_conf] = s.bot_id.getStableClass();
+    out.stable_class_id  = stable_cls;
+    out.stable_class_conf = stable_conf;
     return out;
 }
 ```
@@ -445,10 +522,22 @@ Tracker::SlotOutput Tracker::get_slot(int idx) const {
 
 `valid = true` 需要同时满足：
 
-1. `state != DEAD`：槽位处于跟踪状态
+1. `state` 是 ACTIVE 或 PREDICTED（LOST 和 DEAD 不输出）
 2. `hit_count >= min_hit`：连续命中次数达标
 
 首次激活后的前 `min_hit - 1` 帧，虽然槽位不是 DEAD，但 `valid` 仍是 `false`。这避免了误检输出。
+
+---
+
+### `smoothed_world` 的 ACTIVE 优先策略
+
+```cpp
+out.smoothed_world = (s.state == TrackState::ACTIVE) ? s.detected_world : s.last_world;
+```
+
+当槽位处于 ACTIVE 状态时，优先返回原始检测世界坐标（`detected_world`）而非 Kalman 平滑值（`last_world`）。
+
+为什么？因为在 ACTIVE 状态下检测结果是可靠的，使用原始坐标可以避免 Kalman 滤波器的融合延迟和外推误差导致地图路径错乱。当处于 PREDICTED/LOST 状态时（没有新检测），才使用 Kalman 外推值。
 
 ---
 

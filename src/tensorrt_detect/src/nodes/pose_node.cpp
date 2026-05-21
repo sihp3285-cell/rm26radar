@@ -59,10 +59,10 @@ public:
             RCLCPP_WARN(this->get_logger(), "未配置 meshPath，将使用平地 fallback");
         }
 
-        world_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::WorldTargetArray>(output_topic_, 10);
+        world_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::WorldTargetArray>(output_topic_, rclcpp::QoS(10).best_effort());
 
         armor_sub_ = this->create_subscription<tensorrt_detect_msgs::msg::DetectionArray>(
-            input_topic_, 10,
+            input_topic_, rclcpp::QoS(10).best_effort(),
             std::bind(&PoseNode::armor_callback, this, std::placeholders::_1));
 
         reload_service_ = this->create_service<std_srvs::srv::Trigger>(

@@ -397,7 +397,7 @@ public:
 
         // 订阅检测结果，提取前哨站状态
         armor_sub_ = this->create_subscription<tensorrt_detect_msgs::msg::DetectionArray>(
-            armor_topic_, rclcpp::QoS(10),
+            armor_topic_, rclcpp::QoS(10).best_effort(),
             [this](const tensorrt_detect_msgs::msg::DetectionArray::SharedPtr msg) {
                 bool alive = false;
                 bool found = false;

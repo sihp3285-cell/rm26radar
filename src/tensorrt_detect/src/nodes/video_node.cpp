@@ -66,10 +66,24 @@ private:
         }
 
         auto msg = std::make_unique<sensor_msgs::msg::Image>();
-        cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", frame).toImageMsg(*msg);
-
         msg->header.stamp = this->now();
         msg->header.frame_id = "video_frame";
+        msg->height = frame.rows;
+        msg->width = frame.cols;
+        msg->encoding = "bgr8";
+        msg->is_bigendian = 0;
+        msg->step = frame.step[0];
+        size_t row_bytes = frame.cols * 3;  // BGR8
+        msg->data.resize(msg->step * msg->height);
+
+        if (frame.isContinuous()) {
+            std::memcpy(msg->data.data(), frame.data, msg->data.size());
+        } else {
+            for (int i = 0; i < frame.rows; ++i) {
+                std::memcpy(msg->data.data() + i * msg->step,
+                            frame.ptr(i), row_bytes);
+            }
+        }
 
         image_pub_->publish(std::move(msg));
     }

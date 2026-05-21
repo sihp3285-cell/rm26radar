@@ -223,11 +223,14 @@ for (size_t i = 0; i < msg->targets.size(); ++i) {
     // 固定槽位（R1~S）
     Mappoint mp;
     mp.map_point = raw_pt;
-    mp.classIdx = t.class_id;
+    // 优先使用 BotIdentity 稳定身份（指数加权历史），无效时回落到单帧 class_id
+    int display_class = (t.stable_class_id >= 0 && t.stable_class_conf > 0.0f)
+                            ? t.stable_class_id : t.class_id;
+    mp.classIdx = display_class;
     mp.armorColor = t.team_id;
     mp.isDead = t.is_dead;
-    if (t.class_id >= 0 && t.class_id < static_cast<int>(cfg_->model.classNames.size())) {
-        mp.label = cfg_->model.classNames[t.class_id];
+    if (display_class >= 0 && display_class < static_cast<int>(cfg_->model.classNames.size())) {
+        mp.label = cfg_->model.classNames[display_class];
     }
     mappoints.push_back(mp);
 ```

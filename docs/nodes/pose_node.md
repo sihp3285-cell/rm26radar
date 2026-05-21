@@ -234,6 +234,8 @@ for (int i = 0; i < Tracker::NUM_SLOTS; ++i) {
     target.world_x  = slot.smoothed_world.x;
     target.world_y  = 0.0f;
     target.world_z  = slot.smoothed_world.y;
+    target.stable_class_id  = slot.stable_class_id;
+    target.stable_class_conf = slot.stable_class_conf;
     if (slot.valid) valid_count++;
 }
 ```
@@ -259,13 +261,19 @@ for (int i = 0; i < Tracker::NUM_SLOTS; ++i) {
 
 ---
 
-#### `valid` 的含义
+#### `valid` 的含义（更新）
 
-`slot.valid = (state != DEAD) && (hit_count >= min_hit)`
+```cpp
+valid = (state == ACTIVE || state == PREDICTED) && (hit_count >= min_hit)
+```
 
-* DEAD 槽位：`valid = false`，`map_node` 不会在地图上绘制
+* DEAD 槽位：`valid = false`，不输出
+* LOST 槽位：`valid = false`，不输出（旧版中 LOST 也输出，新版已修改）
+* PREDICTED 槽位：`valid = true`，卡尔曼外推仍显示
 * 首次激活但 hit_count < 2：`valid = false`，防止误检输出
-* 正常跟踪中：`valid = true`
+* 正常跟踪中（ACTIVE）：`valid = true`
+
+> 详见 `docs/core_tracker.md` 中四状态机的说明。
 
 ---
 
@@ -303,8 +311,10 @@ for (const auto& dt : dead_targets) {
 ## 3.5 发布
 
 ```cpp
-world_pub_->publish(*world_msg);
+world_pub_->publish(std::move(world_msg));
 ```
+
+使用 `std::move` 避免 `WorldTargetArray` 的深拷贝，对于包含 10+ 个 `WorldTarget` 的消息有一定性能提升。
 
 ---
 
@@ -346,9 +356,20 @@ rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reload_service_;
 
 ### `Tracker tracker_`
 
-新增的成员变量，使用默认参数构造（`max_miss=4`, `min_hit=2`, `max_gate_box=200`）。
+新增的成员变量，**参数从配置文件加载**（`cfg_->tracker.*`），而非使用默认值。
 
-`tracker_` 的生命周期与 `pose_node` 一致，内部维护 10 个固定槽位的 Kalman 状态。
+构造函数中通过 `TrackerParams` 从 `Config` 读取：
+
+```cpp
+TrackerParams tp;
+tp.max_miss     = cfg_->tracker.maxMiss;
+tp.max_predict  = cfg_->tracker.maxPredict;
+tp.min_hit      = cfg_->tracker.minHit;
+tp.max_gate_box = cfg_->tracker.maxGateBox;
+tracker_ = Tracker(tp);
+```
+
+这使得跟踪参数可以通过 YAML 配置文件灵活调整，无需重新编译。
 
 ---
 
@@ -426,8 +447,10 @@ Tracker 被放在 `pose_node` 而不是 `detect_node`，原因是：
 ## 5. Header 血缘链（与旧版一致）
 
 ```cpp
-world_msg->header = msg->header;
+void armor_callback(const tensorrt_detect_msgs::msg::DetectionArray::ConstSharedPtr msg)
 ```
+
+> **注意**：回调签名从 `SharedPtr` 改为 `ConstSharedPtr`，表明回调不会修改消息内容，符合 ROS2 最佳实践。
 
 时间戳沿消息链传递，支持下游时序对齐。
 

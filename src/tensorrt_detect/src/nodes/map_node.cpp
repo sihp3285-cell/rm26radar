@@ -83,7 +83,7 @@ public:
             });
 
         target_sub_ = this->create_subscription<tensorrt_detect_msgs::msg::WorldTargetArray>(
-            input_topic_, 10,
+            input_topic_, rclcpp::QoS(10).best_effort(),
             std::bind(&MapNode::target_callback, this, std::placeholders::_1));
         
 

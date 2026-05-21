@@ -44,7 +44,7 @@ public:
         pipeline_ = std::make_unique<DetectPipeline>(*cfg_);
 
         image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(output_topic_, rclcpp::QoS(1));
-        armor_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::DetectionArray>("/armor_detections", 10);
+        armor_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::DetectionArray>("/armor_detections", rclcpp::QoS(10).best_effort());
 
         image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
             input_topic_, rclcpp::QoS(1),
@@ -66,7 +66,8 @@ private:
             double input_delay_ms = (this->now() - msg->header.stamp).seconds() * 1000.0;
 
             auto cv_ptr = cv_bridge::toCvShare(msg, "bgr8");
-            const cv::Mat& frame = cv_ptr->image;
+            // 浅拷贝底层数据，允许在原始 ROS Image 上直接画框（intra-process 单订阅者场景安全）
+            cv::Mat frame = cv_ptr->image;
 
             std::vector<Result> results = pipeline_->process(frame);
 

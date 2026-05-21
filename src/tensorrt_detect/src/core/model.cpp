@@ -4,6 +4,7 @@
 #include <numeric>
 
 #include "model.hpp"
+#include "preprocess.hpp"
 
 class Logger : public nvinfer1::ILogger
 {
@@ -85,8 +86,18 @@ Model::Model(const std::string modelPath, const int &inputSize, const float &sco
 
     cudaMalloc(&(this->buffers[0]), this->input_h * this->input_w * 3 * sizeof(float));
     cudaMalloc(&(this->buffers[1]), this->output_h * this->output_w * sizeof(float));
-    this->prob.resize(this->output_h * this->output_w);
+    this->probSize_ = this->output_h * this->output_w;
+    cudaMallocHost(&(this->prob_), this->probSize_ * sizeof(float));
     cudaStreamCreate(&(this->stream));
+
+    // Initialize normalization params
+    if (this->output_h == 1 || this->output_w == 1) {
+        mean_[0] = 0.485f; mean_[1] = 0.456f; mean_[2] = 0.406f;
+        std_[0]  = 0.229f; std_[1]  = 0.224f; std_[2]  = 0.225f;
+    } else {
+        mean_[0] = 0.0f; mean_[1] = 0.0f; mean_[2] = 0.0f;
+        std_[0]  = 1.0f; std_[1]  = 1.0f; std_[2]  = 1.0f;
+    }
 }
 
 Model::~Model()
@@ -100,6 +111,14 @@ Model::~Model()
         cudaFree(batchInputBuffer_);
     if (batchOutputBuffer_)
         cudaFree(batchOutputBuffer_);
+    if (gpuInputBuffer8U_)
+        cudaFree(gpuInputBuffer8U_);
+    if (gpuBatchInput8U_)
+        cudaFree(gpuBatchInput8U_);
+    if (prob_)
+        cudaFreeHost(prob_);
+    if (hOutput_)
+        cudaFreeHost(hOutput_);
     if (this->context)
         delete this->context;
     if (this->engine)
@@ -147,8 +166,45 @@ cv::Mat Model::preprocessSingle(const cv::Mat& frame, float& rx, float& ry)
 
 void Model::preprocessing(const cv::Mat &frame)
 {
-    cv::Mat blob = preprocessSingle(frame, this->rx, this->ry);
-    cudaMemcpyAsync(buffers[0], blob.ptr<float>(), 3 * this->input_h * this->input_w * sizeof(float), cudaMemcpyHostToDevice, this->stream);
+    int img_w = frame.cols;
+    int img_h = frame.rows;
+
+    float scale = std::min((float)this->input_w / img_w, (float)this->input_h / img_h);
+    int new_w = int(img_w * scale);
+    int new_h = int(img_h * scale);
+
+    this->rx = (float)img_w / new_w;
+    this->ry = (float)img_h / new_h;
+
+    // Ensure device-side raw image buffer
+    size_t imgBytes = frame.step[0] * frame.rows;
+    if (gpuInputCapacity_ < imgBytes) {
+        if (gpuInputBuffer8U_) cudaFree(gpuInputBuffer8U_);
+        gpuInputBuffer8U_ = nullptr;
+        cudaError_t err = cudaMalloc(&gpuInputBuffer8U_, imgBytes);
+        if (err != cudaSuccess) {
+            gpuInputCapacity_ = 0;
+            throw std::runtime_error(std::string("cudaMalloc gpuInputBuffer8U_ failed: ") + cudaGetErrorString(err));
+        }
+        gpuInputCapacity_ = imgBytes;
+    }
+
+    // H2D copy (asynchronous)
+    cudaMemcpyAsync(gpuInputBuffer8U_, frame.data, imgBytes, cudaMemcpyHostToDevice, this->stream);
+
+    // Launch GPU preprocess kernel directly into model input buffer
+    launch_preprocess(
+        static_cast<const uint8_t*>(gpuInputBuffer8U_),
+        img_w, img_h, static_cast<int>(frame.step[0]),
+        static_cast<float*>(buffers[0]),
+        input_w, input_h,
+        static_cast<float>(img_w) / new_w,
+        static_cast<float>(img_h) / new_h,
+        new_w, new_h,
+        mean_, std_,
+        true,   // swapRB (same as cv::dnn::blobFromImage behavior)
+        this->stream
+    );
 }
 
 std::vector<Result> Model::postprocessSingle(const cv::Mat& det_output, float rx, float ry)
@@ -277,18 +333,18 @@ void Model::postprocessing()
     }
 
     this->detectResults.clear();
-    cv::Mat det_output(this->output_h, this->output_w, CV_32F, (float *)prob.data());
+    cv::Mat det_output(this->output_h, this->output_w, CV_32F, prob_);
     this->detectResults = postprocessSingle(det_output, this->rx, this->ry);
 }
 
-std::vector<std::vector<Result>> Model::postprocessBatch(const std::vector<float>& outputData, int batchSize, const std::vector<float>& rxs, const std::vector<float>& rys)
+std::vector<std::vector<Result>> Model::postprocessBatch(const float* outputData, int batchSize, const std::vector<float>& rxs, const std::vector<float>& rys)
 {
     std::vector<std::vector<Result>> batchResults(batchSize);
     if (this->modelType == ModelType::CLASSIFY) {
         return batchResults;
     }
     for (int b = 0; b < batchSize; ++b) {
-        const float* sampleData = outputData.data() + b * output_h * output_w;
+        const float* sampleData = outputData + b * output_h * output_w;
         cv::Mat det_output(this->output_h, this->output_w, CV_32F, const_cast<float*>(sampleData));
         batchResults[b] = postprocessSingle(det_output, rxs[b], rys[b]);
     }
@@ -303,8 +359,16 @@ bool Model::Detect(const cv::Mat &frame)
 
         preprocessing(frame);
 
-        context->executeV2(buffers);
-        cudaMemcpyAsync(this->prob.data(), this->buffers[1], this->output_h * this->output_w * sizeof(float), cudaMemcpyDeviceToHost, this->stream);
+        context->setTensorAddress(inputName_.c_str(), buffers[0]);
+        context->setTensorAddress(outputName_.c_str(), buffers[1]);
+        nvinfer1::Dims4 inputDims(1, 3, input_h, input_w);
+        context->setInputShape(inputName_.c_str(), inputDims);
+
+        if (!context->enqueueV3(this->stream)) {
+            throw std::runtime_error("enqueueV3 failed in Detect");
+        }
+
+        cudaMemcpyAsync(this->prob_, this->buffers[1], this->probSize_ * sizeof(float), cudaMemcpyDeviceToHost, this->stream);
         cudaStreamSynchronize(this->stream);
 
         postprocessing();
@@ -318,13 +382,20 @@ bool Model::Detect(const cv::Mat &frame)
     }
 }
 int Model::predictClass(const cv::Mat &roi) {
-preprocessing(roi);
-context->executeV2(buffers);
-cudaMemcpyAsync(this->prob.data(), this->buffers[1], this->output_h * this->output_w * sizeof(float), cudaMemcpyDeviceToHost, this->stream);
-cudaStreamSynchronize(this->stream);
-float* data = (float*)prob.data();
-return std::max_element(data, data + (output_h * output_w)) - data;
+    preprocessing(roi);
+    context->setTensorAddress(inputName_.c_str(), buffers[0]);
+    context->setTensorAddress(outputName_.c_str(), buffers[1]);
+    nvinfer1::Dims4 inputDims(1, 3, input_h, input_w);
+    context->setInputShape(inputName_.c_str(), inputDims);
 
+    if (!context->enqueueV3(this->stream)) {
+        throw std::runtime_error("enqueueV3 failed in predictClass");
+    }
+
+    cudaMemcpyAsync(this->prob_, this->buffers[1], this->probSize_ * sizeof(float), cudaMemcpyDeviceToHost, this->stream);
+    cudaStreamSynchronize(this->stream);
+    float* data = this->prob_;
+    return std::max_element(data, data + probSize_) - data;
 }
 
 std::vector<int> Model::predictClassBatchSlow(const std::vector<cv::Mat>& rois) {
@@ -349,12 +420,22 @@ std::vector<std::vector<Result>> Model::DetectBatchSlow(const std::vector<cv::Ma
 void Model::ensureBatchBuffers(size_t inputBytes, size_t outputBytes) {
     if (batchInputCapacity_ < inputBytes) {
         if (batchInputBuffer_) cudaFree(batchInputBuffer_);
-        cudaMalloc(&batchInputBuffer_, inputBytes);
+        batchInputBuffer_ = nullptr;
+        cudaError_t err = cudaMalloc(&batchInputBuffer_, inputBytes);
+        if (err != cudaSuccess) {
+            batchInputCapacity_ = 0;
+            throw std::runtime_error(std::string("cudaMalloc batchInputBuffer_ failed: ") + cudaGetErrorString(err));
+        }
         batchInputCapacity_ = inputBytes;
     }
     if (batchOutputCapacity_ < outputBytes) {
         if (batchOutputBuffer_) cudaFree(batchOutputBuffer_);
-        cudaMalloc(&batchOutputBuffer_, outputBytes);
+        batchOutputBuffer_ = nullptr;
+        cudaError_t err = cudaMalloc(&batchOutputBuffer_, outputBytes);
+        if (err != cudaSuccess) {
+            batchOutputCapacity_ = 0;
+            throw std::runtime_error(std::string("cudaMalloc batchOutputBuffer_ failed: ") + cudaGetErrorString(err));
+        }
         batchOutputCapacity_ = outputBytes;
     }
 }
@@ -371,22 +452,48 @@ std::vector<int> Model::predictClassBatch(const std::vector<cv::Mat>& rois) {
         return predictClassBatchSlow(rois);
     }
     
-    std::vector<float> hInput;
-    hInput.reserve(N * 3 * input_h * input_w);
-    
-    for (int i = 0; i < N; ++i) {
-        float rx, ry;
-        cv::Mat blob = preprocessSingle(rois[i], rx, ry);
-        const float* blobData = blob.ptr<float>();
-        size_t blobSize = blob.total();
-        hInput.insert(hInput.end(), blobData, blobData + blobSize);
-    }
-    
     size_t inputBytes = N * 3 * input_h * input_w * sizeof(float);
     size_t outputBytes = N * output_h * output_w * sizeof(float);
     ensureBatchBuffers(inputBytes, outputBytes);
     
-    cudaMemcpyAsync(batchInputBuffer_, hInput.data(), inputBytes, cudaMemcpyHostToDevice, stream);
+    // Ensure device-side raw image staging buffer for all ROIs
+    size_t totalImgBytes = 0;
+    for (const auto& roi : rois) {
+        totalImgBytes += roi.step[0] * roi.rows;
+    }
+    if (gpuBatchInputCapacity_ < totalImgBytes) {
+        if (gpuBatchInput8U_) cudaFree(gpuBatchInput8U_);
+        gpuBatchInput8U_ = nullptr;
+        cudaError_t err = cudaMalloc(&gpuBatchInput8U_, totalImgBytes);
+        if (err != cudaSuccess) {
+            gpuBatchInputCapacity_ = 0;
+            throw std::runtime_error(std::string("cudaMalloc gpuBatchInput8U_ failed: ") + cudaGetErrorString(err));
+        }
+        gpuBatchInputCapacity_ = totalImgBytes;
+    }
+    
+    uint8_t* gpuImgPtr = static_cast<uint8_t*>(gpuBatchInput8U_);
+    for (int i = 0; i < N; ++i) {
+        const cv::Mat& roi = rois[i];
+        size_t roiBytes = roi.step[0] * roi.rows;
+        cudaMemcpyAsync(gpuImgPtr, roi.data, roiBytes, cudaMemcpyHostToDevice, stream);
+        
+        float scale = std::min((float)input_w / roi.cols, (float)input_h / roi.rows);
+        int new_w = int(roi.cols * scale);
+        int new_h = int(roi.rows * scale);
+        
+        float* dstPtr = static_cast<float*>(batchInputBuffer_) + i * 3 * input_h * input_w;
+        launch_preprocess(
+            gpuImgPtr, roi.cols, roi.rows, static_cast<int>(roi.step[0]),
+            dstPtr, input_w, input_h,
+            static_cast<float>(roi.cols) / new_w,
+            static_cast<float>(roi.rows) / new_h,
+            new_w, new_h,
+            mean_, std_, true, stream
+        );
+        
+        gpuImgPtr += roiBytes;
+    }
     
     bool ok = true;
     ok = ok && context->setTensorAddress(inputName_.c_str(), batchInputBuffer_);
@@ -402,8 +509,13 @@ std::vector<int> Model::predictClassBatch(const std::vector<cv::Mat>& rois) {
         return predictClassBatchSlow(rois);
     }
     
-    std::vector<float> hOutput(N * output_h * output_w);
-    cudaMemcpyAsync(hOutput.data(), batchOutputBuffer_, outputBytes, cudaMemcpyDeviceToHost, stream);
+    size_t requiredOutput = N * output_h * output_w;
+    if (hOutputSize_ < requiredOutput) {
+        if (hOutput_) cudaFreeHost(hOutput_);
+        cudaMallocHost(&hOutput_, requiredOutput * sizeof(float));
+        hOutputSize_ = requiredOutput;
+    }
+    cudaMemcpyAsync(hOutput_, batchOutputBuffer_, outputBytes, cudaMemcpyDeviceToHost, stream);
     cudaStreamSynchronize(stream);
     
     nvinfer1::Dims4 resetInputDims(1, 3, input_h, input_w);
@@ -412,7 +524,7 @@ std::vector<int> Model::predictClassBatch(const std::vector<cv::Mat>& rois) {
     std::vector<int> results(N);
     int classesPerSample = output_h * output_w;
     for (int i = 0; i < N; ++i) {
-        const float* data = hOutput.data() + i * classesPerSample;
+        const float* data = hOutput_ + i * classesPerSample;
         results[i] = std::max_element(data, data + classesPerSample) - data;
     }
     return results;
@@ -430,25 +542,51 @@ std::vector<std::vector<Result>> Model::DetectBatch(const std::vector<cv::Mat>& 
         return DetectBatchSlow(rois);
     }
     
-    std::vector<float> hInput;
-    std::vector<float> rxs(N), rys(N);
-    hInput.reserve(N * 3 * input_h * input_w);
-    
-    for (int i = 0; i < N; ++i) {
-        float rx, ry;
-        cv::Mat blob = preprocessSingle(rois[i], rx, ry);
-        rxs[i] = rx;
-        rys[i] = ry;
-        const float* blobData = blob.ptr<float>();
-        size_t blobSize = blob.total();
-        hInput.insert(hInput.end(), blobData, blobData + blobSize);
-    }
-    
     size_t inputBytes = N * 3 * input_h * input_w * sizeof(float);
     size_t outputBytes = N * output_h * output_w * sizeof(float);
     ensureBatchBuffers(inputBytes, outputBytes);
     
-    cudaMemcpyAsync(batchInputBuffer_, hInput.data(), inputBytes, cudaMemcpyHostToDevice, stream);
+    // Ensure device-side raw image staging buffer for all ROIs
+    size_t totalImgBytes = 0;
+    for (const auto& roi : rois) {
+        totalImgBytes += roi.step[0] * roi.rows;
+    }
+    if (gpuBatchInputCapacity_ < totalImgBytes) {
+        if (gpuBatchInput8U_) cudaFree(gpuBatchInput8U_);
+        gpuBatchInput8U_ = nullptr;
+        cudaError_t err = cudaMalloc(&gpuBatchInput8U_, totalImgBytes);
+        if (err != cudaSuccess) {
+            gpuBatchInputCapacity_ = 0;
+            throw std::runtime_error(std::string("cudaMalloc gpuBatchInput8U_ failed: ") + cudaGetErrorString(err));
+        }
+        gpuBatchInputCapacity_ = totalImgBytes;
+    }
+    
+    std::vector<float> rxs(N), rys(N);
+    uint8_t* gpuImgPtr = static_cast<uint8_t*>(gpuBatchInput8U_);
+    for (int i = 0; i < N; ++i) {
+        const cv::Mat& roi = rois[i];
+        size_t roiBytes = roi.step[0] * roi.rows;
+        cudaMemcpyAsync(gpuImgPtr, roi.data, roiBytes, cudaMemcpyHostToDevice, stream);
+        
+        float scale = std::min((float)input_w / roi.cols, (float)input_h / roi.rows);
+        int new_w = int(roi.cols * scale);
+        int new_h = int(roi.rows * scale);
+        rxs[i] = (float)roi.cols / new_w;
+        rys[i] = (float)roi.rows / new_h;
+        
+        float* dstPtr = static_cast<float*>(batchInputBuffer_) + i * 3 * input_h * input_w;
+        launch_preprocess(
+            gpuImgPtr, roi.cols, roi.rows, static_cast<int>(roi.step[0]),
+            dstPtr, input_w, input_h,
+            static_cast<float>(roi.cols) / new_w,
+            static_cast<float>(roi.rows) / new_h,
+            new_w, new_h,
+            mean_, std_, true, stream
+        );
+        
+        gpuImgPtr += roiBytes;
+    }
     
     bool ok = true;
     ok = ok && context->setTensorAddress(inputName_.c_str(), batchInputBuffer_);
@@ -464,12 +602,17 @@ std::vector<std::vector<Result>> Model::DetectBatch(const std::vector<cv::Mat>& 
         return DetectBatchSlow(rois);
     }
     
-    std::vector<float> hOutput(N * output_h * output_w);
-    cudaMemcpyAsync(hOutput.data(), batchOutputBuffer_, outputBytes, cudaMemcpyDeviceToHost, stream);
+    size_t requiredOutput = N * output_h * output_w;
+    if (hOutputSize_ < requiredOutput) {
+        if (hOutput_) cudaFreeHost(hOutput_);
+        cudaMallocHost(&hOutput_, requiredOutput * sizeof(float));
+        hOutputSize_ = requiredOutput;
+    }
+    cudaMemcpyAsync(hOutput_, batchOutputBuffer_, outputBytes, cudaMemcpyDeviceToHost, stream);
     cudaStreamSynchronize(stream);
     
     nvinfer1::Dims4 resetInputDims(1, 3, input_h, input_w);
     context->setInputShape(inputName_.c_str(), resetInputDims);
     
-    return postprocessBatch(hOutput, N, rxs, rys);
+    return postprocessBatch(hOutput_, N, rxs, rys);
 }

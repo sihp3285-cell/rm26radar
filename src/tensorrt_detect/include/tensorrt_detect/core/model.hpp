@@ -37,7 +37,11 @@ private:
     nvinfer1::IExecutionContext *context = nullptr;
     cudaStream_t stream = nullptr;
     void *buffers[2] = {nullptr, nullptr};
-    std::vector<float> prob;
+    // Pinned host buffers for true async memcpy
+    float* prob_ = nullptr;
+    size_t probSize_ = 0;
+    float* hOutput_ = nullptr;
+    size_t hOutputSize_ = 0;
 
     int input_h, input_w;
     int output_h, output_w;
@@ -55,12 +59,24 @@ private:
     size_t batchInputCapacity_ = 0;
     size_t batchOutputCapacity_ = 0;
 
+    // GPU preprocessing buffers (grow-on-demand)
+    void* gpuInputBuffer8U_ = nullptr;
+    size_t gpuInputCapacity_ = 0;
+
+    // Batch GPU preprocessing staging buffer
+    void* gpuBatchInput8U_ = nullptr;
+    size_t gpuBatchInputCapacity_ = 0;
+
+    // Normalization params (ImageNet for classify, identity for detect)
+    float mean_[3] = {0.0f, 0.0f, 0.0f};
+    float std_[3]  = {1.0f, 1.0f, 1.0f};
+
     void preprocessing(const cv::Mat &frame);
     void postprocessing();
 
     cv::Mat preprocessSingle(const cv::Mat& frame, float& rx, float& ry);
     std::vector<Result> postprocessSingle(const cv::Mat& det_output, float rx, float ry);
-    std::vector<std::vector<Result>> postprocessBatch(const std::vector<float>& outputData, int batchSize, const std::vector<float>& rxs, const std::vector<float>& rys);
+    std::vector<std::vector<Result>> postprocessBatch(const float* outputData, int batchSize, const std::vector<float>& rxs, const std::vector<float>& rys);
     void ensureBatchBuffers(size_t inputBytes, size_t outputBytes);
 
 

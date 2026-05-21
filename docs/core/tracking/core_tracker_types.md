@@ -33,17 +33,18 @@ map_node
 
 ```cpp
 enum class TrackState {
-    ACTIVE = 0,  // 正常跟踪中
-    LOST   = 1,  // 短时间丢失，正在预测
-    DEAD   = 2   // 超过最大丢失帧，已删除
+    ACTIVE = 0,    // 正常跟踪中
+    PREDICTED = 1, // 短暂丢失，卡尔曼外推中（仍显示在地图上）
+    LOST   = 2,    // 丢失较久，不再对外输出
+    DEAD   = 3     // 超过最大丢失帧，已删除
 };
 ```
 
 ---
 
-### 三状态生命周期
+### 四状态生命周期
 
-每个跟踪槽位的状态机：
+每个跟踪槽位的状态机（从三状态扩展为四状态）：
 
 ```text
         ┌──────────────────┐
@@ -56,11 +57,17 @@ enum class TrackState {
         │     ACTIVE       │ ← 正常跟踪
         │   (持续匹配)      │
         └────────┬─────────┘
-                 │ 连续 miss
+                 │ 连续 miss ≤ max_predict
                  ↓
         ┌──────────────────┐
-        │      LOST        │ ← 短暂丢失，Kalman 预测维持
-        │  (Kalman 外推)    │
+        │    PREDICTED     │ ← 短暂丢失，卡尔曼外推
+        │  (仍对外输出)     │    对外输出 valid=true
+        └────────┬─────────┘
+                 │ 连续 miss > max_predict
+                 ↓
+        ┌──────────────────┐
+        │      LOST        │ ← 丢失较久
+        │  (不对外输出)     │    对外输出 valid=false
         └────────┬─────────┘
                  │ miss_count > max_miss
                  ↓
@@ -68,6 +75,8 @@ enum class TrackState {
         │      DEAD        │ ← 超时，释放槽位
         └──────────────────┘
 ```
+
+> **关键变化**：PREDICTED 是新增的中间状态。当目标短暂丢失（miss_count ≤ max_predict）时，槽位进入 PREDICTED 而非 LOST。PREDICTED 状态下卡尔曼滤波器继续外推，目标仍然显示在地图上（valid=true）。只有当丢失超过 max_predict 帧后才进入 LOST，此时不再对外输出（valid=false）。
 
 ---
 

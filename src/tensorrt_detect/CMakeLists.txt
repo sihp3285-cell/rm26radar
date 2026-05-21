@@ -1,10 +1,16 @@
 cmake_minimum_required(VERSION 3.22.1)
-project(tensorrt_detect)
+project(tensorrt_detect LANGUAGES CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CUDA_STANDARD 17)
+set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_BUILD_TYPE "RelWithDebInfo")
+set(CMAKE_BUILD_TYPE "Release")
+
+if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+    set(CMAKE_CUDA_ARCHITECTURES 86)
+endif()
 
 # 确保安装后的可执行文件能自动找到 Open3D 等第三方动态库
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
@@ -38,6 +44,7 @@ target_link_directories(tensorrt_interface INTERFACE ${TRT_ROOT}/lib)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     add_compile_options(-Wno-deprecated-declarations)
+    add_compile_options(-O3 -march=native)
 endif()
 
 # ========== 公共头文件搜索路径 ==========
@@ -62,6 +69,7 @@ add_library(tensorrt_detect_core STATIC
     src/core/tracker.cpp
     src/core/bot_identity.cpp
     src/core/hungarian.cpp
+    src/core/preprocess.cu
     src/visualization/draw.cpp
     src/visualization/ui.cpp
     src/config/ConfigManager.cpp

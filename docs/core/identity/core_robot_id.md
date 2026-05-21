@@ -86,6 +86,7 @@ enum ClassId {
     R4    = 5,  // 4号机器人
     S     = 6,  // 哨兵
     OUTPOST = 7,  // 前哨站
+    AIRPLANE = 8, // 无人机
 };
 ```
 
@@ -100,6 +101,9 @@ enum ClassId {
 | 2~5 | R1~R4 | 分类后的机器人编号 |
 | 6 | S | 分类后的哨兵 |
 | 7 | OUTPOST | 前哨站检测输出 |
+| 8 | AIRPLANE | 无人机检测输出 |
+
+> **新增**：`AIRPLANE = 8` 是为 RMUC 2026 赛季新增的无人机兵种准备的。BotIdentity 的 `NUM_CLASSES = 9` 也对应了这个扩展。
 
 ---
 
