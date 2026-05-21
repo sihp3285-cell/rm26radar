@@ -26,6 +26,7 @@
 
 #include "tensorrt_detect_msgs/msg/detection_array.hpp"
 #include "tensorrt_detect_msgs/msg/map_tactics.hpp"
+#include "tensorrt_detect_msgs/msg/pipeline_timing.hpp"
 
 class QtDisplayNode;
 
@@ -45,16 +46,16 @@ public:
         main_layout->setContentsMargins(8, 8, 8, 8);
         main_layout->setSpacing(6);
 
-        // 顶部状态栏：FPS/Delay + 前哨站 + 战术 同行显示
+        // 顶部状态栏：Timing + 前哨站 + 战术 同行显示
         auto *top_bar_layout = new QHBoxLayout();
         top_bar_layout->setSpacing(8);
 
-        status_label_ = new QLabel("FPS: --  |  Delay: -- ms", this);
+        status_label_ = new QLabel("car=-- armor=-- cls=-- output=-- airplane=-- total=-- fps=--", this);
         status_label_->setStyleSheet(
             "color: #00ff88; background-color: #0d0d0d; font-size: 20px; "
             "font-family: 'Microsoft YaHei', 'Consolas', monospace; "
             "padding: 8px 16px; border-radius: 4px;");
-        top_bar_layout->addWidget(status_label_, 2);
+        top_bar_layout->addWidget(status_label_, 4);
 
         outpost_label_ = new QLabel("前哨站: --", this);
         outpost_label_->setStyleSheet(
@@ -212,13 +213,18 @@ public:
             map_label_->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
     }
 
-    void updateStatus(double fps, double delay_ms, bool outpost_alive,
+    void updateStatus(const tensorrt_detect_msgs::msg::PipelineTiming& timing, bool outpost_alive,
                        bool engineer_on_island, bool opponent_attack, bool our_attack, bool opponent_near_fortress)
     {
-        // 更新基础状态栏
-        QString text = QString("FPS: %1  |  Delay: %2 ms")
-                           .arg(fps, 0, 'f', 1)
-                           .arg(delay_ms, 0, 'f', 2);
+        // 更新基础状态栏（time 日志各阶段耗时）
+        QString text = QString("car=%1 armor=%2 cls=%3 output=%4 airplane=%5 total=%6 fps=%7")
+                           .arg(timing.car_ms, 0, 'f', 1)
+                           .arg(timing.armor_ms, 0, 'f', 1)
+                           .arg(timing.cls_ms, 0, 'f', 1)
+                           .arg(timing.outpost_ms, 0, 'f', 1)
+                           .arg(timing.airplane_ms, 0, 'f', 1)
+                           .arg(timing.total_ms, 0, 'f', 1)
+                           .arg(timing.fps, 0, 'f', 1);
         status_label_->setText(text);
 
         // 更新前哨站状态
@@ -363,20 +369,8 @@ public:
             [this](const sensor_msgs::msg::Image::SharedPtr msg) {
                 try {
                     auto cv_ptr = cv_bridge::toCvCopy(msg, "bgr8");
-
-                    double delay_ms = (this->now() - msg->header.stamp).seconds() * 1000.0;
-
-                    // 计算 FPS（指数移动平均）
-                    auto now = std::chrono::steady_clock::now();
-                    double dt = std::chrono::duration<double>(now - last_time_).count();
-                    last_time_ = now;
-                    double instant_fps = 1.0 / std::max(dt, 1e-6);
-                    fps_ = 0.9 * fps_ + 0.1 * instant_fps;
-
                     QMutexLocker lock(&mutex_);
                     latest_frame_ = cv_ptr->image.clone();
-                    latest_fps_ = fps_;
-                    latest_delay_ms_ = delay_ms;
                 } catch (const cv_bridge::Exception &e) {
                     RCLCPP_ERROR(this->get_logger(), "视频 cv_bridge 失败: %s", e.what());
                 }
@@ -422,6 +416,14 @@ public:
                 latest_opponent_attack_ = msg->opponent_attack;
                 latest_our_attack_ = msg->our_attack;
                 latest_opponent_near_fortress_ = msg->opponent_near_fortress;
+            });
+
+        // 订阅 pipeline 耗时统计
+        timing_sub_ = this->create_subscription<tensorrt_detect_msgs::msg::PipelineTiming>(
+            "/pipeline_timing", rclcpp::QoS(1),
+            [this](const tensorrt_detect_msgs::msg::PipelineTiming::SharedPtr msg) {
+                QMutexLocker lock(&mutex_);
+                latest_timing_ = *msg;
             });
 
         // 发布阵营翻转话题
@@ -504,14 +506,15 @@ public:
     }
 
     // 供 DisplayWindow 在主线程调用，安全取出最新数据
-    void fetchData(cv::Mat &frame, cv::Mat &map, double &fps, double &delay_ms, bool &outpost_alive,
+    void fetchData(cv::Mat &frame, cv::Mat &map,
+                   tensorrt_detect_msgs::msg::PipelineTiming &timing,
+                   bool &outpost_alive,
                    bool &engineer_on_island, bool &opponent_attack, bool &our_attack, bool &opponent_near_fortress)
     {
         QMutexLocker lock(&mutex_);
         frame = latest_frame_.clone();
         map = latest_map_.clone();
-        fps = latest_fps_;
-        delay_ms = latest_delay_ms_;
+        timing = latest_timing_;
         outpost_alive = latest_outpost_alive_;
         engineer_on_island = latest_engineer_on_island_;
         opponent_attack = latest_opponent_attack_;
@@ -531,20 +534,17 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr map_sub_;
     rclcpp::Subscription<tensorrt_detect_msgs::msg::DetectionArray>::SharedPtr armor_sub_;
     rclcpp::Subscription<tensorrt_detect_msgs::msg::MapTactics>::SharedPtr tactics_sub_;
+    rclcpp::Subscription<tensorrt_detect_msgs::msg::PipelineTiming>::SharedPtr timing_sub_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr team_flip_pub_;
 
     cv::Mat latest_frame_;
     cv::Mat latest_map_;
-    double latest_fps_{0.0};
-    double latest_delay_ms_{0.0};
+    tensorrt_detect_msgs::msg::PipelineTiming latest_timing_;
     bool latest_outpost_alive_ = false;
     bool latest_engineer_on_island_ = false;
     bool latest_opponent_attack_ = false;
     bool latest_our_attack_ = false;
     bool latest_opponent_near_fortress_ = false;
-
-    std::chrono::steady_clock::time_point last_time_ = std::chrono::steady_clock::now();
-    double fps_{0.0};
 
     std::atomic<bool> is_operation_running_{false};
 };
@@ -554,14 +554,14 @@ void DisplayWindow::updateFromNode()
 {
     if (!node_) return;
     cv::Mat frame, map;
-    double fps = 0.0, delay = 0.0;
+    tensorrt_detect_msgs::msg::PipelineTiming timing;
     bool outpost_alive = false;
     bool engineer_on_island = false, opponent_attack = false, our_attack = false, opponent_near_fortress = false;
-    node_->fetchData(frame, map, fps, delay, outpost_alive,
+    node_->fetchData(frame, map, timing, outpost_alive,
                      engineer_on_island, opponent_attack, our_attack, opponent_near_fortress);
     updateVideo(frame);
     updateMap(map);
-    updateStatus(fps, delay, outpost_alive, engineer_on_island, opponent_attack, our_attack, opponent_near_fortress);
+    updateStatus(timing, outpost_alive, engineer_on_island, opponent_attack, our_attack, opponent_near_fortress);
 }
 
 int main(int argc, char *argv[])

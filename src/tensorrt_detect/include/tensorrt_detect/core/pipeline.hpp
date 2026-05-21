@@ -8,6 +8,17 @@
 #include <condition_variable>
 #include <atomic>
 #include "ConfigManager.hpp"
+
+struct PipelineTiming {
+    double car_ms = 0.0;
+    double armor_ms = 0.0;
+    double cls_ms = 0.0;
+    double outpost_ms = 0.0;
+    double airplane_ms = 0.0;
+    double total_ms = 0.0;
+    double fps = 0.0;
+};
+
 class DetectPipeline {
 public:
 
@@ -34,6 +45,7 @@ public:
 
     std::vector<Result> process(const cv::Mat& frame);
     bool isOutpostAlive() const { return !outpostIsDead_; }
+    PipelineTiming getLatestTiming() const;
 
 private:
     Model  detectModel_;
@@ -80,6 +92,9 @@ private:
     double accTotalMs_ = 0.0;
     int accCount_ = 0;
     std::chrono::steady_clock::time_point lastStatsTime_ = std::chrono::steady_clock::now();
+
+    mutable std::mutex timingMutex_;
+    PipelineTiming latestTiming_;
 
     void updateStats(double carMs, double armorMs, double clsMs, double outpostMs, double totalMs);
 

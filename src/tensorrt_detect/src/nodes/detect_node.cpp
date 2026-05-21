@@ -9,6 +9,7 @@
 
 #include "tensorrt_detect_msgs/msg/detection_array.hpp"
 #include "tensorrt_detect_msgs/msg/detection_box.hpp"
+#include "tensorrt_detect_msgs/msg/pipeline_timing.hpp"
 #include "ConfigManager.hpp"
 #include "pipeline.hpp"
 #include "draw.hpp"
@@ -45,6 +46,7 @@ public:
 
         image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(output_topic_, rclcpp::QoS(1));
         armor_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::DetectionArray>("/armor_detections", rclcpp::QoS(10).best_effort());
+        timing_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::PipelineTiming>("/pipeline_timing", rclcpp::QoS(1));
 
         image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
             input_topic_, rclcpp::QoS(1),
@@ -124,6 +126,21 @@ private:
             }
 
             armor_pub_->publish(std::move(armor_msg));
+
+            {
+                auto timing = pipeline_->getLatestTiming();
+                auto timing_msg = std::make_unique<tensorrt_detect_msgs::msg::PipelineTiming>();
+                timing_msg->header = msg->header;
+                timing_msg->car_ms = timing.car_ms;
+                timing_msg->armor_ms = timing.armor_ms;
+                timing_msg->cls_ms = timing.cls_ms;
+                timing_msg->outpost_ms = timing.outpost_ms;
+                timing_msg->airplane_ms = timing.airplane_ms;
+                timing_msg->total_ms = timing.total_ms;
+                timing_msg->fps = static_cast<double>(fps_);
+                timing_pub_->publish(std::move(timing_msg));
+            }
+
             if (publish_debug_image_) {
                 frame.copyTo(debug_frame_);
                 drawDetect(debug_frame_, results, cfg_->model.classNames);
@@ -211,6 +228,7 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_pub_;
     rclcpp::Publisher<tensorrt_detect_msgs::msg::DetectionArray>::SharedPtr armor_pub_;
+    rclcpp::Publisher<tensorrt_detect_msgs::msg::PipelineTiming>::SharedPtr timing_pub_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reload_roi_service_;
     std::chrono::steady_clock::time_point last_time_ = std::chrono::steady_clock::now();
     double fps_ = 0.0;

@@ -387,8 +387,22 @@ std::vector<Result> DetectPipeline::process(const cv::Mat& frame) {
     }
 
     auto t6 = std::chrono::steady_clock::now();
-    updateStats(elapsedMs(t1, t2), elapsedMs(t2, t3), elapsedMs(t3, t4),
-                0.0, elapsedMs(t0, t6));
+    double car_ms   = elapsedMs(t1, t2);
+    double armor_ms = elapsedMs(t2, t3);
+    double cls_ms   = elapsedMs(t3, t4);
+    double total_ms = elapsedMs(t0, t6);
+
+    {
+        std::lock_guard<std::mutex> lock(timingMutex_);
+        latestTiming_.car_ms   = car_ms;
+        latestTiming_.armor_ms = armor_ms;
+        latestTiming_.cls_ms   = cls_ms;
+        latestTiming_.outpost_ms = 0.0;
+        latestTiming_.airplane_ms = lastAirplaneMs_.load();
+        latestTiming_.total_ms = total_ms;
+    }
+
+    updateStats(car_ms, armor_ms, cls_ms, 0.0, total_ms);
 
     return all;
 }
@@ -422,6 +436,12 @@ void DetectPipeline::updateStats(double carMs, double armorMs, double clsMs,
         accCount_ = 0;
         lastStatsTime_ = now;
     }
+}
+
+PipelineTiming DetectPipeline::getLatestTiming() const
+{
+    std::lock_guard<std::mutex> lock(timingMutex_);
+    return latestTiming_;
 }
 
 void DetectPipeline::airplaneThreadLoop()

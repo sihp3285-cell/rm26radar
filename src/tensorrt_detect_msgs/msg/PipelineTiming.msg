@@ -1,0 +1,8 @@
+std_msgs/Header header
+float64 car_ms
+float64 armor_ms
+float64 cls_ms
+float64 outpost_ms
+float64 airplane_ms
+float64 total_ms
+float64 fps
