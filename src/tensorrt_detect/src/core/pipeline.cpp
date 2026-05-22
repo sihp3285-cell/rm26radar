@@ -370,9 +370,6 @@ std::vector<Result> DetectPipeline::process(const cv::Mat& frame) {
     }
     airplaneCv_.notify_one();
 
-    // 使用全局 CUDA 互斥锁，序列化与 airplaneThread_ 的 CUDA 操作
-    std::lock_guard<std::mutex> cudaLock(cuda_guard::getCudaMutex());
-
     auto t1 = std::chrono::steady_clock::now();
     auto cars = runDetect(frame);
     auto t2 = std::chrono::steady_clock::now();
@@ -473,11 +470,7 @@ void DetectPipeline::airplaneThreadLoop()
 
         if (hasNewFrame && airplaneModel_) {
             auto ta0 = std::chrono::steady_clock::now();
-            // 使用全局 CUDA 互斥锁，序列化与主处理线程的 CUDA 操作
-            {
-                std::lock_guard<std::mutex> cudaLock(cuda_guard::getCudaMutex());
-                airplaneModel_->Detect(frame);
-            }
+            airplaneModel_->Detect(frame);
             auto ta1 = std::chrono::steady_clock::now();
             lastAirplaneMs_ = elapsedMs(ta0, ta1);
 
