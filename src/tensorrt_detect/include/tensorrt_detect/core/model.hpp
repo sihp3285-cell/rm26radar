@@ -3,10 +3,20 @@
 
 #include <iostream>
 #include <vector>
+#include <mutex>
 #include <opencv2/opencv.hpp>
 #include <opencv2/dnn.hpp>
 #include <NvInfer.h>
 #include <cuda_runtime_api.h>
+
+// 全局 CUDA 互斥锁：序列化进程内所有 CUDA 操作（TensorRT 推理 + Open3D Raycasting）
+// 解决 component_container_mt 多线程并发 CUDA 操作导致的 SIGSEGV
+namespace cuda_guard {
+    inline std::mutex& getCudaMutex() {
+        static std::mutex mtx;
+        return mtx;
+    }
+}
 
 struct Result
 {
@@ -43,9 +53,9 @@ private:
     float* hOutput_ = nullptr;
     size_t hOutputSize_ = 0;
 
-    int input_h, input_w;
-    int output_h, output_w;
-    float rx, ry;
+    int input_h = 0, input_w = 0;
+    int output_h = 0, output_w = 0;
+    float rx = 0.0f, ry = 0.0f;
 
     cv::Mat resizeFrame;
 

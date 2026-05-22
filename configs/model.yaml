@@ -19,8 +19,8 @@ scoreThreshold3: 0.3
 isNMS3: false
 modelType3: "CLASSIFY"
 
-airplaneModelPath: "/home/delphine/rm/tensorrt10_detect/models/airplane.engine"
-imgSize4: 1280
+airplaneModelPath: "/home/delphine/rm/tensorrt10_detect/models/airplane640.engine"
+imgSize4: 640
 iouThreshold4: 0.3
 scoreThreshold4: 0.3
 isNMS4: false

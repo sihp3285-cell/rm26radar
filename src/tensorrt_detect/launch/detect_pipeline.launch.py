@@ -15,11 +15,12 @@ def generate_launch_description():
     ])
 
     # 进程内零拷贝容器：核心流水线节点全部跑在同一个进程里
+    # 使用单线程容器，避免 TensorRT 与 Open3D RaycastingScene 并发 CUDA 操作导致 SIGSEGV
     pipeline_container = ComposableNodeContainer(
         name='detect_pipeline_container',
         namespace='',
         package='rclcpp_components',
-        executable='component_container_mt',
+        executable='component_container',
         composable_node_descriptions=[
             ComposableNode(
                 package='tensorrt_detect',

@@ -14,6 +14,7 @@
 #include "pipeline.hpp"
 #include "draw.hpp"
 #include "robot_id.hpp"
+#include <cuda_runtime_api.h>
 
 class DetectNode : public rclcpp::Node
 {
@@ -21,6 +22,9 @@ public:
     explicit DetectNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions())
         : Node("detect_node", options)
     {
+        // 提前初始化 CUDA primary context，避免与 PoseNode/Open3D 并发初始化导致 SIGSEGV
+        cudaFree(0);
+
         this->declare_parameter<std::string>("config_dir",
             "/home/delphine/rm/tensorrt10_detect/configs");
         this->declare_parameter<std::string>("input_topic", "/image_raw");

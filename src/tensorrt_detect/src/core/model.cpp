@@ -23,6 +23,11 @@ Model::Model(const std::string modelPath, const int &inputSize, const float &sco
     this->isNMS = isNMS;
     this->modelType = modelType;
 
+    // 确保 CUDA primary context 提前初始化，避免多线程并发初始化导致 SIGSEGV
+    cudaError_t initErr = cudaFree(0);
+    if (initErr != cudaSuccess) {
+        throw std::runtime_error(std::string("CUDA 初始化失败: ") + cudaGetErrorString(initErr));
+    }
 
     std::ifstream engineFile(modelPath, std::ios::binary);
     std::vector<char> engineData;

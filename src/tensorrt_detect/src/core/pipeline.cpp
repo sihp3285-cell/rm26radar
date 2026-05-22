@@ -1,8 +1,10 @@
 #include "pipeline.hpp"
 #include "ConfigManager.hpp"
+#include "model.hpp"
 #include "robot_id.hpp"
 #include <iostream>
 #include <iomanip>
+#include <cuda_runtime_api.h>
 
 
 DetectPipeline::DetectPipeline(Config& cfg)
@@ -11,6 +13,9 @@ DetectPipeline::DetectPipeline(Config& cfg)
       classifyModel_(cfg.model.classifyModelPath, cfg.model.imgSize3, cfg.model.scoreThreshold3, cfg.model.iouThreshold3, cfg.model.isNMS3, modelType(cfg.model.modelType3)),
       cfg_(cfg)
 {
+    // 确保 CUDA primary context 已初始化（Model 构造函数内部也会 cudaFree(0)，此处做双重保障）
+    cudaFree(0);
+
     if (!cfg.model.airplaneModelPath.empty()) {
         airplaneModel_ = std::make_unique<Model>(
             cfg.model.airplaneModelPath,
@@ -365,6 +370,9 @@ std::vector<Result> DetectPipeline::process(const cv::Mat& frame) {
     }
     airplaneCv_.notify_one();
 
+    // 使用全局 CUDA 互斥锁，序列化与 airplaneThread_ 的 CUDA 操作
+    std::lock_guard<std::mutex> cudaLock(cuda_guard::getCudaMutex());
+
     auto t1 = std::chrono::steady_clock::now();
     auto cars = runDetect(frame);
     auto t2 = std::chrono::steady_clock::now();
@@ -465,7 +473,11 @@ void DetectPipeline::airplaneThreadLoop()
 
         if (hasNewFrame && airplaneModel_) {
             auto ta0 = std::chrono::steady_clock::now();
-            airplaneModel_->Detect(frame);
+            // 使用全局 CUDA 互斥锁，序列化与主处理线程的 CUDA 操作
+            {
+                std::lock_guard<std::mutex> cudaLock(cuda_guard::getCudaMutex());
+                airplaneModel_->Detect(frame);
+            }
             auto ta1 = std::chrono::steady_clock::now();
             lastAirplaneMs_ = elapsedMs(ta0, ta1);
 

@@ -1,4 +1,5 @@
 #include "raycaster.hpp"
+#include "model.hpp"
 
 #include <open3d/Open3D.h>
 #include <open3d/geometry/TriangleMesh.h>
@@ -67,8 +68,12 @@ cv::Point3f Raycaster::pixelToWorld(const cv::Point2f& pixel,
             std::vector<float> ray_data = {ox, oy, oz, dx, dy, dz};
             open3d::core::Tensor ray(ray_data,{1,6},open3d::core::Float32);
 
-            auto result = scene_->CastRays(ray);
-            float t_hit = result["t_hit"].Item<float>(); 
+            float t_hit;
+            {
+                std::lock_guard<std::mutex> cudaLock(cuda_guard::getCudaMutex());
+                auto result = scene_->CastRays(ray);
+                t_hit = result["t_hit"].Item<float>();
+            }
 
             if (std::isinf(t_hit) || std::isnan(t_hit)) return fallback_to_flat_ground();
             
