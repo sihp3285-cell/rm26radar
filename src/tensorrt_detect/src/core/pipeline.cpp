@@ -114,7 +114,7 @@ std::vector<Result> DetectPipeline::runArmorDetectBatch(const cv::Mat& frame,
         cv::Rect roi = detections[i].box & imgBound;
         if (roi.width <= 0 || roi.height <= 0) continue;
 
-        rois.push_back(frame(roi));
+        rois.push_back(frame(roi).clone());
         detIndices.push_back(i);
         safeRois.push_back(roi);
     }
@@ -130,7 +130,7 @@ std::vector<Result> DetectPipeline::runArmorDetectBatch(const cv::Mat& frame,
         );
         safeOutpostRoi = outpostRoi & imgBound;
         if (safeOutpostRoi.width > 0 && safeOutpostRoi.height > 0) {
-            rois.push_back(frame(safeOutpostRoi));
+            rois.push_back(frame(safeOutpostRoi).clone());
             hasOutpost = true;
         }
     }

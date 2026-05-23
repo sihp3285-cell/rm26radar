@@ -213,6 +213,7 @@
 | `/map_image` | `sensor_msgs/Image` | map_node | qt_display_node、display_node | 小地图图像 |
 | `/radar_map` | `RadarMap` | map_node | (决策节点) | 结构化雷达数据 |
 | `/map_tactics` | `MapTactics` | map_node | (决策节点) | 战术态势分析数据 |
+| `/pipeline_timing` | `PipelineTiming` | detect_node | (监控工具) | 流水线各阶段耗时分解 |
 | `/flip_team` | `std_msgs/Bool` | qt_display_node | map_node | 红蓝方阵营视角切换 |
 | `/calibration/start` | `std_srvs/Trigger` (Service) | calibrate_node | (用户/roi_set_node) | 手动触发标定 |
 | `/roi_set/start` | `std_srvs/Trigger` (Service) | roi_set_node | (用户/脚本) | 手动触发 ROI 框定 |
@@ -712,14 +713,19 @@ ACTIVE → PREDICTED → LOST → DEAD
 
 | 层面 | 优化手段 | 收益 |
 |------|---------|------|
+| 预处理 | GPU CUDA kernel（`preprocess.cu`） | 预处理从 ~3.3ms 降到 ~0.5ms |
 | 图像链路 | `toCvShare` 零拷贝 | 每帧省 6MB 拷贝 |
 | 可视化 | `publish_debug_image` 开关 | 纯自动模式省 ~3.5ms/帧 |
 | 容器 | `reserve` 预分配 | 消除动态扩容 |
 | 缓冲区 | `cv::Mat` 成员变量复用 | 消除每帧堆分配 |
 | 通信 | QoS(1) 统一图像链路 | 最大延迟从 330ms 降到 33ms |
-| 推理 | TensorRT GPU + CUDA Stream | 异步流水线 |
+| 推理 | TensorRT GPU + `enqueueV3` API | 支持动态 batch + 异步执行 |
+| 批量推理 | `predictClassBatch` | N 帧分类从 N 次推理降到 1 次 |
+| D2H 拷贝 | Pinned Memory（`cudaMallocHost`） | `cudaMemcpyAsync` 真正异步 |
 | 算法 | 贪心匹配替代匈牙利 | O(n²) vs O(n³) |
 | 状态机 | PREDICTED 状态 | 减少不必要的状态跳变 |
+| 多线程安全 | `cuda_guard` 全局互斥锁 | 避免 component_container_mt 崩溃 |
+| 性能监控 | `/pipeline_timing` 话题 | 实时分解各阶段耗时，便于调优 |
 
 详见 `docs/performance_optimization.md`。
 

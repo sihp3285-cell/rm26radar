@@ -43,10 +43,12 @@ display_node / pose_node
 
 #include "tensorrt_detect_msgs/msg/detection_array.hpp"
 #include "tensorrt_detect_msgs/msg/detection_box.hpp"
+#include "tensorrt_detect_msgs/msg/pipeline_timing.hpp"
 #include "ConfigManager.hpp"
 #include "pipeline.hpp"
 #include "draw.hpp"
 #include "robot_id.hpp"
+#include <cuda_runtime_api.h>
 ```
 
 ---
@@ -151,9 +153,17 @@ ROS 图像消息和 OpenCV `cv::Mat` 之间的桥梁。
 
 ---
 
+### `#include "tensorrt_detect_msgs/msg/pipeline_timing.hpp"`
+
+**（新增）** 性能监控消息类型。`detect_node` 发布 `/pipeline_timing` 话题，实时输出检测流水线各阶段的耗时分解。
+
 ### `#include "robot_id.hpp"`
 
-定义了机器人类别枚举（`CAR`, `R1`~`R4`, `S`, `OUTPOST`）。在填充 `DetectionArray` 时用于过滤 CAR 结果，以及识别前哨站目标。
+定义了机器人类别枚举（`CAR`, `R1`~`R4`, `S`, `OUTPOST`, `AIRPLANE`）。在填充 `DetectionArray` 时用于过滤 CAR 结果，以及识别前哨站和无人机目标。
+
+### `#include <cuda_runtime_api.h>`
+
+**（新增）** CUDA 运行时 API。用于 `cudaFree(0)` 提前初始化 CUDA primary context，避免与 PoseNode/Open3D 并发初始化导致 SIGSEGV。
 
 ---
 

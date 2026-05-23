@@ -83,6 +83,14 @@ struct ModelConfig {
     bool isNMS3 = false;
     std::string modelType3 = "";
 
+    std::string airplaneModelPath;
+    int imgSize4 = 0;
+    float iouThreshold4 = 0.0f;
+    float scoreThreshold4 = 0.0f;
+    bool isNMS4 = false;
+    std::string modelType4 = "";
+    int airplaneIntervalMs = 33;
+
     int minRoiSize = 0;
     float padRatio = 0.0f;
     int classIdxBase = 0;
@@ -98,15 +106,18 @@ struct ModelConfig {
 
 ---
 
-#### 三个模型的配置
+#### 四个模型的配置
 
 | 后缀 | 模型 | 用途 |
 |------|------|------|
 | `1` | `detectModel_` | 目标检测 |
 | `2` | `armorDetector_` | 装甲板检测 |
 | `3` | `classifyModel_` | 分类 |
+| `4` | `airplaneDetector_` | **无人机检测**（新增） |
 
 每个模型都有：路径、输入尺寸、IoU 阈值、置信度阈值、NMS 开关、模型类型字符串。
+
+第四阶段 `airplaneModelPath` 是 RMUC 2026 赛季新增的无人机检测模型。`airplaneIntervalMs` 控制无人机检测的执行间隔（默认 33ms，即约 30fps），因为无人机检测可以在独立线程中以较低频率运行，不影响主线程性能。
 
 ---
 
@@ -192,6 +203,30 @@ struct MapConfig {
 ```
 
 小地图配置。除了基础的地图路径、场地尺寸和像素尺寸外，还包含前哨站在地图上的像素坐标，以及根据阵营快速查询的辅助方法。
+
+---
+
+### `TrackerConfig`
+
+```cpp
+struct TrackerConfig {
+    int maxMiss = 4;
+    int maxPredict = 2;
+    int minHit = 2;
+    float maxGateBox = 200.0f;
+};
+```
+
+跟踪器配置。这些参数控制 `pose_node` 中 `Tracker` 的行为：
+
+| 字段 | 默认值 | 含义 |
+|------|--------|------|
+| `maxMiss` | 4 | 连续丢失多少帧后槽位标记为 DEAD（不再输出） |
+| `maxPredict` | 2 | 连续丢失多少帧内保持 PREDICTED（卡尔曼外推仍显示） |
+| `minHit` | 2 | 最少命中次数才对外输出 |
+| `maxGateBox` | 200.0f | 像素框中心距离门限（用于匈牙利匹配） |
+
+从 `tracker.yaml` 加载，详见 `docs/core/tracking/core_tracker.md`。
 
 ---
 
