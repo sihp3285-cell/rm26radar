@@ -1,10 +1,10 @@
 outpost_enabled: true
 outpost_roi:
-  - 1797
-  - 1456
-  - 189
-  - 57
-outpost_score_threshold: 0.3
+  - 2309
+  - 1026
+  - 88
+  - 43
+outpost_score_threshold: 0.1
 outpost_miss_threshold: 30
 outpost_mappoints_red:
   - 439

@@ -8,6 +8,7 @@
 #include <QPixmap>
 #include <QTimer>
 #include <QCloseEvent>
+#include <QKeyEvent>
 #include <QMutex>
 #include <QMutexLocker>
 #include <QPushButton>
@@ -17,6 +18,7 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <std_msgs/msg/bool.hpp>
 #include <std_srvs/srv/trigger.hpp>
+#include <std_srvs/srv/set_bool.hpp>
 #include <cv_bridge/cv_bridge.hpp>
 #include <opencv2/opencv.hpp>
 
@@ -102,6 +104,7 @@ public:
 
         // --- 重新标定按钮 ---
         calibrate_button_ = new QPushButton("重新标定", this);
+        calibrate_button_->setFocusPolicy(Qt::NoFocus);
         calibrate_button_->setCursor(Qt::PointingHandCursor);
         calibrate_button_->setStyleSheet(
             "QPushButton {"
@@ -126,6 +129,7 @@ public:
 
         // --- 重新框定 ROI 按钮 ---
         roi_button_ = new QPushButton("重新框定 ROI", this);
+        roi_button_->setFocusPolicy(Qt::NoFocus);
         roi_button_->setCursor(Qt::PointingHandCursor);
         roi_button_->setStyleSheet(
             "QPushButton {"
@@ -151,6 +155,7 @@ public:
         // --- 阵营切换按钮 ---
         team_button_ = new QPushButton("蓝方视角", this);
         team_button_->setCheckable(true);
+        team_button_->setFocusPolicy(Qt::NoFocus);
         team_button_->setCursor(Qt::PointingHandCursor);
         team_button_->setStyleSheet(
             "QPushButton {"
@@ -194,6 +199,7 @@ public:
     void refresh()
     {
         if (!node_) return;
+        if (paused_) return;
         updateFromNode();
     }
 
@@ -304,11 +310,28 @@ protected:
         QMainWindow::closeEvent(event);
     }
 
+    void keyPressEvent(QKeyEvent *event) override
+    {
+        if (event->key() == Qt::Key_Space) {
+            paused_ = !paused_;
+            if (pause_cb_) {
+                pause_cb_(paused_);
+            }
+            QString status = paused_
+                ? QStringLiteral("已暂停 (按空格恢复)")
+                : QStringLiteral("已恢复 (按空格暂停)");
+            showOperationStatus(status, !paused_);
+        } else {
+            QMainWindow::keyPressEvent(event);
+        }
+    }
+
 public:
     void setCloseCallback(std::function<void()> cb) { close_cb_ = std::move(cb); }
     void setTeamFlipCallback(std::function<void(bool)> cb) { team_flip_cb_ = std::move(cb); }
     void setCalibrateCallback(std::function<void()> cb) { calibrate_cb_ = std::move(cb); }
     void setROICallback(std::function<void()> cb) { roi_cb_ = std::move(cb); }
+    void setPauseCallback(std::function<void(bool)> cb) { pause_cb_ = std::move(cb); }
 
 private:
     void updateFromNode();  // 实现在 QtDisplayNode 定义之后
@@ -327,6 +350,8 @@ private:
     std::function<void(bool)> team_flip_cb_;
     std::function<void()> calibrate_cb_;
     std::function<void()> roi_cb_;
+    std::function<void(bool)> pause_cb_;
+    bool paused_ = false;
 
     static QPixmap cvMatToQPixmap(const cv::Mat &cv_img)
     {
@@ -436,6 +461,31 @@ public:
         msg.data = is_blue_team;
         team_flip_pub_->publish(msg);
         RCLCPP_INFO(this->get_logger(), "发布阵营切换: %s", is_blue_team ? "红方视角" : "蓝方视角");
+    }
+
+    /**
+     * @brief 异步调用 /video_node/set_pause 服务，在后台线程执行
+     */
+    void setVideoPauseAsync(bool pause)
+    {
+        std::thread([this, pause]() {
+            auto client = this->create_client<std_srvs::srv::SetBool>("/video_node/set_pause");
+            if (!client->wait_for_service(std::chrono::seconds(2))) {
+                RCLCPP_WARN(this->get_logger(), "暂停服务未上线: /video_node/set_pause");
+                return;
+            }
+            auto request = std::make_shared<std_srvs::srv::SetBool::Request>();
+            request->data = pause;
+            auto future = client->async_send_request(request);
+            auto status = future.wait_for(std::chrono::seconds(2));
+            if (status == std::future_status::timeout) {
+                RCLCPP_WARN(this->get_logger(), "暂停服务调用超时");
+                return;
+            }
+            auto result = future.get();
+            RCLCPP_INFO(this->get_logger(), "视频暂停结果: %s - %s",
+                        result->success ? "成功" : "失败", result->message.c_str());
+        }).detach();
     }
 
     /**
@@ -594,6 +644,11 @@ int main(int argc, char *argv[])
     // 重新框定 ROI 按钮 → 调用 /roi_set/start 服务
     window.setROICallback([node]() {
         node->callServiceAsync("/roi_set/start", "ROI 框定");
+    });
+
+    // 空格键暂停 / 恢复 → 调用 /video_node/set_pause 服务
+    window.setPauseCallback([node](bool paused) {
+        node->setVideoPauseAsync(paused);
     });
 
     // Qt 定时器在主线程驱动 UI 刷新（30 FPS）

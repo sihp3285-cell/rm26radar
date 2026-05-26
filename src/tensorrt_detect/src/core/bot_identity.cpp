@@ -33,6 +33,9 @@ std::pair<int, float> BotIdentity::getStableClass() const {
     if (history_.empty()) {
         return {-1, 0.0f};
     }
+    if (history_.size() < MIN_HISTORY_FOR_STABLE) {
+        return {-1, 0.0f};
+    }
 
     std::vector<float> scores(NUM_CLASSES, 0.0f);
     float weight_sum = 0.0f;
