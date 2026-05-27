@@ -16,6 +16,7 @@ struct PipelineTiming {
     double outpost_ms = 0.0;
     double airplane_ms = 0.0;
     double total_ms = 0.0;
+    double end_to_end_ms = 0.0;
     double fps = 0.0;
 };
 

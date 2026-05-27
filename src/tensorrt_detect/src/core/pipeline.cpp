@@ -405,6 +405,7 @@ std::vector<Result> DetectPipeline::process(const cv::Mat& frame) {
         latestTiming_.outpost_ms = 0.0;
         latestTiming_.airplane_ms = lastAirplaneMs_.load();
         latestTiming_.total_ms = total_ms;
+        latestTiming_.end_to_end_ms = 0.0;  // 由 detect_node 根据 ROS stamp 填充
     }
 
     updateStats(car_ms, armor_ms, cls_ms, 0.0, total_ms);
@@ -434,6 +435,7 @@ void DetectPipeline::updateStats(double carMs, double armorMs, double clsMs,
                   << ", outpost=" << (accOutpostMs_ / n) << "ms"
                   << ", airplane=" << lastAirplaneMs_.load() << "ms"
                   << ", total=" << (accTotalMs_ / n) << "ms"
+                  << ", e2e=" << (latestTiming_.end_to_end_ms > 0.0 ? latestTiming_.end_to_end_ms : 0.0) << "ms"
                   << ", fps=" << fps
                   << std::endl;
 

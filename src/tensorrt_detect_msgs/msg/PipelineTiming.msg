@@ -5,4 +5,5 @@ float64 cls_ms
 float64 outpost_ms
 float64 airplane_ms
 float64 total_ms
+float64 end_to_end_ms
 float64 fps

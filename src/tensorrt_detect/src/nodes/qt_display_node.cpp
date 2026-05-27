@@ -52,7 +52,7 @@ public:
         auto *top_bar_layout = new QHBoxLayout();
         top_bar_layout->setSpacing(8);
 
-        status_label_ = new QLabel("car=-- armor=-- cls=-- output=-- airplane=-- total=-- fps=--", this);
+        status_label_ = new QLabel("car=-- armor=-- cls=-- output=-- airplane=-- total=-- e2e=-- disp=-- fps=--", this);
         status_label_->setStyleSheet(
             "color: #00ff88; background-color: #0d0d0d; font-size: 20px; "
             "font-family: 'Microsoft YaHei', 'Consolas', monospace; "
@@ -220,16 +220,19 @@ public:
     }
 
     void updateStatus(const tensorrt_detect_msgs::msg::PipelineTiming& timing, bool outpost_alive,
-                       bool engineer_on_island, bool opponent_attack, bool our_attack, bool opponent_near_fortress)
+                       bool engineer_on_island, bool opponent_attack, bool our_attack, bool opponent_near_fortress,
+                       double display_latency_ms)
     {
         // 更新基础状态栏（time 日志各阶段耗时）
-        QString text = QString("car=%1 armor=%2 cls=%3 output=%4 airplane=%5 total=%6 fps=%7")
+        QString text = QString("car=%1 armor=%2 cls=%3 output=%4 airplane=%5 total=%6 e2e=%7 disp=%8 fps=%9")
                            .arg(timing.car_ms, 0, 'f', 1)
                            .arg(timing.armor_ms, 0, 'f', 1)
                            .arg(timing.cls_ms, 0, 'f', 1)
                            .arg(timing.outpost_ms, 0, 'f', 1)
                            .arg(timing.airplane_ms, 0, 'f', 1)
                            .arg(timing.total_ms, 0, 'f', 1)
+                           .arg(timing.end_to_end_ms, 0, 'f', 1)
+                           .arg(display_latency_ms, 0, 'f', 1)
                            .arg(timing.fps, 0, 'f', 1);
         status_label_->setText(text);
 
@@ -396,6 +399,7 @@ public:
                     auto cv_ptr = cv_bridge::toCvCopy(msg, "bgr8");
                     QMutexLocker lock(&mutex_);
                     latest_frame_ = cv_ptr->image.clone();
+                    latest_display_latency_ms_ = (this->now() - msg->header.stamp).seconds() * 1000.0;
                 } catch (const cv_bridge::Exception &e) {
                     RCLCPP_ERROR(this->get_logger(), "视频 cv_bridge 失败: %s", e.what());
                 }
@@ -559,7 +563,8 @@ public:
     void fetchData(cv::Mat &frame, cv::Mat &map,
                    tensorrt_detect_msgs::msg::PipelineTiming &timing,
                    bool &outpost_alive,
-                   bool &engineer_on_island, bool &opponent_attack, bool &our_attack, bool &opponent_near_fortress)
+                   bool &engineer_on_island, bool &opponent_attack, bool &our_attack, bool &opponent_near_fortress,
+                   double &display_latency_ms)
     {
         QMutexLocker lock(&mutex_);
         frame = latest_frame_.clone();
@@ -570,6 +575,7 @@ public:
         opponent_attack = latest_opponent_attack_;
         our_attack = latest_our_attack_;
         opponent_near_fortress = latest_opponent_near_fortress_;
+        display_latency_ms = latest_display_latency_ms_.load();
     }
 
 private:
@@ -590,6 +596,7 @@ private:
     cv::Mat latest_frame_;
     cv::Mat latest_map_;
     tensorrt_detect_msgs::msg::PipelineTiming latest_timing_;
+    std::atomic<double> latest_display_latency_ms_{0.0};
     bool latest_outpost_alive_ = false;
     bool latest_engineer_on_island_ = false;
     bool latest_opponent_attack_ = false;
@@ -607,11 +614,14 @@ void DisplayWindow::updateFromNode()
     tensorrt_detect_msgs::msg::PipelineTiming timing;
     bool outpost_alive = false;
     bool engineer_on_island = false, opponent_attack = false, our_attack = false, opponent_near_fortress = false;
+    double display_latency_ms = 0.0;
     node_->fetchData(frame, map, timing, outpost_alive,
-                     engineer_on_island, opponent_attack, our_attack, opponent_near_fortress);
+                     engineer_on_island, opponent_attack, our_attack, opponent_near_fortress,
+                     display_latency_ms);
     updateVideo(frame);
     updateMap(map);
-    updateStatus(timing, outpost_alive, engineer_on_island, opponent_attack, our_attack, opponent_near_fortress);
+    updateStatus(timing, outpost_alive, engineer_on_island, opponent_attack, our_attack, opponent_near_fortress,
+                 display_latency_ms);
 }
 
 int main(int argc, char *argv[])

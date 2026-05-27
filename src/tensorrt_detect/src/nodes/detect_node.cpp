@@ -141,6 +141,7 @@ private:
                 timing_msg->outpost_ms = timing.outpost_ms;
                 timing_msg->airplane_ms = timing.airplane_ms;
                 timing_msg->total_ms = timing.total_ms;
+                timing_msg->end_to_end_ms = (this->now() - msg->header.stamp).seconds() * 1000.0;
                 timing_msg->fps = static_cast<double>(fps_);
                 timing_pub_->publish(std::move(timing_msg));
             }
