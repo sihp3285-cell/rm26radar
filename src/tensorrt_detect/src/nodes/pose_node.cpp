@@ -46,9 +46,13 @@ public:
         tp.max_predict = cfg_->tracker.maxPredict;
         tp.min_hit = cfg_->tracker.minHit;
         tp.max_gate_box = cfg_->tracker.maxGateBox;
+        tp.botIdentity = cfg_->tracker.botIdentity;
         tracker_ = Tracker(tp);
         RCLCPP_INFO(this->get_logger(), "Tracker 参数: max_miss=%d, max_predict=%d, min_hit=%d, max_gate_box=%.1f",
                     tp.max_miss, tp.max_predict, tp.min_hit, tp.max_gate_box);
+        RCLCPP_INFO(this->get_logger(), "BotIdentity 参数: max_history=%d, purge_threshold=%d, min_history_for_stable=%d, decay=%.2f, num_classes=%d",
+                    tp.botIdentity.maxHistory, tp.botIdentity.purgeThreshold,
+                    tp.botIdentity.minHistoryForStable, tp.botIdentity.decay, tp.botIdentity.numClasses);
 
         loadCalibrationAtStartup();
 

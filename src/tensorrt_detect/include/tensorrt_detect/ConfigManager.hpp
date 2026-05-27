@@ -4,6 +4,7 @@
 #include <vector>
 #include <stdexcept>
 #include <opencv2/opencv.hpp>
+#include "core/bot_identity.hpp"
 
 struct InferModelConfig {
     std::string modelPath;
@@ -91,6 +92,7 @@ struct TrackerConfig {
     int maxPredict = 2;
     int minHit = 2;
     float maxGateBox = 200.0f;
+    BotIdentityConfig botIdentity;
 };
 
 struct RuntimeConfig {

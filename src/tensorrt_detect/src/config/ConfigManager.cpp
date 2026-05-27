@@ -205,6 +205,15 @@ void Config::loadTrackerConfig(const std::string& path) {
     tracker.maxPredict = cfg["max_predict"] ? cfg["max_predict"].as<int>() : 2;
     tracker.minHit = cfg["min_hit"] ? cfg["min_hit"].as<int>() : 2;
     tracker.maxGateBox = cfg["max_gate_box"] ? cfg["max_gate_box"].as<float>() : 200.0f;
+
+    if (cfg["bot_identity"]) {
+        YAML::Node bi = cfg["bot_identity"];
+        tracker.botIdentity.maxHistory = bi["max_history"] ? bi["max_history"].as<int>() : 50;
+        tracker.botIdentity.purgeThreshold = bi["purge_threshold"] ? bi["purge_threshold"].as<int>() : 30;
+        tracker.botIdentity.minHistoryForStable = bi["min_history_for_stable"] ? bi["min_history_for_stable"].as<int>() : 8;
+        tracker.botIdentity.decay = bi["decay"] ? bi["decay"].as<float>() : 0.97f;
+        tracker.botIdentity.numClasses = bi["num_classes"] ? bi["num_classes"].as<int>() : 9;
+    }
 }
 
 void Config::loadRuntimeConfig(const std::string& path) {

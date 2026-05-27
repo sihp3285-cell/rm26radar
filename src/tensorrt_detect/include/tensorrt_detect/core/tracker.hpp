@@ -5,6 +5,8 @@
 #include "robot_id.hpp"
 #include <vector>
 
+// BotIdentityConfig 定义在 bot_identity.hpp 中，此处直接复用
+
 // ==========================================
 // Tracker - 固定槽位多目标跟踪器
 //   每个兵种预分配一个永久槽位（座位），class/team 构造时焊死
@@ -16,6 +18,7 @@ struct TrackerParams {
     int max_predict = 2;            // 连续丢失多少帧内保持 PREDICTED（卡尔曼外推仍显示）
     int min_hit = 2;                // 最少命中次数才对外输出
     float max_gate_box = 200.0f;     // 像素框中心距离门限
+    BotIdentityConfig botIdentity;   // BotIdentity 身份稳定器参数
 };
 
 class Tracker {

@@ -33,6 +33,11 @@ Tracker::Tracker(const TrackerParams& params) : params_(params) {
     init_slot(SLOT_BLUE_R4, robot_id::BLUE, robot_id::R4);
     init_slot(SLOT_BLUE_S,  robot_id::BLUE, robot_id::S);
     // 注：Outpost 不走 Tracker，由 pose_node 直接透传
+
+    // 配置每个槽位的 BotIdentity 参数
+    for (auto& slot : slots_) {
+        slot.bot_id.configure(params_.botIdentity);
+    }
 }
 
 void Tracker::reset() {
