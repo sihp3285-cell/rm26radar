@@ -2,13 +2,13 @@
 # 固定槽位多目标跟踪器参数
 max_miss: 6               # 连续丢失多少帧后槽位标记为 DEAD（不再输出）
 max_predict: 3           # 连续丢失多少帧内保持 PREDICTED（卡尔曼外推仍显示在地图上）
-min_hit: 2                # 最少命中次数才对外输出
+min_hit: 3                # 最少命中次数才对外输出
 max_gate_box: 1500.0       # 像素框中心距离门限（匈牙利匹配代价矩阵门限）
 
 # BotIdentity 身份稳定器参数
 bot_identity:
-  max_history: 50           # 历史观测最大保存帧数
-  purge_threshold: 30       # 连续丢失多少帧后清空历史
-  min_history_for_stable: 8 # 稳定身份最小历史长度门槛
-  decay: 0.97               # 指数加权衰减系数
+  max_history: 30           # 历史观测最大保存帧数
+  purge_threshold: 20       # 连续丢失多少帧后清空历史
+  min_history_for_stable: 10 # 稳定身份最小历史长度门槛
+  decay: 0.99               # 指数加权衰减系数
   num_classes: 9            # 类别总数（CAR~AIRPLANE）
