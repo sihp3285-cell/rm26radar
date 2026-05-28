@@ -5,6 +5,8 @@
 #include <opencv2/opencv.hpp>
 #include <yaml-cpp/yaml.h>
 #include <filesystem>
+#include <unordered_map>
+#include <algorithm>
 
 #include "tensorrt_detect_msgs/msg/world_target.hpp"
 #include "tensorrt_detect_msgs/msg/world_target_array.hpp"
@@ -46,10 +48,12 @@ public:
         tp.max_predict = cfg_->tracker.maxPredict;
         tp.min_hit = cfg_->tracker.minHit;
         tp.max_gate_box = cfg_->tracker.maxGateBox;
+        tp.class_mismatch_penalty = cfg_->tracker.classMismatchPenalty;
+        tp.max_tracks = cfg_->tracker.maxTracks;
         tp.botIdentity = cfg_->tracker.botIdentity;
         tracker_ = Tracker(tp);
-        RCLCPP_INFO(this->get_logger(), "Tracker 参数: max_miss=%d, max_predict=%d, min_hit=%d, max_gate_box=%.1f",
-                    tp.max_miss, tp.max_predict, tp.min_hit, tp.max_gate_box);
+        RCLCPP_INFO(this->get_logger(), "Tracker 参数: max_miss=%d, max_predict=%d, min_hit=%d, max_gate_box=%.1f, class_mismatch_penalty=%.1f, max_tracks=%d",
+                    tp.max_miss, tp.max_predict, tp.min_hit, tp.max_gate_box, tp.class_mismatch_penalty, tp.max_tracks);
         RCLCPP_INFO(this->get_logger(), "BotIdentity 参数: max_history=%d, purge_threshold=%d, min_history_for_stable=%d, decay=%.2f, num_classes=%d",
                     tp.botIdentity.maxHistory, tp.botIdentity.purgeThreshold,
                     tp.botIdentity.minHistoryForStable, tp.botIdentity.decay, tp.botIdentity.numClasses);
@@ -287,12 +291,15 @@ private:
             // ---- 3. 固定槽位 + Outpost + 动态死亡装甲板 发布 ----
             auto world_msg = std::make_unique<tensorrt_detect_msgs::msg::WorldTargetArray>();
             world_msg->header = msg->header;
-            // 0-9: Tracker 固定槽位；10: Outpost 透传
+            // 0-9: Tracker official slots（含 track→slot 映射 + 仲裁）；10: Outpost 透传
             world_msg->targets.resize(11);
+
+            // 批量获取 10 个 official slot 输出（已含 track→slot 映射 + 仲裁）
+            auto slot_outputs = tracker_.get_outputs();
 
             int valid_count = 0;
             for (int i = 0; i < Tracker::NUM_SLOTS; ++i) {
-                auto slot = tracker_.get_slot(i);
+                const auto& slot = slot_outputs[i];
                 auto& target = world_msg->targets[i];
                 target.idx      = i;
                 target.class_id = slot.class_id;

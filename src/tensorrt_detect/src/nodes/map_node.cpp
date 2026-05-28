@@ -125,10 +125,6 @@ private:
 
                 cv::Point2f raw_pt = radar_map_->worldtomap(cv::Point2f(t.world_x, t.world_z));
 
-                // 优先使用 BotIdentity 稳定身份（指数加权历史），无效时回落到单帧 class_id
-                int display_class = (t.stable_class_id >= 0 && t.stable_class_conf > 0.0f)
-                                    ? t.stable_class_id : t.class_id;
-
                 // 前哨站单独处理（不在 Mappoints 中绘制，后面单独叠加）
                 if (t.class_id == robot_id::OUTPOST) continue;
 
@@ -148,22 +144,24 @@ private:
                     continue;
                 }
 
-                // 固定槽位（R1~S）
+                // 固定槽位（R1~S）：stable_class 未成熟就不画，不再 fallback 到 t.class_id
+                if (t.stable_class_id < 0 || t.stable_class_conf <= 0.0f) continue;
+
                 Mappoint mp;
                 mp.map_point = raw_pt;
-                mp.classIdx = display_class;
+                mp.classIdx = t.stable_class_id;
                 mp.armorColor = t.team_id;
                 mp.isDead = t.is_dead;
-                if (display_class >= 0 && display_class < static_cast<int>(cfg_->model.classNames.size())) {
-                    mp.label = cfg_->model.classNames[display_class];
+                if (t.stable_class_id >= 0 && t.stable_class_id < static_cast<int>(cfg_->model.classNames.size())) {
+                    mp.label = cfg_->model.classNames[t.stable_class_id];
                 }
                 mappoints.push_back(mp);
 
-                // 填充 RadarMap 消息（仅固定槽位且非死亡）
+                // 填充 RadarMap 消息（仅固定槽位且非死亡，用 stable_class_id 索引）
                 int idx = -1;
-                if (display_class >= robot_id::R1 && display_class <= robot_id::R4) {
-                    idx = display_class - robot_id::R1;
-                } else if (display_class == robot_id::S) {
+                if (t.stable_class_id >= robot_id::R1 && t.stable_class_id <= robot_id::R4) {
+                    idx = t.stable_class_id - robot_id::R1;
+                } else if (t.stable_class_id == robot_id::S) {
                     idx = 5;
                 }
                 if (!t.is_dead && idx >= 0 && idx < 6) {

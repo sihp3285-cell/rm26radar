@@ -3,7 +3,6 @@
 #include "model.hpp"
 #include "robot_id.hpp"
 #include <iostream>
-#include <iomanip>
 #include <cuda_runtime_api.h>
 
 
@@ -309,11 +308,6 @@ std::vector<Result> DetectPipeline::process(const cv::Mat& frame) {
         latestTiming_.end_to_end_ms = 0.0;
     }
 
-    (void)total_ms;
-    (void)car_ms;
-    (void)armor_ms;
-    (void)cls_ms;
-
     updateStats(car_ms, armor_ms, cls_ms, 0.0, total_ms);
 
     return all;
@@ -332,10 +326,6 @@ void DetectPipeline::updateStats(double carMs, double armorMs, double clsMs,
     auto now = std::chrono::steady_clock::now();
     double elapsedSec = std::chrono::duration<double>(now - lastStatsTime_).count();
     if (elapsedSec >= 5.0 && accCount_ > 0) {
-        double n = static_cast<double>(accCount_);
-        double fps = n / elapsedSec;
-        (void)fps;
-
         accCarMs_ = accArmorMs_ = accClsMs_ = accOutpostMs_ = accTotalMs_ = 0.0;
         accCount_ = 0;
         lastStatsTime_ = now;

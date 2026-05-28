@@ -205,6 +205,8 @@ void Config::loadTrackerConfig(const std::string& path) {
     tracker.maxPredict = cfg["max_predict"] ? cfg["max_predict"].as<int>() : 2;
     tracker.minHit = cfg["min_hit"] ? cfg["min_hit"].as<int>() : 2;
     tracker.maxGateBox = cfg["max_gate_box"] ? cfg["max_gate_box"].as<float>() : 200.0f;
+    tracker.classMismatchPenalty = cfg["class_mismatch_penalty"] ? cfg["class_mismatch_penalty"].as<float>() : 300.0f;
+    tracker.maxTracks = cfg["max_tracks"] ? cfg["max_tracks"].as<int>() : 20;
 
     if (cfg["bot_identity"]) {
         YAML::Node bi = cfg["bot_identity"];

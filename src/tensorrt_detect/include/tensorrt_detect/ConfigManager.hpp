@@ -92,6 +92,8 @@ struct TrackerConfig {
     int maxPredict = 2;
     int minHit = 2;
     float maxGateBox = 200.0f;
+    float classMismatchPenalty = 300.0f;
+    int maxTracks = 20;
     BotIdentityConfig botIdentity;
 };
 

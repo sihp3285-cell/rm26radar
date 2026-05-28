@@ -1,9 +1,7 @@
 
 #include <fstream>
 #include <algorithm>
-#include <numeric>
-#include <chrono>
-#include <iomanip>
+#include <iostream>
 
 #include "model.hpp"
 #include "preprocess.hpp"
@@ -99,6 +97,7 @@ Model::Model(const std::string modelPath, const int &inputSize, const float &sco
     this->probSize_ = this->output_h * this->output_w;
     cudaMallocHost(&(this->prob_), this->probSize_ * sizeof(float));
     cudaStreamCreate(&(this->stream));
+    cudaEventCreate(&(this->readyEvent_));
 
     // Initialize normalization params
     if (this->output_h == 1 || this->output_w == 1) {
@@ -130,6 +129,10 @@ Model::~Model()
         cudaFreeHost(hInputBuffer8U_);
     if (prob_)
         cudaFreeHost(prob_);
+    if (inputTex_)
+        cudaDestroyTextureObject(inputTex_);
+    if (readyEvent_)
+        cudaEventDestroy(readyEvent_);
     if (this->context)
         delete this->context;
     if (this->engine)
@@ -177,8 +180,6 @@ cv::Mat Model::preprocessSingle(const cv::Mat& frame, float& rx, float& ry)
 
 void Model::preprocessing(const cv::Mat &frame)
 {
-    auto t_pre_total0 = std::chrono::steady_clock::now();
-
     int img_w = frame.cols;
     int img_h = frame.rows;
 
@@ -191,8 +192,7 @@ void Model::preprocessing(const cv::Mat &frame)
 
     size_t imgBytes = frame.step[0] * frame.rows;
 
-    // 1. Ensure pinned CPU staging buffer for true async DMA
-    auto t_pin0 = std::chrono::steady_clock::now();
+    // Ensure pinned CPU staging buffer for async DMA
     if (hInputCapacity_ < imgBytes) {
         if (hInputBuffer8U_) cudaFreeHost(hInputBuffer8U_);
         hInputBuffer8U_ = nullptr;
@@ -203,15 +203,10 @@ void Model::preprocessing(const cv::Mat &frame)
         }
         hInputCapacity_ = imgBytes;
     }
-    auto t_pin1 = std::chrono::steady_clock::now();
 
-    // CPU-side memcpy: pageable frame → pinned staging (blocking, but pure CPU-CPU, no GPU sync)
-    auto t_memcpy0 = std::chrono::steady_clock::now();
     memcpy(hInputBuffer8U_, frame.data, imgBytes);
-    auto t_memcpy1 = std::chrono::steady_clock::now();
 
-    // 2. Ensure device-side raw image buffer
-    auto t_gpu_buf0 = std::chrono::steady_clock::now();
+    // Ensure device-side raw image buffer
     if (gpuInputCapacity_ < imgBytes) {
         if (gpuInputBuffer8U_) cudaFree(gpuInputBuffer8U_);
         gpuInputBuffer8U_ = nullptr;
@@ -222,44 +217,69 @@ void Model::preprocessing(const cv::Mat &frame)
         }
         gpuInputCapacity_ = imgBytes;
     }
-    auto t_gpu_buf1 = std::chrono::steady_clock::now();
 
-    // True async H2D from pinned memory (non-blocking host, DMA directly)
-    auto t_h2d0 = std::chrono::steady_clock::now();
+    // Async H2D from pinned memory
     cudaMemcpyAsync(gpuInputBuffer8U_, hInputBuffer8U_, imgBytes, cudaMemcpyHostToDevice, this->stream);
-    auto t_h2d1 = std::chrono::steady_clock::now();
 
-    // Launch GPU preprocess kernel directly into model input buffer
-    auto t_kernel0 = std::chrono::steady_clock::now();
-    launch_preprocess(
-        static_cast<const uint8_t*>(gpuInputBuffer8U_),
-        img_w, img_h, static_cast<int>(frame.step[0]),
-        static_cast<float*>(buffers[0]),
-        input_w, input_h,
-        static_cast<float>(img_w) / new_w,
-        static_cast<float>(img_h) / new_h,
-        new_w, new_h,
-        mean_, std_,
-        true,   // swapRB (same as cv::dnn::blobFromImage behavior)
-        this->stream
-    );
-    auto t_kernel1 = std::chrono::steady_clock::now();
+    // Try texture-backed preprocessing; fall back to raw pointer kernel on failure
+    bool useTex = false;
+    if (inputTex_ == 0 || texSrcW_ != img_w || texSrcH_ != img_h || texSrcStep_ != static_cast<int>(frame.step[0])) {
+        if (inputTex_ != 0) cudaDestroyTextureObject(inputTex_);
+        inputTex_ = 0;
 
-    auto t_pre_total1 = std::chrono::steady_clock::now();
+        cudaResourceDesc resDesc = {};
+        resDesc.resType = cudaResourceTypePitch2D;
+        resDesc.res.pitch2D.devPtr = gpuInputBuffer8U_;
+        resDesc.res.pitch2D.desc = cudaCreateChannelDesc(8, 8, 8, 0, cudaChannelFormatKindUnsigned);
+        resDesc.res.pitch2D.width = img_w;
+        resDesc.res.pitch2D.height = img_h;
+        resDesc.res.pitch2D.pitchInBytes = frame.step[0];
 
-    double ms_pin    = std::chrono::duration<double, std::milli>(t_pin1 - t_pin0).count();
-    double ms_memcpy = std::chrono::duration<double, std::milli>(t_memcpy1 - t_memcpy0).count();
-    double ms_gpu_buf= std::chrono::duration<double, std::milli>(t_gpu_buf1 - t_gpu_buf0).count();
-    double ms_h2d    = std::chrono::duration<double, std::milli>(t_h2d1 - t_h2d0).count();
-    double ms_kernel = std::chrono::duration<double, std::milli>(t_kernel1 - t_kernel0).count();
-    double ms_total  = std::chrono::duration<double, std::milli>(t_pre_total1 - t_pre_total0).count();
+        cudaTextureDesc texDesc = {};
+        texDesc.addressMode[0] = cudaAddressModeClamp;
+        texDesc.addressMode[1] = cudaAddressModeClamp;
+        texDesc.filterMode = cudaFilterModeLinear;
+        texDesc.readMode = cudaReadModeNormalizedFloat;
+        texDesc.normalizedCoords = 0;
 
-    (void)ms_pin;
-    (void)ms_memcpy;
-    (void)ms_gpu_buf;
-    (void)ms_h2d;
-    (void)ms_kernel;
-    (void)ms_total;
+        cudaError_t texErr = cudaCreateTextureObject(&inputTex_, &resDesc, &texDesc, nullptr);
+        if (texErr == cudaSuccess) {
+            texSrcW_ = img_w;
+            texSrcH_ = img_h;
+            texSrcStep_ = static_cast<int>(frame.step[0]);
+            useTex = true;
+        }
+    } else {
+        useTex = true;
+    }
+
+    if (useTex) {
+        launch_preprocess_tex(
+            inputTex_,
+            img_w, img_h,
+            static_cast<float*>(buffers[0]),
+            input_w, input_h,
+            static_cast<float>(img_w) / new_w,
+            static_cast<float>(img_h) / new_h,
+            new_w, new_h,
+            mean_, std_,
+            true,
+            this->stream
+        );
+    } else {
+        launch_preprocess(
+            static_cast<const uint8_t*>(gpuInputBuffer8U_),
+            img_w, img_h, static_cast<int>(frame.step[0]),
+            static_cast<float*>(buffers[0]),
+            input_w, input_h,
+            static_cast<float>(img_w) / new_w,
+            static_cast<float>(img_h) / new_h,
+            new_w, new_h,
+            mean_, std_,
+            true,
+            this->stream
+        );
+    }
 }
 
 std::vector<Result> Model::postprocessSingle(const cv::Mat& det_output, float rx, float ry)
@@ -328,16 +348,18 @@ std::vector<Result> Model::postprocessSingle(const cv::Mat& det_output, float rx
                 ow = det_output.at<float>(2, idx);
                 oh = det_output.at<float>(3, idx);
 
-                if (num_properties == 5) { 
+                if (num_properties == 5) {
                     max_score = det_output.at<float>(4, idx);
                     class_id = 0;
-                } else { 
-                    cv::Mat scores = det_output.col(idx).rowRange(4, num_properties);
-                    cv::Point class_id_point;
-                    double score_double;
-                    cv::minMaxLoc(scores, nullptr, &score_double, nullptr, &class_id_point);
-                    max_score = (float)score_double;
-                    class_id = class_id_point.y;
+                } else {
+                    float* prob_data = const_cast<float*>(det_output.ptr<float>(0));
+                    for (int k = 4; k < num_properties; ++k) {
+                        float s = prob_data[k * output_w + idx];
+                        if (s > max_score) {
+                            max_score = s;
+                            class_id = k - 4;
+                        }
+                    }
                 }
             } else {
                 cx = det_output.at<float>(idx, 0);
@@ -348,13 +370,15 @@ std::vector<Result> Model::postprocessSingle(const cv::Mat& det_output, float rx
                 if (num_properties == 5) {
                     max_score = det_output.at<float>(idx, 4);
                     class_id = 0;
-                } else { 
-                    cv::Mat scores = det_output.row(idx).colRange(4, num_properties);
-                    cv::Point class_id_point;
-                    double score_double;
-                    cv::minMaxLoc(scores, nullptr, &score_double, nullptr, &class_id_point);
-                    max_score = (float)score_double;
-                    class_id = class_id_point.x; 
+                } else {
+                    float* row = const_cast<float*>(det_output.ptr<float>(idx));
+                    for (int k = 4; k < num_properties; ++k) {
+                        float s = row[k];
+                        if (s > max_score) {
+                            max_score = s;
+                            class_id = k - 4;
+                        }
+                    }
                 }
             }
 
@@ -397,96 +421,41 @@ bool Model::Detect(const cv::Mat &frame)
 {
     try
     {
-        auto t_total0 = std::chrono::steady_clock::now();
         this->detectResults.clear();
 
-        auto t_pre0 = std::chrono::steady_clock::now();
         preprocessing(frame);
-        auto t_pre1 = std::chrono::steady_clock::now();
-
-        auto t_infer0 = std::chrono::steady_clock::now();
 
         if (!context->enqueueV3(this->stream)) {
             throw std::runtime_error("enqueueV3 failed in Detect");
         }
-        auto t_infer1 = std::chrono::steady_clock::now();
 
-        auto t_d2h0 = std::chrono::steady_clock::now();
         cudaMemcpyAsync(this->prob_, this->buffers[1], this->probSize_ * sizeof(float), cudaMemcpyDeviceToHost, this->stream);
-        auto t_d2h1 = std::chrono::steady_clock::now();
+        cudaEventRecord(readyEvent_, this->stream);
+        cudaEventSynchronize(readyEvent_);
 
-        auto t_sync0 = std::chrono::steady_clock::now();
-        cudaStreamSynchronize(this->stream);
-        auto t_sync1 = std::chrono::steady_clock::now();
-
-        auto t_post0 = std::chrono::steady_clock::now();
         postprocessing();
-        auto t_post1 = std::chrono::steady_clock::now();
-
-        auto t_total1 = std::chrono::steady_clock::now();
-
-        double ms_pre  = std::chrono::duration<double, std::milli>(t_pre1  - t_pre0).count();
-        double ms_infer = std::chrono::duration<double, std::milli>(t_infer1 - t_infer0).count();
-        double ms_d2h  = std::chrono::duration<double, std::milli>(t_d2h1  - t_d2h0).count();
-        double ms_sync = std::chrono::duration<double, std::milli>(t_sync1 - t_sync0).count();
-        double ms_post = std::chrono::duration<double, std::milli>(t_post1 - t_post0).count();
-        double ms_total = std::chrono::duration<double, std::milli>(t_total1 - t_total0).count();
-
-        (void)ms_pre;
-        (void)ms_infer;
-        (void)ms_d2h;
-        (void)ms_sync;
-        (void)ms_post;
-        (void)ms_total;
 
         return !detectResults.empty();
     }
     catch (const std::exception &e)
     {
-        (void)e;
+        std::cerr << "[Model::Detect] exception: " << e.what() << std::endl;
         return false;
     }
 }
 int Model::predictClass(const cv::Mat &roi) {
-    auto t_total0 = std::chrono::steady_clock::now();
-
     preprocessing(roi);
 
-    auto t_infer0 = std::chrono::steady_clock::now();
-    // setTensorAddress / setInputShape 已移至构造函数，单帧路径无需重复设置
     if (!context->enqueueV3(this->stream)) {
         throw std::runtime_error("enqueueV3 failed in predictClass");
     }
-    auto t_infer1 = std::chrono::steady_clock::now();
 
-    auto t_d2h0 = std::chrono::steady_clock::now();
     cudaMemcpyAsync(this->prob_, this->buffers[1], this->probSize_ * sizeof(float), cudaMemcpyDeviceToHost, this->stream);
-    auto t_d2h1 = std::chrono::steady_clock::now();
+    cudaEventRecord(readyEvent_, this->stream);
+    cudaEventSynchronize(readyEvent_);
 
-    auto t_sync0 = std::chrono::steady_clock::now();
-    cudaStreamSynchronize(this->stream);
-    auto t_sync1 = std::chrono::steady_clock::now();
-
-    auto t_post0 = std::chrono::steady_clock::now();
     float* data = this->prob_;
-    int result = std::max_element(data, data + probSize_) - data;
-    auto t_post1 = std::chrono::steady_clock::now();
-
-    auto t_total1 = std::chrono::steady_clock::now();
-
-    double ms_infer = std::chrono::duration<double, std::milli>(t_infer1 - t_infer0).count();
-    double ms_d2h   = std::chrono::duration<double, std::milli>(t_d2h1 - t_d2h0).count();
-    double ms_sync  = std::chrono::duration<double, std::milli>(t_sync1 - t_sync0).count();
-    double ms_post  = std::chrono::duration<double, std::milli>(t_post1 - t_post0).count();
-    double ms_total = std::chrono::duration<double, std::milli>(t_total1 - t_total0).count();
-
-    (void)ms_infer;
-    (void)ms_d2h;
-    (void)ms_sync;
-    (void)ms_post;
-    (void)ms_total;
-
-    return result;
+    return std::max_element(data, data + probSize_) - data;
 }
 
 

@@ -1,6 +1,7 @@
 #include "preprocess.hpp"
 #include <cuda_runtime.h>
 
+// Original raw-pointer bilinear kernel (kept for backward compatibility)
 __global__ void preprocess_kernel(
     const uint8_t* __restrict__ src,
     int src_w, int src_h, int src_step,
@@ -78,6 +79,72 @@ void launch_preprocess(
 
     preprocess_kernel<<<grid, block, 0, stream>>>(
         src, src_w, src_h, src_step,
+        dst, dst_w, dst_h,
+        scale_inv_x, scale_inv_y, new_w, new_h,
+        mean[0], mean[1], mean[2],
+        std[0], std[1], std[2],
+        swapRB);
+}
+
+// Texture-based kernel using hardware bilinear interpolation via tex2D
+__global__ void preprocess_kernel_tex(
+    cudaTextureObject_t tex,
+    int src_w, int src_h,
+    float* __restrict__ dst,
+    int dst_w, int dst_h,
+    float scale_inv_x, float scale_inv_y,
+    int new_w, int new_h,
+    float mean0, float mean1, float mean2,
+    float std0, float std1, float std2,
+    bool swapRB)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    if (x >= dst_w || y >= dst_h) return;
+
+    float4 pixel;
+
+    if (x < new_w && y < new_h) {
+        // Hardware bilinear interpolation. +0.5 offset required for linear-memory
+        // textures to align texel centers (CUDA convention).
+        // Clamp to [0.5001, N-0.5001) to stay within the well-defined range
+        // for linear filtering on linear-memory textures.
+        float sx = fminf(fmaxf(x * scale_inv_x + 0.5f, 0.5001f), src_w - 0.5001f);
+        float sy = fminf(fmaxf(y * scale_inv_y + 0.5f, 0.5001f), src_h - 0.5001f);
+        pixel = tex2D<float4>(tex, sx, sy);
+    } else {
+        pixel.x = pixel.y = pixel.z = 114.0f / 255.0f;
+        pixel.w = 0.0f;
+    }
+
+    float mean[3] = {mean0, mean1, mean2};
+    float stdv[3] = {std0, std1, std2};
+
+    int pixel_idx = y * dst_w + x;
+
+    for (int c = 0; c < 3; ++c) {
+        int src_c = swapRB ? (2 - c) : c;
+        float v = src_c == 0 ? pixel.x : (src_c == 1 ? pixel.y : pixel.z);
+        v = (v - mean[c]) / stdv[c];
+        dst[c * dst_w * dst_h + pixel_idx] = v;
+    }
+}
+
+void launch_preprocess_tex(
+    cudaTextureObject_t tex,
+    int src_w, int src_h,
+    float* dst, int dst_w, int dst_h,
+    float scale_inv_x, float scale_inv_y, int new_w, int new_h,
+    const float mean[3], const float std[3],
+    bool swapRB,
+    cudaStream_t stream)
+{
+    dim3 block(16, 16);
+    dim3 grid((dst_w + block.x - 1) / block.x,
+              (dst_h + block.y - 1) / block.y);
+
+    preprocess_kernel_tex<<<grid, block, 0, stream>>>(
+        tex, src_w, src_h,
         dst, dst_w, dst_h,
         scale_inv_x, scale_inv_y, new_w, new_h,
         mean[0], mean[1], mean[2],

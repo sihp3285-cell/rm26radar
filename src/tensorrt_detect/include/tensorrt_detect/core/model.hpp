@@ -46,6 +46,7 @@ private:
     nvinfer1::ICudaEngine *engine = nullptr;
     nvinfer1::IExecutionContext *context = nullptr;
     cudaStream_t stream = nullptr;
+    cudaEvent_t readyEvent_ = nullptr;
     void *buffers[2] = {nullptr, nullptr};
     // Pinned host buffers for true async memcpy
     float* prob_ = nullptr;
@@ -65,9 +66,15 @@ private:
     void* gpuInputBuffer8U_ = nullptr;
     size_t gpuInputCapacity_ = 0;
 
-    // Pinned CPU staging buffer for true async H2D (single-frame path)
+    // Pinned CPU staging buffer for async H2D
     uint8_t* hInputBuffer8U_ = nullptr;
     size_t hInputCapacity_ = 0;
+
+    // CUDA texture object for hardware-accelerated bilinear interpolation
+    cudaTextureObject_t inputTex_ = 0;
+    int texSrcW_ = 0;
+    int texSrcH_ = 0;
+    int texSrcStep_ = 0;
 
     // Normalization params (ImageNet for classify, identity for detect)
     float mean_[3] = {0.0f, 0.0f, 0.0f};
