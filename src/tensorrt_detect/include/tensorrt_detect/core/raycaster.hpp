@@ -25,6 +25,11 @@ class Raycaster {
                 cv::Point3f pixelToWorld(const cv::Point2f& pixel, 
                              const cv::Mat& K, const cv::Mat& D, 
                              const cv::Mat& R_inv, const cv::Mat& T) const;
+
+                std::vector<cv::Point3f> pixelToWorldBatch(
+                             const std::vector<cv::Point2f>& pixels,
+                             const cv::Mat& K, const cv::Mat& D,
+                             const cv::Mat& R_inv, const cv::Mat& T) const;
             private:
                 std::unique_ptr<open3d::t::geometry::RaycastingScene> scene_;
 

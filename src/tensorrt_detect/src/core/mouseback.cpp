@@ -10,7 +10,7 @@ void MouseBack::onMouse(int event, int x, int y, int flags, void* userdata)
         if (self->points.size() < self->maxpoints)
         {
             self->points.emplace_back(cv::Point2f(x, y));
-            std::cout << "已记录点：" << self->points.size() << " (" << x << ", " << y << ")" << std::endl;
+
         }
     }
 }
@@ -42,18 +42,17 @@ std::vector<cv::Point2f> MouseBack::getPoints(const cv::Mat& frame)
         cv::imshow(windowName, displayFrame);
         int key = cv::waitKey(10);
         if (points.size() >= maxpoints) {
-            std::cout << "标定完成！" << std::endl;
             cv::waitKey(1000);
             break;            
         }
         if (key == 'q') {
-            std::cout << "标定取消！" << std::endl;
+
             break;
         }
         if (key == ' ') {
             if (!points.empty()) {
                 points.pop_back();
-                std::cout << "撤销上一点，剩余点数：" << points.size() << std::endl;
+
             }
             continue;
         }

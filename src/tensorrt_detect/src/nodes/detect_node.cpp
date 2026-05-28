@@ -72,7 +72,6 @@ private:
             double input_delay_ms = (this->now() - msg->header.stamp).seconds() * 1000.0;
 
             auto cv_ptr = cv_bridge::toCvShare(msg, "bgr8");
-            // 浅拷贝底层数据，允许在原始 ROS Image 上直接画框（intra-process 单订阅者场景安全）
             cv::Mat frame = cv_ptr->image;
 
             std::vector<Result> results = pipeline_->process(frame);
@@ -165,8 +164,6 @@ private:
                 cv_bridge::CvImage(header, "bgr8", debug_output_frame_).toImageMsg(*out_msg);
                 image_pub_->publish(std::move(out_msg));
             }
-
-
 
             RCLCPP_INFO_THROTTLE(
                 this->get_logger(),

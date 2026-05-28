@@ -199,6 +199,23 @@ private:
         }
 
         try {
+            // ---- 0. 批量预计算所有检测的世界坐标 ----
+            std::vector<cv::Rect> boxes_for_raycast;
+            boxes_for_raycast.reserve(msg->detections.size());
+            for (const auto& det : msg->detections) {
+                cv::Rect car_box(det.car_x, det.car_y, det.car_width, det.car_height);
+                if (car_box.width > 0 && car_box.height > 0) {
+                    boxes_for_raycast.push_back(car_box);
+                } else {
+                    cv::Rect armor_box(det.x, det.y, det.width, det.height);
+                    boxes_for_raycast.push_back(armor_box);
+                }
+            }
+            std::vector<cv::Point2f> world_positions;
+            if (!boxes_for_raycast.empty()) {
+                world_positions = pose_solver_->middletoworldBatch(boxes_for_raycast);
+            }
+
             // ---- 1. 解算所有检测的世界坐标，构建观测输入 ----
             // Outpost 不走 Tracker，直接透传
             // 死亡装甲板（ARMOR + is_dead）不走固定槽位，动态追加
@@ -209,15 +226,9 @@ private:
             tensorrt_detect_msgs::msg::WorldTarget outpost_target;
             bool has_outpost = false;
 
-            for (const auto& det : msg->detections) {
-                cv::Rect car_box(det.car_x, det.car_y, det.car_width, det.car_height);
-                cv::Point2f world_pos;
-                if (car_box.width > 0 && car_box.height > 0) {
-                    world_pos = pose_solver_->middletoworld(car_box);
-                } else {
-                    cv::Rect armor_box(det.x, det.y, det.width, det.height);
-                    world_pos = pose_solver_->middletoworld(armor_box);
-                }
+            for (size_t i = 0; i < msg->detections.size(); ++i) {
+                const auto& det = msg->detections[i];
+                cv::Point2f world_pos = world_positions[i];
 
                 // Outpost 直接透传，不进入 Tracker
                 if (det.idx == robot_id::OUTPOST) {

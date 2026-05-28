@@ -37,3 +37,25 @@ cv::Point2f PoseSolver::middletoworld(const cv::Rect& box)
     cv::Point3f worldPoint = raycaster_.pixelToWorld(middle[0], K, D, R, T);
     return {worldPoint.x, worldPoint.z};
 }
+
+std::vector<cv::Point2f> PoseSolver::middletoworldBatch(const std::vector<cv::Rect>& boxes)
+{
+    std::vector<cv::Point2f> results;
+    if (!isPoseEstimated) {
+        results.resize(boxes.size(), cv::Point2f(0, 0));
+        return results;
+    }
+
+    std::vector<cv::Point2f> pixels;
+    pixels.reserve(boxes.size());
+    for (const auto& box : boxes) {
+        pixels.emplace_back(box.x + box.width / 2.0f, box.y + box.height);
+    }
+
+    auto worldPoints = raycaster_.pixelToWorldBatch(pixels, K, D, R, T);
+    results.reserve(worldPoints.size());
+    for (const auto& wp : worldPoints) {
+        results.emplace_back(wp.x, wp.z);
+    }
+    return results;
+}

@@ -19,6 +19,7 @@ class PoseSolver
     void setExtrinsic(const cv::Mat& R_in, const cv::Mat& T_in);
     void getExtrinsic(cv::Mat& R_out, cv::Mat& T_out) const;
     cv::Point2f middletoworld(const cv::Rect& box);
+    std::vector<cv::Point2f> middletoworldBatch(const std::vector<cv::Rect>& boxes);
     Raycaster& getRaycaster() { return raycaster_; }
     const Raycaster& getRaycaster() const { return raycaster_; }
 };

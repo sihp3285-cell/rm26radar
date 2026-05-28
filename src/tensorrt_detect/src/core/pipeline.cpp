@@ -55,7 +55,8 @@ std::vector<Result> DetectPipeline::runDetect(const cv::Mat& frame) {
 }
 
 std::vector<Result> DetectPipeline::runArmorDetect(const cv::Mat& frame,
-                                                    const std::vector<Result>& detections) {
+                                                    const std::vector<Result>& detections,
+                                                    std::vector<Result>* outposts) {
     std::vector<Result> armorResults;
     const cv::Rect imgBound(0, 0, frame.cols, frame.rows);
 
@@ -67,15 +68,13 @@ std::vector<Result> DetectPipeline::runArmorDetect(const cv::Mat& frame,
         if (!armorDetector_.Detect(frame(roi)))
             continue;
 
-        // 只保留装甲板检测结果中置信度最高的一个
         if (!armorDetector_.detectResults.empty()) {
-            // 找出置信度最高的装甲板
-            auto maxArmor = std::max_element(armorDetector_.detectResults.begin(), 
+            auto maxArmor = std::max_element(armorDetector_.detectResults.begin(),
                                             armorDetector_.detectResults.end(),
                 [](const Result& a, const Result& b) {
                     return a.confidence < b.confidence;
                 });
-            
+
             Result armor = *maxArmor;
             int raw_id = armor.idx;
 
@@ -97,30 +96,7 @@ std::vector<Result> DetectPipeline::runArmorDetect(const cv::Mat& frame,
             armorResults.push_back(armor);
         }
     }
-    return armorResults;
-}
 
-std::vector<Result> DetectPipeline::runArmorDetectBatch(const cv::Mat& frame,
-                                                         const std::vector<Result>& detections,
-                                                         std::vector<Result>* outposts) {
-    std::vector<Result> armorResults;
-    const cv::Rect imgBound(0, 0, frame.cols, frame.rows);
-
-    std::vector<cv::Mat> rois;
-    std::vector<size_t> detIndices;
-    std::vector<cv::Rect> safeRois;
-
-    for (size_t i = 0; i < detections.size(); ++i) {
-        cv::Rect roi = detections[i].box & imgBound;
-        if (roi.width <= 0 || roi.height <= 0) continue;
-
-        rois.push_back(frame(roi).clone());
-        detIndices.push_back(i);
-        safeRois.push_back(roi);
-    }
-
-    cv::Rect safeOutpostRoi;
-    bool hasOutpost = false;
     if (outposts != nullptr && cfg_.model.outpostEnabled && cfg_.model.outpostRoi.size() == 4) {
         cv::Rect outpostRoi(
             cfg_.model.outpostRoi[0],
@@ -128,83 +104,46 @@ std::vector<Result> DetectPipeline::runArmorDetectBatch(const cv::Mat& frame,
             cfg_.model.outpostRoi[2],
             cfg_.model.outpostRoi[3]
         );
-        safeOutpostRoi = outpostRoi & imgBound;
+        cv::Rect safeOutpostRoi = outpostRoi & imgBound;
         if (safeOutpostRoi.width > 0 && safeOutpostRoi.height > 0) {
-            rois.push_back(frame(safeOutpostRoi).clone());
-            hasOutpost = true;
-        }
-    }
+            if (armorDetector_.Detect(frame(safeOutpostRoi))) {
+                bool hasValidDetection = false;
+                Result bestResult;
+                float bestConf = -1.0f;
 
-    if (rois.empty()) return armorResults;
+                for (const auto& res : armorDetector_.detectResults) {
+                    if (res.confidence < cfg_.model.outpostScoreThreshold) continue;
+                    if (res.confidence > bestConf) {
+                        bestConf = res.confidence;
+                        bestResult = res;
+                        hasValidDetection = true;
+                    }
+                }
 
-    auto batchResults = armorDetector_.DetectBatch(rois);
+                if (hasValidDetection) {
+                    outpostMissCount_ = 0;
+                    outpostIsDead_ = false;
 
-    for (size_t i = 0; i < detIndices.size(); ++i) {
-        const auto& detResults = batchResults[i];
-        if (detResults.empty()) continue;
-
-        const auto& det = detections[detIndices[i]];
-        const auto& roi = safeRois[i];
-
-        auto maxArmor = std::max_element(detResults.begin(), detResults.end(),
-            [](const Result& a, const Result& b) {
-                return a.confidence < b.confidence;
-            });
-
-        Result armor = *maxArmor;
-        int raw_id = armor.idx;
-
-        armor.box.x += roi.x;
-        armor.box.y += roi.y;
-        armor.car_box = det.box;
-
-        constexpr int DEAD_ARMOR_ID = 0;
-        armor.idx = robot_id::ARMOR;
-        armor.isDead = (raw_id == DEAD_ARMOR_ID);
-        if (armor.isDead) {
-            armor.armorColor = robot_id::UNKNOWN;
-        } else {
-            armor.armorColor = raw_id;
-        }
-
-        armor.worldPoint = cv::Point2f(det.box.x + det.box.width  / 2.0f,
-                                       det.box.y + det.box.height / 2.0f);
-        armorResults.push_back(armor);
-    }
-
-    if (outposts != nullptr && hasOutpost) {
-        size_t outpostIdx = detIndices.size();
-        const auto& outpostResults = batchResults[outpostIdx];
-
-        bool hasValidDetection = false;
-        Result bestResult;
-        float bestConf = -1.0f;
-
-        for (const auto& res : outpostResults) {
-            if (res.confidence < cfg_.model.outpostScoreThreshold) continue;
-            if (res.confidence > bestConf) {
-                bestConf = res.confidence;
-                bestResult = res;
-                hasValidDetection = true;
-            }
-        }
-
-        if (hasValidDetection) {
-            outpostMissCount_ = 0;
-            outpostIsDead_ = false;
-
-            bestResult.box.x += safeOutpostRoi.x;
-            bestResult.box.y += safeOutpostRoi.y;
-            bestResult.idx = robot_id::OUTPOST;
-            bestResult.car_box = safeOutpostRoi;
-            bestResult.isDead = false;
-            outpostLastBox_ = bestResult.box;
-            outposts->push_back(bestResult);
-        } else {
-            outpostMissCount_++;
-            if (outpostMissCount_ >= cfg_.model.outpostMissThreshold) {
-                outpostMissCount_ = cfg_.model.outpostMissThreshold;
-                outpostIsDead_ = true;
+                    bestResult.box.x += safeOutpostRoi.x;
+                    bestResult.box.y += safeOutpostRoi.y;
+                    bestResult.idx = robot_id::OUTPOST;
+                    bestResult.car_box = safeOutpostRoi;
+                    bestResult.isDead = false;
+                    outpostLastBox_ = bestResult.box;
+                    outposts->push_back(bestResult);
+                } else {
+                    outpostMissCount_++;
+                    if (outpostMissCount_ >= cfg_.model.outpostMissThreshold) {
+                        outpostMissCount_ = cfg_.model.outpostMissThreshold;
+                        outpostIsDead_ = true;
+                    }
+                }
+            } else {
+                outpostMissCount_++;
+                if (outpostMissCount_ >= cfg_.model.outpostMissThreshold) {
+                    outpostMissCount_ = cfg_.model.outpostMissThreshold;
+                    outpostIsDead_ = true;
+                }
             }
         }
     }
@@ -240,44 +179,6 @@ void DetectPipeline::runClassify(const cv::Mat& frame, std::vector<Result>& dete
     }
 }
 
-void DetectPipeline::runClassifyBatch(const cv::Mat& frame, std::vector<Result>& detections) {
-    const cv::Rect imgBound(0, 0, frame.cols, frame.rows);
-
-    std::vector<cv::Mat> rois;
-    std::vector<size_t> armorIndices;
-
-    for (size_t i = 0; i < detections.size(); ++i) {
-        auto& armor = detections[i];
-        if (armor.isDead) {
-            armor.idx = robot_id::ARMOR;
-            continue;
-        }
-
-        cv::Rect safeBox = armor.box & imgBound;
-        if (safeBox.width <= 0 || safeBox.height <= 0) {
-            continue;
-        }
-
-        rois.push_back(frame(safeBox));
-        armorIndices.push_back(i);
-    }
-
-    if (rois.empty()) return;
-
-    auto classIds = classifyModel_.predictClassBatch(rois);
-
-    for (size_t i = 0; i < classIds.size(); ++i) {
-        int raw_id = classIds[i];
-        auto& armor = detections[armorIndices[i]];
-        
-        if (raw_id == 4) {
-            armor.idx = 6; 
-        } 
-        else if (raw_id >= 0 && raw_id <= 3) {
-            armor.idx = raw_id + 2; 
-        }
-    }
-}
 
 std::vector<Result> DetectPipeline::runOutpostDetect(const cv::Mat& frame) {
     std::vector<Result> results;
@@ -375,9 +276,9 @@ std::vector<Result> DetectPipeline::process(const cv::Mat& frame) {
     auto t2 = std::chrono::steady_clock::now();
 
     std::vector<Result> outposts;
-    auto armors = runArmorDetectBatch(frame, cars, &outposts);
+    auto armors = runArmorDetect(frame, cars, &outposts);
     auto t3 = std::chrono::steady_clock::now();
-    runClassifyBatch(frame, armors);
+    runClassify(frame, armors);
     auto t4 = std::chrono::steady_clock::now();
 
     std::vector<Result> all;
@@ -405,8 +306,13 @@ std::vector<Result> DetectPipeline::process(const cv::Mat& frame) {
         latestTiming_.outpost_ms = 0.0;
         latestTiming_.airplane_ms = lastAirplaneMs_.load();
         latestTiming_.total_ms = total_ms;
-        latestTiming_.end_to_end_ms = 0.0;  // 由 detect_node 根据 ROS stamp 填充
+        latestTiming_.end_to_end_ms = 0.0;
     }
+
+    (void)total_ms;
+    (void)car_ms;
+    (void)armor_ms;
+    (void)cls_ms;
 
     updateStats(car_ms, armor_ms, cls_ms, 0.0, total_ms);
 
@@ -428,16 +334,7 @@ void DetectPipeline::updateStats(double carMs, double armorMs, double clsMs,
     if (elapsedSec >= 5.0 && accCount_ > 0) {
         double n = static_cast<double>(accCount_);
         double fps = n / elapsedSec;
-        std::cout << std::fixed << std::setprecision(1)
-                  << "[Time] car=" << (accCarMs_ / n) << "ms"
-                  << ", armor=" << (accArmorMs_ / n) << "ms"
-                  << ", cls=" << (accClsMs_ / n) << "ms"
-                  << ", outpost=" << (accOutpostMs_ / n) << "ms"
-                  << ", airplane=" << lastAirplaneMs_.load() << "ms"
-                  << ", total=" << (accTotalMs_ / n) << "ms"
-                  << ", e2e=" << (latestTiming_.end_to_end_ms > 0.0 ? latestTiming_.end_to_end_ms : 0.0) << "ms"
-                  << ", fps=" << fps
-                  << std::endl;
+        (void)fps;
 
         accCarMs_ = accArmorMs_ = accClsMs_ = accOutpostMs_ = accTotalMs_ = 0.0;
         accCount_ = 0;

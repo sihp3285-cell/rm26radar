@@ -50,8 +50,6 @@ private:
     // Pinned host buffers for true async memcpy
     float* prob_ = nullptr;
     size_t probSize_ = 0;
-    float* hOutput_ = nullptr;
-    size_t hOutputSize_ = 0;
 
     int input_h = 0, input_w = 0;
     int output_h = 0, output_w = 0;
@@ -59,23 +57,17 @@ private:
 
     cv::Mat resizeFrame;
 
-    // Tensor names stored for batch operations
+    // Tensor names stored for operations
     std::string inputName_;
     std::string outputName_;
-
-    // Pre-allocated batch buffers (grow-on-demand)
-    void* batchInputBuffer_ = nullptr;
-    void* batchOutputBuffer_ = nullptr;
-    size_t batchInputCapacity_ = 0;
-    size_t batchOutputCapacity_ = 0;
 
     // GPU preprocessing buffers (grow-on-demand)
     void* gpuInputBuffer8U_ = nullptr;
     size_t gpuInputCapacity_ = 0;
 
-    // Batch GPU preprocessing staging buffer
-    void* gpuBatchInput8U_ = nullptr;
-    size_t gpuBatchInputCapacity_ = 0;
+    // Pinned CPU staging buffer for true async H2D (single-frame path)
+    uint8_t* hInputBuffer8U_ = nullptr;
+    size_t hInputCapacity_ = 0;
 
     // Normalization params (ImageNet for classify, identity for detect)
     float mean_[3] = {0.0f, 0.0f, 0.0f};
@@ -86,8 +78,6 @@ private:
 
     cv::Mat preprocessSingle(const cv::Mat& frame, float& rx, float& ry);
     std::vector<Result> postprocessSingle(const cv::Mat& det_output, float rx, float ry);
-    std::vector<std::vector<Result>> postprocessBatch(const float* outputData, int batchSize, const std::vector<float>& rxs, const std::vector<float>& rys);
-    void ensureBatchBuffers(size_t inputBytes, size_t outputBytes);
 
 
 public:
@@ -105,12 +95,6 @@ public:
     cv::Rect roi;
 
     bool Detect(const cv::Mat &frame);
-
-    // Batch methods
-    std::vector<int> predictClassBatchSlow(const std::vector<cv::Mat>& rois);
-    std::vector<int> predictClassBatch(const std::vector<cv::Mat>& rois);
-    std::vector<std::vector<Result>> DetectBatchSlow(const std::vector<cv::Mat>& rois);
-    std::vector<std::vector<Result>> DetectBatch(const std::vector<cv::Mat>& rois);
    };
 
 #endif

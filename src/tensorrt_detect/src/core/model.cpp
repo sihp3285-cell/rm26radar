@@ -2,16 +2,21 @@
 #include <fstream>
 #include <algorithm>
 #include <numeric>
+#include <chrono>
+#include <iomanip>
 
 #include "model.hpp"
 #include "preprocess.hpp"
+
+
 
 class Logger : public nvinfer1::ILogger
 {
     void log(Severity severity, const char *msg) noexcept override
     {
-        if (severity <= Severity::kINFO)
-            std::cout << msg << std::endl;
+        (void)severity;
+        (void)msg;
+        // 静默 TensorRT 日志，避免终端被 INFO 级输出刷屏
     }
 } gLogger;
 
@@ -103,6 +108,13 @@ Model::Model(const std::string modelPath, const int &inputSize, const float &sco
         mean_[0] = 0.0f; mean_[1] = 0.0f; mean_[2] = 0.0f;
         std_[0]  = 1.0f; std_[1]  = 1.0f; std_[2]  = 1.0f;
     }
+
+    // 单帧路径：tensor 地址和输入 shape 固定，只需设置一次
+    // （批量路径会自行覆盖这些设置，不影响）
+    context->setTensorAddress(inputName_.c_str(), buffers[0]);
+    context->setTensorAddress(outputName_.c_str(), buffers[1]);
+    nvinfer1::Dims4 fixedInputDims(1, 3, input_h, input_w);
+    context->setInputShape(inputName_.c_str(), fixedInputDims);
 }
 
 Model::~Model()
@@ -112,18 +124,12 @@ Model::~Model()
         if (buffer)
             cudaFree(buffer);
     }
-    if (batchInputBuffer_)
-        cudaFree(batchInputBuffer_);
-    if (batchOutputBuffer_)
-        cudaFree(batchOutputBuffer_);
     if (gpuInputBuffer8U_)
         cudaFree(gpuInputBuffer8U_);
-    if (gpuBatchInput8U_)
-        cudaFree(gpuBatchInput8U_);
+    if (hInputBuffer8U_)
+        cudaFreeHost(hInputBuffer8U_);
     if (prob_)
         cudaFreeHost(prob_);
-    if (hOutput_)
-        cudaFreeHost(hOutput_);
     if (this->context)
         delete this->context;
     if (this->engine)
@@ -171,6 +177,8 @@ cv::Mat Model::preprocessSingle(const cv::Mat& frame, float& rx, float& ry)
 
 void Model::preprocessing(const cv::Mat &frame)
 {
+    auto t_pre_total0 = std::chrono::steady_clock::now();
+
     int img_w = frame.cols;
     int img_h = frame.rows;
 
@@ -181,8 +189,29 @@ void Model::preprocessing(const cv::Mat &frame)
     this->rx = (float)img_w / new_w;
     this->ry = (float)img_h / new_h;
 
-    // Ensure device-side raw image buffer
     size_t imgBytes = frame.step[0] * frame.rows;
+
+    // 1. Ensure pinned CPU staging buffer for true async DMA
+    auto t_pin0 = std::chrono::steady_clock::now();
+    if (hInputCapacity_ < imgBytes) {
+        if (hInputBuffer8U_) cudaFreeHost(hInputBuffer8U_);
+        hInputBuffer8U_ = nullptr;
+        cudaError_t err = cudaMallocHost(&hInputBuffer8U_, imgBytes);
+        if (err != cudaSuccess) {
+            hInputCapacity_ = 0;
+            throw std::runtime_error(std::string("cudaMallocHost hInputBuffer8U_ failed: ") + cudaGetErrorString(err));
+        }
+        hInputCapacity_ = imgBytes;
+    }
+    auto t_pin1 = std::chrono::steady_clock::now();
+
+    // CPU-side memcpy: pageable frame → pinned staging (blocking, but pure CPU-CPU, no GPU sync)
+    auto t_memcpy0 = std::chrono::steady_clock::now();
+    memcpy(hInputBuffer8U_, frame.data, imgBytes);
+    auto t_memcpy1 = std::chrono::steady_clock::now();
+
+    // 2. Ensure device-side raw image buffer
+    auto t_gpu_buf0 = std::chrono::steady_clock::now();
     if (gpuInputCapacity_ < imgBytes) {
         if (gpuInputBuffer8U_) cudaFree(gpuInputBuffer8U_);
         gpuInputBuffer8U_ = nullptr;
@@ -193,11 +222,15 @@ void Model::preprocessing(const cv::Mat &frame)
         }
         gpuInputCapacity_ = imgBytes;
     }
+    auto t_gpu_buf1 = std::chrono::steady_clock::now();
 
-    // H2D copy (asynchronous)
-    cudaMemcpyAsync(gpuInputBuffer8U_, frame.data, imgBytes, cudaMemcpyHostToDevice, this->stream);
+    // True async H2D from pinned memory (non-blocking host, DMA directly)
+    auto t_h2d0 = std::chrono::steady_clock::now();
+    cudaMemcpyAsync(gpuInputBuffer8U_, hInputBuffer8U_, imgBytes, cudaMemcpyHostToDevice, this->stream);
+    auto t_h2d1 = std::chrono::steady_clock::now();
 
     // Launch GPU preprocess kernel directly into model input buffer
+    auto t_kernel0 = std::chrono::steady_clock::now();
     launch_preprocess(
         static_cast<const uint8_t*>(gpuInputBuffer8U_),
         img_w, img_h, static_cast<int>(frame.step[0]),
@@ -210,6 +243,23 @@ void Model::preprocessing(const cv::Mat &frame)
         true,   // swapRB (same as cv::dnn::blobFromImage behavior)
         this->stream
     );
+    auto t_kernel1 = std::chrono::steady_clock::now();
+
+    auto t_pre_total1 = std::chrono::steady_clock::now();
+
+    double ms_pin    = std::chrono::duration<double, std::milli>(t_pin1 - t_pin0).count();
+    double ms_memcpy = std::chrono::duration<double, std::milli>(t_memcpy1 - t_memcpy0).count();
+    double ms_gpu_buf= std::chrono::duration<double, std::milli>(t_gpu_buf1 - t_gpu_buf0).count();
+    double ms_h2d    = std::chrono::duration<double, std::milli>(t_h2d1 - t_h2d0).count();
+    double ms_kernel = std::chrono::duration<double, std::milli>(t_kernel1 - t_kernel0).count();
+    double ms_total  = std::chrono::duration<double, std::milli>(t_pre_total1 - t_pre_total0).count();
+
+    (void)ms_pin;
+    (void)ms_memcpy;
+    (void)ms_gpu_buf;
+    (void)ms_h2d;
+    (void)ms_kernel;
+    (void)ms_total;
 }
 
 std::vector<Result> Model::postprocessSingle(const cv::Mat& det_output, float rx, float ry)
@@ -342,282 +392,105 @@ void Model::postprocessing()
     this->detectResults = postprocessSingle(det_output, this->rx, this->ry);
 }
 
-std::vector<std::vector<Result>> Model::postprocessBatch(const float* outputData, int batchSize, const std::vector<float>& rxs, const std::vector<float>& rys)
-{
-    std::vector<std::vector<Result>> batchResults(batchSize);
-    if (this->modelType == ModelType::CLASSIFY) {
-        return batchResults;
-    }
-    for (int b = 0; b < batchSize; ++b) {
-        const float* sampleData = outputData + b * output_h * output_w;
-        cv::Mat det_output(this->output_h, this->output_w, CV_32F, const_cast<float*>(sampleData));
-        batchResults[b] = postprocessSingle(det_output, rxs[b], rys[b]);
-    }
-    return batchResults;
-}
 
 bool Model::Detect(const cv::Mat &frame)
 {
     try
     {
+        auto t_total0 = std::chrono::steady_clock::now();
         this->detectResults.clear();
 
+        auto t_pre0 = std::chrono::steady_clock::now();
         preprocessing(frame);
+        auto t_pre1 = std::chrono::steady_clock::now();
 
-        context->setTensorAddress(inputName_.c_str(), buffers[0]);
-        context->setTensorAddress(outputName_.c_str(), buffers[1]);
-        nvinfer1::Dims4 inputDims(1, 3, input_h, input_w);
-        context->setInputShape(inputName_.c_str(), inputDims);
+        auto t_infer0 = std::chrono::steady_clock::now();
 
         if (!context->enqueueV3(this->stream)) {
             throw std::runtime_error("enqueueV3 failed in Detect");
         }
+        auto t_infer1 = std::chrono::steady_clock::now();
 
+        auto t_d2h0 = std::chrono::steady_clock::now();
         cudaMemcpyAsync(this->prob_, this->buffers[1], this->probSize_ * sizeof(float), cudaMemcpyDeviceToHost, this->stream);
-        cudaStreamSynchronize(this->stream);
+        auto t_d2h1 = std::chrono::steady_clock::now();
 
+        auto t_sync0 = std::chrono::steady_clock::now();
+        cudaStreamSynchronize(this->stream);
+        auto t_sync1 = std::chrono::steady_clock::now();
+
+        auto t_post0 = std::chrono::steady_clock::now();
         postprocessing();
+        auto t_post1 = std::chrono::steady_clock::now();
+
+        auto t_total1 = std::chrono::steady_clock::now();
+
+        double ms_pre  = std::chrono::duration<double, std::milli>(t_pre1  - t_pre0).count();
+        double ms_infer = std::chrono::duration<double, std::milli>(t_infer1 - t_infer0).count();
+        double ms_d2h  = std::chrono::duration<double, std::milli>(t_d2h1  - t_d2h0).count();
+        double ms_sync = std::chrono::duration<double, std::milli>(t_sync1 - t_sync0).count();
+        double ms_post = std::chrono::duration<double, std::milli>(t_post1 - t_post0).count();
+        double ms_total = std::chrono::duration<double, std::milli>(t_total1 - t_total0).count();
+
+        (void)ms_pre;
+        (void)ms_infer;
+        (void)ms_d2h;
+        (void)ms_sync;
+        (void)ms_post;
+        (void)ms_total;
 
         return !detectResults.empty();
     }
     catch (const std::exception &e)
     {
-        std::cerr << e.what() << '\n';
+        (void)e;
         return false;
     }
 }
 int Model::predictClass(const cv::Mat &roi) {
-    preprocessing(roi);
-    context->setTensorAddress(inputName_.c_str(), buffers[0]);
-    context->setTensorAddress(outputName_.c_str(), buffers[1]);
-    nvinfer1::Dims4 inputDims(1, 3, input_h, input_w);
-    context->setInputShape(inputName_.c_str(), inputDims);
+    auto t_total0 = std::chrono::steady_clock::now();
 
+    preprocessing(roi);
+
+    auto t_infer0 = std::chrono::steady_clock::now();
+    // setTensorAddress / setInputShape 已移至构造函数，单帧路径无需重复设置
     if (!context->enqueueV3(this->stream)) {
         throw std::runtime_error("enqueueV3 failed in predictClass");
     }
+    auto t_infer1 = std::chrono::steady_clock::now();
 
+    auto t_d2h0 = std::chrono::steady_clock::now();
     cudaMemcpyAsync(this->prob_, this->buffers[1], this->probSize_ * sizeof(float), cudaMemcpyDeviceToHost, this->stream);
+    auto t_d2h1 = std::chrono::steady_clock::now();
+
+    auto t_sync0 = std::chrono::steady_clock::now();
     cudaStreamSynchronize(this->stream);
+    auto t_sync1 = std::chrono::steady_clock::now();
+
+    auto t_post0 = std::chrono::steady_clock::now();
     float* data = this->prob_;
-    return std::max_element(data, data + probSize_) - data;
+    int result = std::max_element(data, data + probSize_) - data;
+    auto t_post1 = std::chrono::steady_clock::now();
+
+    auto t_total1 = std::chrono::steady_clock::now();
+
+    double ms_infer = std::chrono::duration<double, std::milli>(t_infer1 - t_infer0).count();
+    double ms_d2h   = std::chrono::duration<double, std::milli>(t_d2h1 - t_d2h0).count();
+    double ms_sync  = std::chrono::duration<double, std::milli>(t_sync1 - t_sync0).count();
+    double ms_post  = std::chrono::duration<double, std::milli>(t_post1 - t_post0).count();
+    double ms_total = std::chrono::duration<double, std::milli>(t_total1 - t_total0).count();
+
+    (void)ms_infer;
+    (void)ms_d2h;
+    (void)ms_sync;
+    (void)ms_post;
+    (void)ms_total;
+
+    return result;
 }
 
-std::vector<int> Model::predictClassBatchSlow(const std::vector<cv::Mat>& rois) {
-    std::vector<int> results;
-    results.reserve(rois.size());
-    for (const auto& roi : rois) {
-        results.push_back(predictClass(roi));
-    }
-    return results;
-}
 
-std::vector<std::vector<Result>> Model::DetectBatchSlow(const std::vector<cv::Mat>& rois) {
-    std::vector<std::vector<Result>> results;
-    results.reserve(rois.size());
-    for (const auto& roi : rois) {
-        Detect(roi);
-        results.push_back(detectResults);
-    }
-    return results;
-}
 
-void Model::ensureBatchBuffers(size_t inputBytes, size_t outputBytes) {
-    if (batchInputCapacity_ < inputBytes) {
-        if (batchInputBuffer_) cudaFree(batchInputBuffer_);
-        batchInputBuffer_ = nullptr;
-        cudaError_t err = cudaMalloc(&batchInputBuffer_, inputBytes);
-        if (err != cudaSuccess) {
-            batchInputCapacity_ = 0;
-            throw std::runtime_error(std::string("cudaMalloc batchInputBuffer_ failed: ") + cudaGetErrorString(err));
-        }
-        batchInputCapacity_ = inputBytes;
-    }
-    if (batchOutputCapacity_ < outputBytes) {
-        if (batchOutputBuffer_) cudaFree(batchOutputBuffer_);
-        batchOutputBuffer_ = nullptr;
-        cudaError_t err = cudaMalloc(&batchOutputBuffer_, outputBytes);
-        if (err != cudaSuccess) {
-            batchOutputCapacity_ = 0;
-            throw std::runtime_error(std::string("cudaMalloc batchOutputBuffer_ failed: ") + cudaGetErrorString(err));
-        }
-        batchOutputCapacity_ = outputBytes;
-    }
-}
 
-std::vector<int> Model::predictClassBatch(const std::vector<cv::Mat>& rois) {
-    if (rois.empty()) return {};
-    
-    int N = static_cast<int>(rois.size());
-    
-    nvinfer1::Dims inputDims = engine->getTensorShape(inputName_.c_str());
-    bool hasDynamicBatch = (inputDims.nbDims > 0 && inputDims.d[0] == -1);
-    
-    if (!hasDynamicBatch) {
-        return predictClassBatchSlow(rois);
-    }
-    
-    size_t inputBytes = N * 3 * input_h * input_w * sizeof(float);
-    size_t outputBytes = N * output_h * output_w * sizeof(float);
-    ensureBatchBuffers(inputBytes, outputBytes);
-    
-    // Ensure device-side raw image staging buffer for all ROIs
-    size_t totalImgBytes = 0;
-    for (const auto& roi : rois) {
-        totalImgBytes += roi.step[0] * roi.rows;
-    }
-    if (gpuBatchInputCapacity_ < totalImgBytes) {
-        if (gpuBatchInput8U_) cudaFree(gpuBatchInput8U_);
-        gpuBatchInput8U_ = nullptr;
-        cudaError_t err = cudaMalloc(&gpuBatchInput8U_, totalImgBytes);
-        if (err != cudaSuccess) {
-            gpuBatchInputCapacity_ = 0;
-            throw std::runtime_error(std::string("cudaMalloc gpuBatchInput8U_ failed: ") + cudaGetErrorString(err));
-        }
-        gpuBatchInputCapacity_ = totalImgBytes;
-    }
-    
-    uint8_t* gpuImgPtr = static_cast<uint8_t*>(gpuBatchInput8U_);
-    for (int i = 0; i < N; ++i) {
-        const cv::Mat& roi = rois[i];
-        size_t roiBytes = roi.step[0] * roi.rows;
-        cudaMemcpyAsync(gpuImgPtr, roi.data, roiBytes, cudaMemcpyHostToDevice, stream);
-        
-        float scale = std::min((float)input_w / roi.cols, (float)input_h / roi.rows);
-        int new_w = int(roi.cols * scale);
-        int new_h = int(roi.rows * scale);
-        
-        float* dstPtr = static_cast<float*>(batchInputBuffer_) + i * 3 * input_h * input_w;
-        launch_preprocess(
-            gpuImgPtr, roi.cols, roi.rows, static_cast<int>(roi.step[0]),
-            dstPtr, input_w, input_h,
-            static_cast<float>(roi.cols) / new_w,
-            static_cast<float>(roi.rows) / new_h,
-            new_w, new_h,
-            mean_, std_, true, stream
-        );
-        
-        gpuImgPtr += roiBytes;
-    }
-    
-    bool ok = true;
-    ok = ok && context->setTensorAddress(inputName_.c_str(), batchInputBuffer_);
-    ok = ok && context->setTensorAddress(outputName_.c_str(), batchOutputBuffer_);
-    
-    nvinfer1::Dims4 actualInputDims(N, 3, input_h, input_w);
-    ok = ok && context->setInputShape(inputName_.c_str(), actualInputDims);
-    
-    if (!ok || !context->enqueueV3(stream)) {
-        std::cerr << "Batch classification inference failed, falling back to slow path" << std::endl;
-        nvinfer1::Dims4 resetInputDims(1, 3, input_h, input_w);
-        context->setInputShape(inputName_.c_str(), resetInputDims);
-        return predictClassBatchSlow(rois);
-    }
-    
-    size_t requiredOutput = N * output_h * output_w;
-    if (hOutputSize_ < requiredOutput) {
-        if (hOutput_) cudaFreeHost(hOutput_);
-        cudaMallocHost(&hOutput_, requiredOutput * sizeof(float));
-        hOutputSize_ = requiredOutput;
-    }
-    cudaMemcpyAsync(hOutput_, batchOutputBuffer_, outputBytes, cudaMemcpyDeviceToHost, stream);
-    cudaStreamSynchronize(stream);
-    
-    nvinfer1::Dims4 resetInputDims(1, 3, input_h, input_w);
-    context->setInputShape(inputName_.c_str(), resetInputDims);
-    
-    std::vector<int> results(N);
-    int classesPerSample = output_h * output_w;
-    for (int i = 0; i < N; ++i) {
-        const float* data = hOutput_ + i * classesPerSample;
-        results[i] = std::max_element(data, data + classesPerSample) - data;
-    }
-    return results;
-}
 
-std::vector<std::vector<Result>> Model::DetectBatch(const std::vector<cv::Mat>& rois) {
-    if (rois.empty()) return {};
-    
-    int N = static_cast<int>(rois.size());
-    
-    nvinfer1::Dims inputDims = engine->getTensorShape(inputName_.c_str());
-    bool hasDynamicBatch = (inputDims.nbDims > 0 && inputDims.d[0] == -1);
-    
-    if (!hasDynamicBatch) {
-        return DetectBatchSlow(rois);
-    }
-    
-    size_t inputBytes = N * 3 * input_h * input_w * sizeof(float);
-    size_t outputBytes = N * output_h * output_w * sizeof(float);
-    ensureBatchBuffers(inputBytes, outputBytes);
-    
-    // Ensure device-side raw image staging buffer for all ROIs
-    size_t totalImgBytes = 0;
-    for (const auto& roi : rois) {
-        totalImgBytes += roi.step[0] * roi.rows;
-    }
-    if (gpuBatchInputCapacity_ < totalImgBytes) {
-        if (gpuBatchInput8U_) cudaFree(gpuBatchInput8U_);
-        gpuBatchInput8U_ = nullptr;
-        cudaError_t err = cudaMalloc(&gpuBatchInput8U_, totalImgBytes);
-        if (err != cudaSuccess) {
-            gpuBatchInputCapacity_ = 0;
-            throw std::runtime_error(std::string("cudaMalloc gpuBatchInput8U_ failed: ") + cudaGetErrorString(err));
-        }
-        gpuBatchInputCapacity_ = totalImgBytes;
-    }
-    
-    std::vector<float> rxs(N), rys(N);
-    uint8_t* gpuImgPtr = static_cast<uint8_t*>(gpuBatchInput8U_);
-    for (int i = 0; i < N; ++i) {
-        const cv::Mat& roi = rois[i];
-        size_t roiBytes = roi.step[0] * roi.rows;
-        cudaMemcpyAsync(gpuImgPtr, roi.data, roiBytes, cudaMemcpyHostToDevice, stream);
-        
-        float scale = std::min((float)input_w / roi.cols, (float)input_h / roi.rows);
-        int new_w = int(roi.cols * scale);
-        int new_h = int(roi.rows * scale);
-        rxs[i] = (float)roi.cols / new_w;
-        rys[i] = (float)roi.rows / new_h;
-        
-        float* dstPtr = static_cast<float*>(batchInputBuffer_) + i * 3 * input_h * input_w;
-        launch_preprocess(
-            gpuImgPtr, roi.cols, roi.rows, static_cast<int>(roi.step[0]),
-            dstPtr, input_w, input_h,
-            static_cast<float>(roi.cols) / new_w,
-            static_cast<float>(roi.rows) / new_h,
-            new_w, new_h,
-            mean_, std_, true, stream
-        );
-        
-        gpuImgPtr += roiBytes;
-    }
-    
-    bool ok = true;
-    ok = ok && context->setTensorAddress(inputName_.c_str(), batchInputBuffer_);
-    ok = ok && context->setTensorAddress(outputName_.c_str(), batchOutputBuffer_);
-    
-    nvinfer1::Dims4 actualInputDims(N, 3, input_h, input_w);
-    ok = ok && context->setInputShape(inputName_.c_str(), actualInputDims);
-    
-    if (!ok || !context->enqueueV3(stream)) {
-        std::cerr << "Batch detection inference failed, falling back to slow path" << std::endl;
-        nvinfer1::Dims4 resetInputDims(1, 3, input_h, input_w);
-        context->setInputShape(inputName_.c_str(), resetInputDims);
-        return DetectBatchSlow(rois);
-    }
-    
-    size_t requiredOutput = N * output_h * output_w;
-    if (hOutputSize_ < requiredOutput) {
-        if (hOutput_) cudaFreeHost(hOutput_);
-        cudaMallocHost(&hOutput_, requiredOutput * sizeof(float));
-        hOutputSize_ = requiredOutput;
-    }
-    cudaMemcpyAsync(hOutput_, batchOutputBuffer_, outputBytes, cudaMemcpyDeviceToHost, stream);
-    cudaStreamSynchronize(stream);
-    
-    nvinfer1::Dims4 resetInputDims(1, 3, input_h, input_w);
-    context->setInputShape(inputName_.c_str(), resetInputDims);
-    
-    return postprocessBatch(hOutput_, N, rxs, rys);
-}
+

@@ -61,12 +61,9 @@ private:
 
     std::vector<Result>   runDetect(const cv::Mat& frame);
     std::vector<Result>   runArmorDetect(const cv::Mat& frame,
-                                         const std::vector<Result>& detections);
-    std::vector<Result>   runArmorDetectBatch(const cv::Mat& frame,
-                                               const std::vector<Result>& detections,
-                                               std::vector<Result>* outposts = nullptr);
+                                         const std::vector<Result>& detections,
+                                         std::vector<Result>* outposts = nullptr);
     void runClassify(const cv::Mat& frame, std::vector<Result>& detections);
-    void runClassifyBatch(const cv::Mat& frame, std::vector<Result>& detections);
     std::vector<Result>   runOutpostDetect(const cv::Mat& frame);
     std::vector<Result>   runAirplaneDetect(const cv::Mat& frame);
 
