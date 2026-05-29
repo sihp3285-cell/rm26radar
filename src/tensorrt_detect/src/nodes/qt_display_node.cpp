@@ -13,6 +13,12 @@
 #include <QMutexLocker>
 #include <QPushButton>
 #include <QMessageBox>
+#include <QSurfaceFormat>
+
+#include <QOpenGLWidget>
+#include <QOpenGLFunctions>
+#include <QOpenGLShaderProgram>
+#include <QOpenGLBuffer>
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
@@ -31,6 +37,170 @@
 #include "tensorrt_detect_msgs/msg/pipeline_timing.hpp"
 
 class QtDisplayNode;
+
+// ============================================================================
+// GLVideoWidget — GPU 加速的视频渲染控件，替代 QLabel::setPixmap
+// 数据路径：cv::Mat BGR → glTexImage2D (DMA) → shader BGR→RGB swizzle → GPU 缩放
+// 相比 QLabel 路径消除 3 次全帧 CPU 拷贝 + CPU 双线性缩放
+// ============================================================================
+class GLVideoWidget : public QOpenGLWidget, protected QOpenGLFunctions
+{
+public:
+    explicit GLVideoWidget(QWidget *parent = nullptr)
+        : QOpenGLWidget(parent)
+    {
+        setMinimumSize(640, 480);
+        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+        // 配置最小化的 surface format：只做 2D 纹理渲染
+        QSurfaceFormat fmt;
+        fmt.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
+        fmt.setSwapInterval(1);          // vsync on
+        fmt.setDepthBufferSize(0);
+        fmt.setStencilBufferSize(0);
+        fmt.setProfile(QSurfaceFormat::CompatibilityProfile);  // 兼容旧 GLSL 语法
+        setFormat(fmt);
+    }
+
+    /// 主线程调用，拷入最新帧并触发 GPU 渲染
+    void setFrame(const cv::Mat &frame)
+    {
+        if (frame.empty()) return;
+
+        const int w = frame.cols;
+        const int h = frame.rows;
+        const int ch = frame.channels();
+        const size_t data_size = frame.total() * frame.elemSize();
+
+        frame_data_.resize(data_size);
+        std::memcpy(frame_data_.data(), frame.data, data_size);
+        frame_width_ = w;
+        frame_height_ = h;
+        frame_channels_ = ch;
+        frame_updated_ = true;
+
+        update();   // 调度 paintGL()
+    }
+
+protected:
+    void initializeGL() override
+    {
+        initializeOpenGLFunctions();
+
+        // ---- 编译 shader ----
+        // vertex：传入 NDC 坐标，输出纹理坐标
+        // OpenCV 原点在左上，OpenGL 纹理原点在左下 — 翻转 Y 轴修正
+        static const char *vert_src =
+            "attribute vec2 aPos;                 \n"
+            "varying   vec2 vTexCoord;            \n"
+            "void main() {                        \n"
+            "    gl_Position = vec4(aPos, 0.0, 1.0);\n"
+            "    vTexCoord = vec2(aPos.x * 0.5 + 0.5, 1.0 - (aPos.y * 0.5 + 0.5));\n"
+            "}";
+
+        // fragment：BGR→RGB 通道交换在 GPU 上完成（零成本）
+        static const char *frag_src =
+            "varying vec2 vTexCoord;              \n"
+            "uniform sampler2D uTex;              \n"
+            "void main() {                        \n"
+            "    vec4 c = texture2D(uTex, vTexCoord);\n"
+            "    gl_FragColor = c.bgra;           \n"   // R↔B 交换，A 保持 1
+            "}";
+
+        shader_.addShaderFromSourceCode(QOpenGLShader::Vertex, vert_src);
+        shader_.addShaderFromSourceCode(QOpenGLShader::Fragment, frag_src);
+        shader_.link();
+        shader_.bind();
+        shader_.setUniformValue("uTex", 0);  // 纹理单元 0
+
+        // ---- 创建纹理 ----
+        glGenTextures(1, &tex_id_);
+        glBindTexture(GL_TEXTURE_2D, tex_id_);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);      // 缩小时 GPU 双线性
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);      // 放大时 GPU 双线性
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        // ---- 创建 quad VBO ----
+        quad_vbo_.create();
+        quad_vbo_.bind();
+        // 初始化为全屏 quad（NDC），后续 paintGL 根据宽高比动态更新
+        const float initial_quad[] = { -1, -1,   1, -1,   1, 1,   -1, 1 };
+        quad_vbo_.allocate(initial_quad, sizeof(initial_quad));
+
+        glClearColor(0.102f, 0.102f, 0.102f, 1.0f);  // #1a1a1a — 与旧 QSS 背景一致
+    }
+
+    void paintGL() override
+    {
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        if (!frame_updated_ || frame_data_.empty()) return;
+        if (this->width() <= 0 || this->height() <= 0) return;
+
+        const int w = frame_width_;
+        const int h = frame_height_;
+        const int ch = frame_channels_;
+
+        // ---- 纹理上传 ----
+        shader_.bind();
+        glBindTexture(GL_TEXTURE_2D, tex_id_);
+
+        // BGR 数据以 GL_RGB 格式上传，shader 里 .bgra 交换通道即可得到正确 RGB
+        // glPixelStorei 处理 BGR 3 字节宽度可能不被 4 整除的字节对齐问题
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+        if (tex_w_ != w || tex_h_ != h) {
+            // 尺寸变化：重新分配纹理存储
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0,
+                         GL_RGB, GL_UNSIGNED_BYTE, frame_data_.data());
+            tex_w_ = w;
+            tex_h_ = h;
+        } else {
+            // 尺寸不变：DMA 更新子区域，避免重新分配
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h,
+                            GL_RGB, GL_UNSIGNED_BYTE, frame_data_.data());
+        }
+
+        // ---- 计算保持宽高比的 quad 顶点 ----
+        const float frame_aspect = static_cast<float>(w) / static_cast<float>(h);
+        const float widget_aspect = static_cast<float>(this->width())
+                                    / static_cast<float>(this->height());
+        float qw, qh;
+        if (frame_aspect > widget_aspect) {
+            qw = 1.0f;
+            qh = widget_aspect / frame_aspect;
+        } else {
+            qw = frame_aspect / widget_aspect;
+            qh = 1.0f;
+        }
+
+        const float vertices[] = {
+            -qw, -qh,    qw, -qh,    qw,  qh,   -qw,  qh
+        };
+        quad_vbo_.bind();
+        quad_vbo_.write(0, vertices, sizeof(vertices));
+
+        shader_.enableAttributeArray("aPos");
+        shader_.setAttributeBuffer("aPos", GL_FLOAT, 0, 2);
+
+        glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+
+        frame_updated_ = false;
+    }
+
+private:
+    QOpenGLShaderProgram shader_;
+    QOpenGLBuffer quad_vbo_;
+    GLuint tex_id_ = 0;
+    int tex_w_ = 0, tex_h_ = 0;      // 当前 GPU 纹理尺寸，用于判断是否需要 glTexImage2D
+
+    std::vector<uint8_t> frame_data_;
+    int frame_width_ = 0;
+    int frame_height_ = 0;
+    int frame_channels_ = 0;
+    bool frame_updated_ = false;
+};
 
 /**
  * @brief Qt 主窗口：左侧视频、右侧小地图、底部状态栏
@@ -83,11 +253,8 @@ public:
         auto *content_layout = new QHBoxLayout();
         content_layout->setSpacing(8);
 
-        video_label_ = new QLabel(this);
-        video_label_->setMinimumSize(640, 480);
-        video_label_->setAlignment(Qt::AlignCenter);
-        video_label_->setStyleSheet("background-color: #1a1a1a; border-radius: 4px;");
-        content_layout->addWidget(video_label_, 3);  // 视频占 3 份
+        video_label_ = new GLVideoWidget(this);
+        content_layout->addWidget(video_label_, 3);  // 视频占 3 份，GPU 渲染
 
         map_label_ = new QLabel(this);
         map_label_->setMinimumSize(320, 480);
@@ -205,10 +372,8 @@ public:
 
     void updateVideo(const cv::Mat &cv_img)
     {
-        if (cv_img.empty()) return;
-        QPixmap pixmap = cvMatToQPixmap(cv_img);
-        video_label_->setPixmap(pixmap.scaled(
-            video_label_->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        // GPU 路径：单次 memcpy + DMA 纹理上传，shader 里完成 BGR→RGB + 缩放
+        video_label_->setFrame(cv_img);
     }
 
     void updateMap(const cv::Mat &cv_img)
@@ -339,7 +504,7 @@ public:
 private:
     void updateFromNode();  // 实现在 QtDisplayNode 定义之后
 
-    QLabel *video_label_{nullptr};
+    GLVideoWidget *video_label_{nullptr};
     QLabel *map_label_{nullptr};
     QLabel *status_label_{nullptr};
     QLabel *outpost_label_{nullptr};
@@ -627,11 +792,21 @@ void DisplayWindow::updateFromNode()
 int main(int argc, char *argv[])
 {
     rclcpp::init(argc, argv);
+
+    // 设置 OpenGL surface 格式（必须在 QApplication 创建之前）
+    QSurfaceFormat gl_fmt;
+    gl_fmt.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
+    gl_fmt.setSwapInterval(1);       // vsync
+    gl_fmt.setDepthBufferSize(0);    // 2D 视频无需深度缓冲
+    gl_fmt.setStencilBufferSize(0);
+    gl_fmt.setProfile(QSurfaceFormat::CompatibilityProfile);
+    QSurfaceFormat::setDefaultFormat(gl_fmt);
+
     QApplication app(argc, argv);
 
+    // 全局样式只影响非 GL 的普通 widget，GLVideoWidget 自行用 glClear 处理背景
     app.setStyleSheet(R"(
         QMainWindow { background-color: #2b2b2b; }
-        QWidget { background-color: #2b2b2b; }
     )");
 
     DisplayWindow window;
