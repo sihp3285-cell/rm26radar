@@ -40,6 +40,12 @@ DetectPipeline::~DetectPipeline()
 
 
 
+static inline double elapsedMs(const std::chrono::steady_clock::time_point& t0,
+                                 const std::chrono::steady_clock::time_point& t1)
+{
+    return std::chrono::duration<double, std::milli>(t1 - t0).count();
+}
+
 std::vector<Result> DetectPipeline::runDetect(const cv::Mat& frame) {
     detectModel_.Detect(frame);
     const cv::Rect imgBound(0, 0, frame.cols, frame.rows);
@@ -54,8 +60,8 @@ std::vector<Result> DetectPipeline::runDetect(const cv::Mat& frame) {
 }
 
 std::vector<Result> DetectPipeline::runArmorDetect(const cv::Mat& frame,
-                                                    const std::vector<Result>& detections,
-                                                    std::vector<Result>* outposts) {
+                                                    const std::vector<Result>& detections) {
+    auto t0 = std::chrono::steady_clock::now();
     std::vector<Result> armorResults;
     const cv::Rect imgBound(0, 0, frame.cols, frame.rows);
 
@@ -96,58 +102,70 @@ std::vector<Result> DetectPipeline::runArmorDetect(const cv::Mat& frame,
         }
     }
 
-    if (outposts != nullptr && cfg_.model.outpostEnabled && cfg_.model.outpostRoi.size() == 4) {
-        cv::Rect outpostRoi(
-            cfg_.model.outpostRoi[0],
-            cfg_.model.outpostRoi[1],
-            cfg_.model.outpostRoi[2],
-            cfg_.model.outpostRoi[3]
-        );
-        cv::Rect safeOutpostRoi = outpostRoi & imgBound;
-        if (safeOutpostRoi.width > 0 && safeOutpostRoi.height > 0) {
-            if (armorDetector_.Detect(frame(safeOutpostRoi))) {
-                bool hasValidDetection = false;
-                Result bestResult;
-                float bestConf = -1.0f;
+    lastArmorDetectMs_ = elapsedMs(t0, std::chrono::steady_clock::now());
+    return armorResults;
+}
 
-                for (const auto& res : armorDetector_.detectResults) {
-                    if (res.confidence < cfg_.model.outpostScoreThreshold) continue;
-                    if (res.confidence > bestConf) {
-                        bestConf = res.confidence;
-                        bestResult = res;
-                        hasValidDetection = true;
-                    }
-                }
-
-                if (hasValidDetection) {
-                    outpostMissCount_ = 0;
-                    outpostIsDead_ = false;
-
-                    bestResult.box.x += safeOutpostRoi.x;
-                    bestResult.box.y += safeOutpostRoi.y;
-                    bestResult.idx = robot_id::OUTPOST;
-                    bestResult.car_box = safeOutpostRoi;
-                    bestResult.isDead = false;
-                    outpostLastBox_ = bestResult.box;
-                    outposts->push_back(bestResult);
-                } else {
-                    outpostMissCount_++;
-                    if (outpostMissCount_ >= cfg_.model.outpostMissThreshold) {
-                        outpostMissCount_ = cfg_.model.outpostMissThreshold;
-                        outpostIsDead_ = true;
-                    }
-                }
-            } else {
-                outpostMissCount_++;
-                if (outpostMissCount_ >= cfg_.model.outpostMissThreshold) {
-                    outpostMissCount_ = cfg_.model.outpostMissThreshold;
-                    outpostIsDead_ = true;
-                }
-            }
-        }
+std::vector<Result> DetectPipeline::detectOutpost(const cv::Mat& frame) {
+    auto t0 = std::chrono::steady_clock::now();
+    std::vector<Result> results;
+    if (!cfg_.model.outpostEnabled || cfg_.model.outpostRoi.size() != 4) {
+        return results;
     }
 
-    return armorResults;
+    const cv::Rect imgBound(0, 0, frame.cols, frame.rows);
+    cv::Rect outpostRoi(
+        cfg_.model.outpostRoi[0],
+        cfg_.model.outpostRoi[1],
+        cfg_.model.outpostRoi[2],
+        cfg_.model.outpostRoi[3]
+    );
+    cv::Rect safeOutpostRoi = outpostRoi & imgBound;
+    if (safeOutpostRoi.width <= 0 || safeOutpostRoi.height <= 0) {
+        return results;
+    }
+
+    if (armorDetector_.Detect(frame(safeOutpostRoi))) {
+        bool hasValidDetection = false;
+        Result bestResult;
+        float bestConf = -1.0f;
+
+        for (const auto& res : armorDetector_.detectResults) {
+            if (res.confidence < cfg_.model.outpostScoreThreshold) continue;
+            if (res.confidence > bestConf) {
+                bestConf = res.confidence;
+                bestResult = res;
+                hasValidDetection = true;
+            }
+        }
+
+        if (hasValidDetection) {
+            outpostMissCount_ = 0;
+            outpostIsDead_ = false;
+
+            bestResult.box.x += safeOutpostRoi.x;
+            bestResult.box.y += safeOutpostRoi.y;
+            bestResult.idx = robot_id::OUTPOST;
+            bestResult.car_box = safeOutpostRoi;
+            bestResult.isDead = false;
+            outpostLastBox_ = bestResult.box;
+            results.push_back(bestResult);
+        } else {
+            outpostMissCount_++;
+            if (outpostMissCount_ >= cfg_.model.outpostMissThreshold) {
+                outpostMissCount_ = cfg_.model.outpostMissThreshold;
+                outpostIsDead_ = true;
+            }
+        }
+    } else {
+        outpostMissCount_++;
+        if (outpostMissCount_ >= cfg_.model.outpostMissThreshold) {
+            outpostMissCount_ = cfg_.model.outpostMissThreshold;
+            outpostIsDead_ = true;
+        }
+    }
+    lastOutpostDetectMs_ = elapsedMs(t0, std::chrono::steady_clock::now());
+    return results;
 }
 
 
@@ -179,62 +197,6 @@ void DetectPipeline::runClassify(const cv::Mat& frame, std::vector<Result>& dete
 }
 
 
-std::vector<Result> DetectPipeline::runOutpostDetect(const cv::Mat& frame) {
-    std::vector<Result> results;
-    if (!cfg_.model.outpostEnabled || cfg_.model.outpostRoi.size() != 4) {
-        return results;
-    }
-
-    const cv::Rect imgBound(0, 0, frame.cols, frame.rows);
-    cv::Rect outpostRoi(
-        cfg_.model.outpostRoi[0],
-        cfg_.model.outpostRoi[1],
-        cfg_.model.outpostRoi[2],
-        cfg_.model.outpostRoi[3]
-    );
-    cv::Rect safeRoi = outpostRoi & imgBound;
-    if (safeRoi.width <= 0 || safeRoi.height <= 0) {
-        return results;
-    }
-
-    bool hasValidDetection = false;
-    Result bestResult;
-    float bestConf = -1.0f;
-
-    if (armorDetector_.Detect(frame(safeRoi))) {
-        for (auto& res : armorDetector_.detectResults) {
-            if (res.confidence < cfg_.model.outpostScoreThreshold) {
-                continue;
-            }
-            if (res.confidence > bestConf) {
-                bestConf = res.confidence;
-                bestResult = res;
-                hasValidDetection = true;
-            }
-        }
-    }
-
-    if (hasValidDetection) {
-        outpostMissCount_ = 0;
-        outpostIsDead_ = false;
-
-        bestResult.box.x += safeRoi.x;
-        bestResult.box.y += safeRoi.y;
-        bestResult.idx = robot_id::OUTPOST;
-        bestResult.car_box = safeRoi;
-        bestResult.isDead = false;
-        outpostLastBox_ = bestResult.box;
-        results.push_back(bestResult);
-    } else {
-        outpostMissCount_++;
-        if (outpostMissCount_ >= cfg_.model.outpostMissThreshold) {
-            outpostMissCount_ = cfg_.model.outpostMissThreshold;
-            outpostIsDead_ = true;
-        }
-    }
-    return results;
-}
-
 std::vector<Result> DetectPipeline::runAirplaneDetect(const cv::Mat& frame) {
     if (!airplaneModel_) {
         return std::vector<Result>();
@@ -249,12 +211,6 @@ std::vector<Result> DetectPipeline::runAirplaneDetect(const cv::Mat& frame) {
         res.box.x += xStart;
     }
     return results;
-}
-
-static inline double elapsedMs(const std::chrono::steady_clock::time_point& t0,
-                                 const std::chrono::steady_clock::time_point& t1)
-{
-    return std::chrono::duration<double, std::milli>(t1 - t0).count();
 }
 
 std::vector<Result> DetectPipeline::process(const cv::Mat& frame) {
@@ -274,26 +230,33 @@ std::vector<Result> DetectPipeline::process(const cv::Mat& frame) {
     auto cars = runDetect(frame);
     auto t2 = std::chrono::steady_clock::now();
 
-    std::vector<Result> outposts;
-    auto armors = runArmorDetect(frame, cars, &outposts);
+    // Stage 2: armor + outpost 共用 armorDetector_
+    auto armors = runArmorDetect(frame, cars);
+    auto outposts = detectOutpost(frame);
     auto t3 = std::chrono::steady_clock::now();
+
+    // Stage 3: classify
     runClassify(frame, armors);
     auto t4 = std::chrono::steady_clock::now();
 
     std::vector<Result> all;
-    all.insert(all.end(), cars.begin(), cars.end());
-    all.insert(all.end(), armors.begin(), armors.end());
-    all.insert(all.end(), outposts.begin(), outposts.end());
+    all.reserve(cars.size() + armors.size() + outposts.size());
+    all.insert(all.end(), std::make_move_iterator(cars.begin()), std::make_move_iterator(cars.end()));
+    all.insert(all.end(), std::make_move_iterator(armors.begin()), std::make_move_iterator(armors.end()));
+    all.insert(all.end(), std::make_move_iterator(outposts.begin()), std::make_move_iterator(outposts.end()));
 
     // 获取最新缓存的无人机结果（非阻塞）
     {
         std::lock_guard<std::mutex> lock(resultsMutex_);
-        all.insert(all.end(), cachedAirplaneResults_.begin(), cachedAirplaneResults_.end());
+        all.insert(all.end(),
+                   std::make_move_iterator(cachedAirplaneResults_.begin()),
+                   std::make_move_iterator(cachedAirplaneResults_.end()));
     }
 
     auto t6 = std::chrono::steady_clock::now();
     double car_ms   = elapsedMs(t1, t2);
-    double armor_ms = elapsedMs(t2, t3);
+    double armor_ms = lastArmorDetectMs_.load();
+    double outpost_ms = lastOutpostDetectMs_.load();
     double cls_ms   = elapsedMs(t3, t4);
     double total_ms = elapsedMs(t0, t6);
 
@@ -302,13 +265,13 @@ std::vector<Result> DetectPipeline::process(const cv::Mat& frame) {
         latestTiming_.car_ms   = car_ms;
         latestTiming_.armor_ms = armor_ms;
         latestTiming_.cls_ms   = cls_ms;
-        latestTiming_.outpost_ms = 0.0;
+        latestTiming_.outpost_ms = outpost_ms;
         latestTiming_.airplane_ms = lastAirplaneMs_.load();
         latestTiming_.total_ms = total_ms;
         latestTiming_.end_to_end_ms = 0.0;
     }
 
-    updateStats(car_ms, armor_ms, cls_ms, 0.0, total_ms);
+    updateStats(car_ms, armor_ms, cls_ms, outpost_ms, total_ms);
 
     return all;
 }

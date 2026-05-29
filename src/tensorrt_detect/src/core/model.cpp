@@ -362,18 +362,18 @@ std::vector<Result> Model::postprocessSingle(const cv::Mat& det_output, float rx
                     }
                 }
             } else {
-                cx = det_output.at<float>(idx, 0);
-                cy = det_output.at<float>(idx, 1);
-                ow = det_output.at<float>(idx, 2);
-                oh = det_output.at<float>(idx, 3);
+                float* row_data = const_cast<float*>(det_output.ptr<float>(idx));
+                cx = row_data[0];
+                cy = row_data[1];
+                ow = row_data[2];
+                oh = row_data[3];
 
                 if (num_properties == 5) {
-                    max_score = det_output.at<float>(idx, 4);
+                    max_score = row_data[4];
                     class_id = 0;
                 } else {
-                    float* row = const_cast<float*>(det_output.ptr<float>(idx));
                     for (int k = 4; k < num_properties; ++k) {
-                        float s = row[k];
+                        float s = row_data[k];
                         if (s > max_score) {
                             max_score = s;
                             class_id = k - 4;
@@ -411,7 +411,6 @@ void Model::postprocessing()
         return;
     }
 
-    this->detectResults.clear();
     cv::Mat det_output(this->output_h, this->output_w, CV_32F, prob_);
     this->detectResults = postprocessSingle(det_output, this->rx, this->ry);
 }

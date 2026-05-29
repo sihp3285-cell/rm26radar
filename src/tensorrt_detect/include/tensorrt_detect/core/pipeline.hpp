@@ -61,10 +61,9 @@ private:
 
     std::vector<Result>   runDetect(const cv::Mat& frame);
     std::vector<Result>   runArmorDetect(const cv::Mat& frame,
-                                         const std::vector<Result>& detections,
-                                         std::vector<Result>* outposts = nullptr);
+                                         const std::vector<Result>& detections);
+    std::vector<Result>   detectOutpost(const cv::Mat& frame);
     void runClassify(const cv::Mat& frame, std::vector<Result>& detections);
-    std::vector<Result>   runOutpostDetect(const cv::Mat& frame);
     std::vector<Result>   runAirplaneDetect(const cv::Mat& frame);
 
     // 异步无人机检测线程
@@ -83,6 +82,8 @@ private:
 
     // 耗时统计
     std::atomic<double> lastAirplaneMs_{0.0};
+    std::atomic<double> lastArmorDetectMs_{0.0};
+    std::atomic<double> lastOutpostDetectMs_{0.0};
     double accCarMs_ = 0.0;
     double accArmorMs_ = 0.0;
     double accClsMs_ = 0.0;

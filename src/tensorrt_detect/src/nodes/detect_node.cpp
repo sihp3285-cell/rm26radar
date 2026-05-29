@@ -158,10 +158,11 @@ private:
                     debug_output_frame_ = debug_frame_;
                 }
 
-                std_msgs::msg::Header header = msg->header;
-                header.frame_id = "detected_frame";
+                debug_cv_image_.header = msg->header;
+                debug_cv_image_.header.frame_id = "detected_frame";
+                debug_cv_image_.image = debug_output_frame_;
                 auto out_msg = std::make_unique<sensor_msgs::msg::Image>();
-                cv_bridge::CvImage(header, "bgr8", debug_output_frame_).toImageMsg(*out_msg);
+                debug_cv_image_.toImageMsg(*out_msg);
                 image_pub_->publish(std::move(out_msg));
             }
 
@@ -186,8 +187,6 @@ private:
     std::string input_topic_;
     std::string output_topic_;
     bool publish_debug_image_ = true;
-    int detect_input_width_ = 0;
-    int detect_input_height_ = 0;
     int debug_output_max_width_ = 1280;
 
     void reloadROI(const std_srvs::srv::Trigger::Request::SharedPtr /*request*/,
@@ -237,6 +236,7 @@ private:
     cv::Mat detect_input_frame_;
     cv::Mat debug_frame_;
     cv::Mat debug_output_frame_;
+    cv_bridge::CvImage debug_cv_image_{std_msgs::msg::Header(), "bgr8"};
 };
 
 #include <rclcpp_components/register_node_macro.hpp>
