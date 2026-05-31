@@ -17,4 +17,17 @@ CMakeCache.txt
 .docs/
 
 # 忽略 ROS2 / colcon 构建日志
+log/build/
+install/
 log/
+
+__pycache__/
+*.pyc
+
+*.so
+*.a
+*.o
+*.out
+
+.vscode/
+.DS_Store

@@ -2,11 +2,37 @@
 # 所有节点的参数集中在此管理，通过 launch 文件统一加载
 # 修改后需重新 colcon build 使 install 目录同步
 
+# ─────────────────────────────────────────────
+# 图像源：video_node（视频文件模式）
+# ─────────────────────────────────────────────
 video_node:
   ros__parameters:
     video_path: "/home/delphine/rm/car_project/test/009.mp4"
     topic_name: "/image_raw"
     fps: 20
+
+# ─────────────────────────────────────────────
+# 图像源：camera_node（工业相机模式）
+# ─────────────────────────────────────────────
+camera_node:
+  ros__parameters:
+    # --- 相机选择 ---
+    camera_brand: "hik"              # 品牌: "hik" (海康) 或 "daheng" (大恒)
+    camera_sn: "DA7831910"           # 相机序列号（唯一标识）
+
+    # --- 图像参数 ---
+    auto_white_balance: true         # 自动白平衡
+    exposure_time: 10000             # 曝光时间 (微秒)
+    gain: 0.7                        # 增益 (0.0 ~ 1.0，相对最大增益的比例)
+    gamma: 0.3                       # Gamma 值
+
+    # --- 输出 ---
+    topic_name: "/image_raw"         # 发布话题（与 video_node 保持一致）
+    frame_id: "camera_frame"         # 坐标系标识
+
+    # --- 内录（可选） ---
+    enable_recording: false          # 是否同时录制视频到本地
+    record_path: "/home/delphine/rm/recording/"
 
 detect_node:
   ros__parameters:
@@ -15,14 +41,6 @@ detect_node:
     output_topic: "/detected_image"
     publish_debug_image: true
     debug_output_max_width: 1280
-
-display_node:
-  ros__parameters:
-    topic: "/detected_image"
-    window_name: "Video & Radar"
-    window_width: 1920
-    window_height: 720
-    map_topic: "/map_image"
 
 pose_node:
   ros__parameters:

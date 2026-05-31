@@ -16,6 +16,14 @@ endif()
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 list(APPEND CMAKE_INSTALL_RPATH "/home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/lib")
 
+# ========== rb26SDK（工业相机 SDK 封装） ==========
+# 仅在需要相机节点时编译；默认开启，可用 -DBUILD_CAMERA=OFF 跳过
+option(BUILD_CAMERA "Build camera node with rb26SDK" ON)
+if(BUILD_CAMERA)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../rb26SDK
+                     ${CMAKE_CURRENT_BINARY_DIR}/rb26SDK)
+endif()
+
 # ========== ROS2 依赖 ==========
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -109,6 +117,15 @@ target_link_libraries(video_node_component pthread ${OpenCV_LIBS})
 target_include_directories(video_node_component PRIVATE ${COMMON_INCLUDE_DIRS})
 rclcpp_components_register_nodes(video_node_component "VideoNode")
 
+# camera_node component (需 BUILD_CAMERA=ON 且已安装 MVS/GxIAPI 驱动)
+if(BUILD_CAMERA)
+    add_library(camera_node_component SHARED src/nodes/camera_node.cpp)
+    ament_target_dependencies(camera_node_component rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs std_srvs)
+    target_link_libraries(camera_node_component pthread ${OpenCV_LIBS} rb26SDK)
+    target_include_directories(camera_node_component PRIVATE ${COMMON_INCLUDE_DIRS})
+    rclcpp_components_register_nodes(camera_node_component "tensorrt_detect::CameraNode")
+endif()
+
 # detect_node component
 add_library(detect_node_component SHARED src/nodes/detect_node.cpp)
 ament_target_dependencies(detect_node_component rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs std_srvs tensorrt_detect_msgs)
@@ -133,6 +150,13 @@ ament_target_dependencies(video_node rclcpp rclcpp_components sensor_msgs cv_bri
 target_link_libraries(video_node pthread ${OpenCV_LIBS})
 target_include_directories(video_node PRIVATE ${COMMON_INCLUDE_DIRS})
 
+if(BUILD_CAMERA)
+    add_executable(camera_node src/nodes/camera_node.cpp)
+    ament_target_dependencies(camera_node rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs std_srvs)
+    target_link_libraries(camera_node pthread ${OpenCV_LIBS} rb26SDK)
+    target_include_directories(camera_node PRIVATE ${COMMON_INCLUDE_DIRS})
+endif()
+
 add_executable(detect_node src/nodes/detect_node.cpp)
 ament_target_dependencies(detect_node rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs std_srvs tensorrt_detect_msgs)
 target_link_libraries(detect_node tensorrt_detect_core)
@@ -144,12 +168,6 @@ target_link_libraries(pose_node tensorrt_detect_core)
 add_executable(map_node src/nodes/map_node.cpp)
 ament_target_dependencies(map_node rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs tensorrt_detect_msgs)
 target_link_libraries(map_node tensorrt_detect_core)
-
-# ========== ROS2 节点：display_node ==========
-add_executable(display_node src/nodes/display_node.cpp)
-ament_target_dependencies(display_node rclcpp sensor_msgs cv_bridge std_msgs)
-target_link_libraries(display_node pthread ${OpenCV_LIBS})
-target_include_directories(display_node PRIVATE ${COMMON_INCLUDE_DIRS})
 
 # ========== ROS2 节点：calibrate_node ==========
 add_executable(calibrate_node src/nodes/calibrate_node.cpp)
@@ -173,7 +191,6 @@ target_link_libraries(qt_display_node tensorrt_detect_core Qt5::Core Qt5::Widget
 install(TARGETS
     standard
     detect_node
-    display_node
     video_node
     pose_node
     map_node
@@ -183,6 +200,10 @@ install(TARGETS
     DESTINATION lib/${PROJECT_NAME}
 )
 
+if(BUILD_CAMERA)
+    install(TARGETS camera_node DESTINATION lib/${PROJECT_NAME})
+endif()
+
 # component library 必须安装到 lib/ 根目录，否则 ament_index 路径对不上
 install(TARGETS
     video_node_component
@@ -191,6 +212,10 @@ install(TARGETS
     map_node_component
     DESTINATION lib
 )
+
+if(BUILD_CAMERA)
+    install(TARGETS camera_node_component DESTINATION lib)
+endif()
 
 # ========== 安装 launch 文件 ==========
 install(DIRECTORY launch

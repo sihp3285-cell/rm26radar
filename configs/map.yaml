@@ -1,4 +1,7 @@
 mapPath: "/home/delphine/rm/tensorrt10_detect/configs/map.png"
 race_size: [28, 15]  # 真实场地物理尺寸，单位：米 (长 Z，宽 X)
 map_size: [722, 388]   # 待显示的小地图图片的像素分辨率
+
+# race_size: [12.0, 6.5]  # 真实场地物理尺寸，单位：米 (长 Z，宽 X)
+# map_size: [1200, 650]   # 待显示的小地图图片的像素分辨率
 isflip: true
