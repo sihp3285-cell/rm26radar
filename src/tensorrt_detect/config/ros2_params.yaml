@@ -7,7 +7,7 @@
 # ─────────────────────────────────────────────
 video_node:
   ros__parameters:
-    video_path: "/home/delphine/rm/car_project/test/009.mp4"
+    video_path: "/home/delphine/rm/car_project/test/008.mp4"
     topic_name: "/image_raw"
     fps: 20
 
@@ -22,7 +22,7 @@ camera_node:
 
     # --- 图像参数 ---
     auto_white_balance: true         # 自动白平衡
-    exposure_time: 10000             # 曝光时间 (微秒)
+    exposure_time: 6000             # 曝光时间 (微秒)
     gain: 0.7                        # 增益 (0.0 ~ 1.0，相对最大增益的比例)
     gamma: 0.3                       # Gamma 值
 
@@ -30,8 +30,8 @@ camera_node:
     topic_name: "/image_raw"         # 发布话题（与 video_node 保持一致）
     frame_id: "camera_frame"         # 坐标系标识
 
-    # --- 内录（可选） ---
-    enable_recording: false          # 是否同时录制视频到本地
+    # --- 内录 ---
+    enable_recording: true          # 是否同时录制视频到本地
     record_path: "/home/delphine/rm/recording/"
 
 detect_node:

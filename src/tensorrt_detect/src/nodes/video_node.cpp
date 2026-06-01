@@ -13,11 +13,11 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_;
     cv::VideoCapture cap_;
     
-    // 多线程控制变量
-    std::thread capture_thread_;
+    // 多线程控制变量，用于控制视频捕获线程的运行
+    std::thread capture_thread_;// 视频捕获线程，独立于主线程运行
     std::atomic<bool> is_running_;
     
-    // 视频帧率控制
+    // 视频帧率控制,保存目标帧率和每帧的理论处理时间
     double fps_;
     int frame_delay_ms_;
 
@@ -41,7 +41,7 @@ private:
             auto msg = std::make_unique<sensor_msgs::msg::Image>();
             msg->header.stamp = this->now();
             
-            // 注意：这里为了后续和真实相机无缝切换，通常把 frame_id 设为一样
+            // 为了后续和真实相机无缝切换，通常把 frame_id 设为一样
             // 或者在 Launch 文件中统一配置，这里先用 video_frame
             msg->header.frame_id = "video_frame";
 
