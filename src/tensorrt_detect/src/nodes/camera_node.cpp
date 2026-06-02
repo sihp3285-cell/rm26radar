@@ -17,6 +17,8 @@
 #include <iostream>
 #include <string>
 #include <cstddef>
+#include <algorithm>
+#include <cmath>
 
 #include "CamreaExmple.hpp"  // rb26SDK 的 PUBLIC include 目录已导出
 
@@ -60,8 +62,8 @@ private:
     std::condition_variable queue_cv_;
     cv::VideoWriter writer_;
 
-    // 注意：5472x3648 的一帧 BGR 图像大约 60MB。
-    // 队列不要设太大，否则编码跟不上时内存会暴涨。
+    // 5472x3648 的一帧 BGR 大约 60MB。
+    // 队列过大时，编码跟不上会导致内存快速上涨。
     static constexpr size_t MAX_QUEUE_SIZE = 8;
 
     // ── 状态标志 ──
@@ -73,9 +75,10 @@ private:
     int frame_width_  = 0;
     int frame_height_ = 0;
 
-    // ── FFmpeg MP4 录制参数 ──
+    // ── GStreamer MP4 录制参数 ──
     std::string record_file_path_;
     double record_fps_ = 30.0;
+    int record_bitrate_kbps_ = 15000;
     cv::Size record_frame_size_;
     std::atomic<size_t> dropped_record_frames_{0};
 
@@ -101,9 +104,29 @@ private:
     }
 
     // ──────────────────────────────────────────────
+    // 工具：GStreamer pipeline 字符串中的路径转义
+    // ──────────────────────────────────────────────
+    static std::string quoteGstString(const std::string& s)
+    {
+        std::string out;
+        out.reserve(s.size() + 2);
+        out.push_back('"');
+
+        for (char c : s) {
+            if (c == '\\' || c == '"') {
+                out.push_back('\\');
+            }
+            out.push_back(c);
+        }
+
+        out.push_back('"');
+        return out;
+    }
+
+    // ──────────────────────────────────────────────
     // 工具：保证编码尺寸为偶数
     //
-    // MP4 / H.264 / MPEG4 编码通常更喜欢偶数宽高。
+    // H.264 / MP4 编码通常更喜欢偶数宽高。
     // 如果相机输出奇数宽高，直接写入可能失败。
     // ──────────────────────────────────────────────
     static cv::Size makeEvenSize(const cv::Size& size)
@@ -125,8 +148,8 @@ private:
     // ──────────────────────────────────────────────
     // 工具：统一转为 CV_8UC3 BGR
     //
-    // 录制和 ROS 发布都统一用 bgr8。
-    // 避免相机 SDK 返回 Mono / BGRA / 非连续 Mat 时写视频失败。
+    // GStreamer appsrc caps 声明的是 video/x-raw,format=BGR。
+    // 因此 writer_.write() 进去的 Mat 必须是 CV_8UC3 BGR。
     // ──────────────────────────────────────────────
     static cv::Mat normalizeToBgr8(const cv::Mat& src)
     {
@@ -162,18 +185,18 @@ private:
     }
 
     // ──────────────────────────────────────────────
-    // 初始化 OpenCV FFmpeg MP4 Writer
+    // 初始化 OpenCV GStreamer Writer
     //
     // 注意：
-    //   1. 不使用 GStreamer；
-    //   2. 强制使用 cv::CAP_FFMPEG；
-    //   3. 等第一帧到达后，按真实帧尺寸初始化 writer；
-    //   4. 优先 mp4v，失败后尝试 avc1。
+    //   1. 使用 cv::CAP_GSTREAMER；
+    //   2. 不做 FFmpeg fallback，GStreamer 失败就直接报错；
+    //   3. 第一帧到达后，按真实帧尺寸初始化 writer；
+    //   4. appsrc 后明确声明 BGR / width / height / framerate。
     // ──────────────────────────────────────────────
-    bool openFFmpegWriter(const cv::Size& first_frame_size)
+    bool openGStreamerWriter(const cv::Size& first_frame_size)
     {
         if (record_file_path_.empty()) {
-            RCLCPP_ERROR(this->get_logger(), "录制文件路径为空，无法初始化 FFmpeg Writer。");
+            RCLCPP_ERROR(this->get_logger(), "录制文件路径为空，无法初始化 GStreamer Writer。");
             return false;
         }
 
@@ -191,52 +214,55 @@ private:
 
         record_frame_size_ = even_size;
 
-        auto try_open = [this](int fourcc, const char* fourcc_name) -> bool {
-            if (writer_.isOpened()) {
-                writer_.release();
-            }
+        int fps_int = static_cast<int>(std::round(record_fps_));
+        fps_int = std::clamp(fps_int, 1, 240);
 
-            RCLCPP_INFO(this->get_logger(),
-                "初始化 FFmpeg MP4 Writer | fourcc=%s | size=%dx%d | fps=%.2f | path=%s",
-                fourcc_name,
-                record_frame_size_.width,
-                record_frame_size_.height,
-                record_fps_,
-                record_file_path_.c_str());
+        int key_int_max = std::max(1, fps_int);
 
-            bool ok = writer_.open(
-                record_file_path_,
-                cv::CAP_FFMPEG,
-                fourcc,
-                record_fps_,
-                record_frame_size_,
-                true
-            );
+        std::string pipeline =
+            "appsrc is-live=true block=true format=time do-timestamp=true ! "
+            "video/x-raw,format=BGR,width=" + std::to_string(record_frame_size_.width) +
+            ",height=" + std::to_string(record_frame_size_.height) +
+            ",framerate=" + std::to_string(fps_int) + "/1 ! "
+            "queue max-size-buffers=4 leaky=downstream ! "
+            "videoconvert n-threads=4 ! "
+            "video/x-raw,format=I420 ! "
+            "x264enc bitrate=" + std::to_string(record_bitrate_kbps_) +
+            " speed-preset=ultrafast tune=zerolatency key-int-max=" + std::to_string(key_int_max) +
+            " bframes=0 ! "
+            "video/x-h264,profile=baseline ! "
+            "h264parse config-interval=-1 ! "
+            "mp4mux faststart=true ! "
+            "filesink location=" + quoteGstString(record_file_path_) + " sync=false";
 
-            if (ok && writer_.isOpened()) {
-                RCLCPP_INFO(this->get_logger(),
-                    "FFmpeg MP4 Writer 打开成功 | fourcc=%s", fourcc_name);
-                return true;
-            }
+        RCLCPP_INFO(this->get_logger(),
+            "初始化 GStreamer MP4 Writer | size=%dx%d | fps=%d/1 | bitrate=%d kbps | path=%s",
+            record_frame_size_.width,
+            record_frame_size_.height,
+            fps_int,
+            record_bitrate_kbps_,
+            record_file_path_.c_str());
 
-            RCLCPP_WARN(this->get_logger(),
-                "FFmpeg MP4 Writer 打开失败 | fourcc=%s", fourcc_name);
-            return false;
-        };
+        RCLCPP_INFO(this->get_logger(),
+            "GStreamer pipeline: %s",
+            pipeline.c_str());
 
-        // 第一选择：mp4v，通常 OpenCV + FFmpeg 下最稳。
-        if (try_open(cv::VideoWriter::fourcc('m', 'p', '4', 'v'), "mp4v")) {
-            return true;
-        }
+        bool ok = writer_.open(
+            pipeline,
+            cv::CAP_GSTREAMER,
+            0,
+            static_cast<double>(fps_int),
+            record_frame_size_,
+            true
+        );
 
-        // 第二选择：avc1，也就是 H.264/AVC。
-        // 是否成功取决于当前 FFmpeg 是否带 H.264 编码器。
-        if (try_open(cv::VideoWriter::fourcc('a', 'v', 'c', '1'), "avc1")) {
+        if (ok && writer_.isOpened()) {
+            RCLCPP_INFO(this->get_logger(), "GStreamer MP4 Writer 打开成功。");
             return true;
         }
 
         RCLCPP_ERROR(this->get_logger(),
-            "FFmpeg MP4 Writer 完全打开失败。请检查 OpenCV 是否 FFMPEG=YES，以及 FFmpeg 编码器支持。");
+            "GStreamer MP4 Writer 打开失败。请检查 OpenCV GStreamer backend、x264enc、h264parse、mp4mux。");
 
         return false;
     }
@@ -259,7 +285,7 @@ private:
     //
     // 逻辑：
     //   1. 等待采集线程推入 BGR8 帧；
-    //   2. 第一帧到达后，按真实尺寸打开 FFmpeg writer；
+    //   2. 第一帧到达后，按真实尺寸打开 GStreamer writer；
     //   3. 写入剩余所有帧；
     //   4. 退出时 release writer，保证 MP4 正常 finalize。
     // ──────────────────────────────────────────────
@@ -293,16 +319,16 @@ private:
                 continue;
             }
 
-            // 第一帧到达后再初始化 writer。
+            // 第一帧到达后再初始化 GStreamer writer。
             if (!writer_.isOpened()) {
-                if (!openFFmpegWriter(frame_to_write.size())) {
+                if (!openGStreamerWriter(frame_to_write.size())) {
                     enable_recording_.store(false);
                     clearRecordQueue();
                     break;
                 }
             }
 
-            // 尺寸必须和 writer 初始化尺寸一致。
+            // 尺寸必须和 GStreamer caps / writer 初始化尺寸一致。
             if (frame_to_write.size() != record_frame_size_) {
                 cv::resize(frame_to_write, frame_to_write, record_frame_size_);
             }
@@ -478,6 +504,7 @@ public:
         this->declare_parameter<bool>       ("enable_recording", false);
         this->declare_parameter<std::string>("record_path", "/home/delphine/rm/recording/");
         this->declare_parameter<double>     ("record_fps", 30.0);
+        this->declare_parameter<int>        ("record_bitrate_kbps", 15000);
 
         // ──────── 2. 读取参数 ────────
         std::string camera_brand = this->get_parameter("camera_brand").as_string();
@@ -493,11 +520,19 @@ public:
         enable_recording_.store(this->get_parameter("enable_recording").as_bool());
         std::string record_base  = this->get_parameter("record_path").as_string();
         record_fps_              = this->get_parameter("record_fps").as_double();
+        record_bitrate_kbps_     = this->get_parameter("record_bitrate_kbps").as_int();
 
         if (record_fps_ <= 1.0 || record_fps_ > 240.0) {
             RCLCPP_WARN(this->get_logger(),
                 "record_fps=%.2f 不合理，自动改为 30.0", record_fps_);
             record_fps_ = 30.0;
+        }
+
+        if (record_bitrate_kbps_ < 1000 || record_bitrate_kbps_ > 200000) {
+            RCLCPP_WARN(this->get_logger(),
+                "record_bitrate_kbps=%d 不合理，自动改为 15000",
+                record_bitrate_kbps_);
+            record_bitrate_kbps_ = 15000;
         }
 
         // ──────── 3. 初始化相机 ────────
@@ -568,7 +603,8 @@ public:
             throw std::runtime_error("CameraNode: 相机初始化失败");
         }
 
-        // 读取 SDK 声明分辨率
+        // 读取 SDK 声明分辨率，仅用于日志。
+        // 真正录制尺寸会在第一帧到达后，以实际帧尺寸为准。
         switch (brand_) {
 #ifdef RB26SDK_HAS_HIK
         case Brand::Hik:
@@ -595,7 +631,7 @@ public:
             gain_val,
             gamma_val);
 
-        // ──────── 4. 准备 FFmpeg MP4 内录路径 ────────
+        // ──────── 4. 准备 GStreamer MP4 内录路径 ────────
         //
         // 注意：
         //   这里只准备路径，不启动录制线程，也不打开 writer。
@@ -615,8 +651,9 @@ public:
                     (record_dir / ("cam_" + getCurrentTimeString() + ".mp4")).string();
 
                 RCLCPP_INFO(this->get_logger(),
-                    "FFmpeg MP4 内录准备就绪 | fps=%.2f | path=%s",
+                    "GStreamer MP4 内录准备就绪 | fps=%.2f | bitrate=%d kbps | path=%s",
                     record_fps_,
+                    record_bitrate_kbps_,
                     record_file_path_.c_str());
 
             } catch (const std::exception& e) {
