@@ -201,13 +201,31 @@ void Config::loadMapConfig(const std::string& path) {
 void Config::loadTrackerConfig(const std::string& path) {
     YAML::Node cfg = YAML::LoadFile(path);
 
+    // ========== Track 生命周期 ==========
     tracker.maxMiss = cfg["max_miss"] ? cfg["max_miss"].as<int>() : 4;
     tracker.maxPredict = cfg["max_predict"] ? cfg["max_predict"].as<int>() : 2;
     tracker.minHit = cfg["min_hit"] ? cfg["min_hit"].as<int>() : 2;
-    tracker.maxGateBox = cfg["max_gate_box"] ? cfg["max_gate_box"].as<float>() : 200.0f;
-    tracker.classMismatchPenalty = cfg["class_mismatch_penalty"] ? cfg["class_mismatch_penalty"].as<float>() : 300.0f;
     tracker.maxTracks = cfg["max_tracks"] ? cfg["max_tracks"].as<int>() : 20;
 
+    // ========== 物理匹配 gate ==========
+    tracker.maxGateBox = cfg["max_gate_box"] ? cfg["max_gate_box"].as<float>() : 300.0f;
+    tracker.maxGateWorld = cfg["max_gate_world"] ? cfg["max_gate_world"].as<float>() : 2.5f;
+
+    // ========== Hungarian 匹配代价 ==========
+    tracker.wBox = cfg["w_box"] ? cfg["w_box"].as<float>() : 1.0f;
+    tracker.wWorld = cfg["w_world"] ? cfg["w_world"].as<float>() : 1.0f;
+    tracker.classMismatchPenalty = cfg["class_mismatch_penalty"] ? cfg["class_mismatch_penalty"].as<float>() : 0.25f;
+
+    // ========== 身份更新阈值 ==========
+    tracker.minIdentityUpdateConf = cfg["min_identity_update_conf"] ? cfg["min_identity_update_conf"].as<float>() : 0.20f;
+
+    // ========== Official slot owner 机制 ==========
+    tracker.slotBindMinConf = cfg["slot_bind_min_conf"] ? cfg["slot_bind_min_conf"].as<float>() : 0.40f;
+    tracker.slotTakeoverMiss = cfg["slot_takeover_miss"] ? cfg["slot_takeover_miss"].as<int>() : 6;
+    tracker.slotReleaseMiss = cfg["slot_release_miss"] ? cfg["slot_release_miss"].as<int>() : 8;
+    tracker.maxSlotJumpDist = cfg["max_slot_jump_dist"] ? cfg["max_slot_jump_dist"].as<float>() : 2.5f;
+
+    // ========== BotIdentity 身份稳定器 ==========
     if (cfg["bot_identity"]) {
         YAML::Node bi = cfg["bot_identity"];
         tracker.botIdentity.maxHistory = bi["max_history"] ? bi["max_history"].as<int>() : 50;

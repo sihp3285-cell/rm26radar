@@ -33,6 +33,9 @@ camera_node:
     # --- 内录 ---
     enable_recording: true          # 是否同时录制视频到本地
     record_path: "/home/delphine/rm/recording/"
+    record_fps: 20.0                # 录制帧率 (1.0 ~ 240.0)
+    record_bitrate_kbps: 15000      # 录制视频比特率 (kbps, 1000 ~ 200000)
+    max_record_queue_size: 8        # 录制队列最大长度（过大导致内存暴涨）
 
 detect_node:
   ros__parameters:
@@ -47,6 +50,31 @@ pose_node:
     config_dir: "/home/delphine/rm/tensorrt10_detect/configs"
     input_topic: "/armor_detections"
     output_topic: "/world_targets"
+
+    # ══════════════════════════════════════════════════════════════
+    # Tracker 参数（由 config_dir/tracker.yaml 加载，此处仅为文档说明）
+    # 实际修改请编辑 configs/tracker.yaml，重启 pose_node 生效
+    # ══════════════════════════════════════════════════════════════
+    # max_miss: 6                    # 连续丢失多少帧后 track 标记为 DEAD
+    # max_predict: 3                 # 连续丢失多少帧内保持 PREDICTED（卡尔曼外推）
+    # min_hit: 3                     # 最少命中次数才允许对外输出 / 绑定 slot
+    # max_tracks: 20                 # 最大同时跟踪的 PhysicalTrack 数量
+    # max_gate_box: 1500.0           # 像素框中心距离门限
+    # max_gate_world: 2.5            # 世界坐标 gate（米），<= 0 则禁用
+    # w_box: 1.0                     # 像素框归一化距离权重
+    # w_world: 1.0                   # 世界坐标归一化距离权重
+    # class_mismatch_penalty: 0.25   # 跨兵种匹配惩罚（归一化代价，推荐 0.1~0.5）
+    # min_identity_update_conf: 0.20 # 身份更新最低置信度
+    # slot_bind_min_conf: 0.40       # 绑定 slot 最低 stable confidence
+    # slot_takeover_miss: 6          # owner 丢失保护帧数（禁止其他 track 抢槽）
+    # slot_release_miss: 8           # owner 丢失释放槽位帧数
+    # max_slot_jump_dist: 2.5        # 防 slot 瞬移最大距离（米），<= 0 则禁用
+    # # BotIdentity 身份稳定器子参数:
+    # bot_identity.max_history: 30           # 历史观测最大保存帧数
+    # bot_identity.purge_threshold: 20       # 连续丢失多少帧后清空历史
+    # bot_identity.min_history_for_stable: 6 # 稳定身份最小历史长度门槛
+    # bot_identity.decay: 0.99               # 指数加权衰减系数
+    # bot_identity.num_classes: 9            # 类别总数
 
 map_node:
   ros__parameters:

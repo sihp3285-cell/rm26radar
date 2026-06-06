@@ -155,6 +155,9 @@ if(BUILD_CAMERA)
     ament_target_dependencies(camera_node rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs std_srvs)
     target_link_libraries(camera_node pthread ${OpenCV_LIBS} rb26SDK)
     target_include_directories(camera_node PRIVATE ${COMMON_INCLUDE_DIRS})
+    # 编译期注入源码树中的配置文件路径，供 standalone main() 自动加载
+    target_compile_definitions(camera_node PRIVATE
+        CAMERA_PARAMS_FILE="${CMAKE_CURRENT_SOURCE_DIR}/config/ros2_params.yaml")
 endif()
 
 add_executable(detect_node src/nodes/detect_node.cpp)

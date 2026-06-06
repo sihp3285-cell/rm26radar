@@ -62,9 +62,9 @@ private:
     std::condition_variable queue_cv_;
     cv::VideoWriter writer_;
 
-    // 5472x3648 的一帧 BGR 大约 60MB。
-    // 队列过大时，编码跟不上会导致内存快速上涨。
-    static constexpr size_t MAX_QUEUE_SIZE = 8;
+    // 录制队列最大长度（运行时可配，默认值仅作兜底）。
+    // 5472x3648 的一帧 BGR 大约 60MB，队列过大时内存快速上涨。
+    size_t max_queue_size_ = 8;
 
     // ── 状态标志 ──
     bool camera_opened_   = false;
@@ -438,7 +438,7 @@ private:
                 {
                     std::lock_guard<std::mutex> lock(queue_mutex_);
 
-                    if (record_queue_.size() < MAX_QUEUE_SIZE) {
+                    if (record_queue_.size() < max_queue_size_) {
                         record_queue_.push(bgr_frame.clone());
                         pushed = true;
                     }
@@ -453,7 +453,7 @@ private:
                         RCLCPP_WARN(this->get_logger(),
                             "录制队列已满，丢弃录制帧 | dropped=%zu queue_max=%zu",
                             dropped,
-                            MAX_QUEUE_SIZE);
+                            max_queue_size_);
                     }
                 }
             }
@@ -505,6 +505,7 @@ public:
         this->declare_parameter<std::string>("record_path", "/home/delphine/rm/recording/");
         this->declare_parameter<double>     ("record_fps", 30.0);
         this->declare_parameter<int>        ("record_bitrate_kbps", 15000);
+        this->declare_parameter<int>        ("max_record_queue_size", 8);
 
         // ──────── 2. 读取参数 ────────
         std::string camera_brand = this->get_parameter("camera_brand").as_string();
@@ -533,6 +534,15 @@ public:
                 "record_bitrate_kbps=%d 不合理，自动改为 15000",
                 record_bitrate_kbps_);
             record_bitrate_kbps_ = 15000;
+        }
+
+        int max_q = this->get_parameter("max_record_queue_size").as_int();
+        if (max_q < 1 || max_q > 64) {
+            RCLCPP_WARN(this->get_logger(),
+                "max_record_queue_size=%d 不合理，自动改为 8", max_q);
+            max_queue_size_ = 8;
+        } else {
+            max_queue_size_ = static_cast<size_t>(max_q);
         }
 
         // ──────── 3. 初始化相机 ────────
@@ -756,9 +766,20 @@ int main(int argc, char** argv)
     rclcpp::init(argc, argv);
 
     try {
-        auto node = std::make_shared<tensorrt_detect::CameraNode>(
-            rclcpp::NodeOptions()
-        );
+        // 从编译期注入的配置文件路径加载所有参数。
+        // 命令行仍可通过 --ros-args --params-file <other.yaml> 覆盖。
+        rclcpp::NodeOptions options;
+
+#ifdef CAMERA_PARAMS_FILE
+        // 如果配置文件存在则自动加载（源码树开发模式），
+        // 安装后的正式部署请使用 launch 文件或 --ros-args --params-file。
+        if (std::filesystem::exists(CAMERA_PARAMS_FILE)) {
+            options.arguments(
+                {"--ros-args", "--params-file", CAMERA_PARAMS_FILE});
+        }
+#endif
+
+        auto node = std::make_shared<tensorrt_detect::CameraNode>(options);
 
         rclcpp::spin(node);
 

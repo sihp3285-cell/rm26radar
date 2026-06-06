@@ -9,10 +9,10 @@
 // BotIdentityConfig - BotIdentity 可配置参数
 // ==========================================
 struct BotIdentityConfig {
-    int maxHistory = 50;
-    int purgeThreshold = 30;
-    int minHistoryForStable = 8;
-    float decay = 0.97f;
+    int maxHistory = 50;//最多保留的观测帧数
+    int purgeThreshold = 30;//连续丢失多少帧之后自动清空
+    int minHistoryForStable = 8;//最少积累多少帧才输出稳定身份
+    float decay = 0.97f;//指数衰减因子
     int numClasses = 9; // CAR=0, ARMOR=1, R1=2, R2=3, R3=4, R4=5, S=6, OUTPOST=7, AIRPLANE=8
 };
 

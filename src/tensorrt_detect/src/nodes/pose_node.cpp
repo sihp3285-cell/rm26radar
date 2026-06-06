@@ -44,19 +44,41 @@ public:
         pose_solver_ = std::make_unique<PoseSolver>(cfg_->camera.cameraMatrix, cfg_->camera.distCoeffs);
 
         TrackerParams tp;
+        // Track 生命周期
         tp.max_miss = cfg_->tracker.maxMiss;
         tp.max_predict = cfg_->tracker.maxPredict;
         tp.min_hit = cfg_->tracker.minHit;
-        tp.max_gate_box = cfg_->tracker.maxGateBox;
-        tp.class_mismatch_penalty = cfg_->tracker.classMismatchPenalty;
         tp.max_tracks = cfg_->tracker.maxTracks;
+        // 物理匹配 gate
+        tp.max_gate_box = cfg_->tracker.maxGateBox;
+        tp.max_gate_world = cfg_->tracker.maxGateWorld;
+        // Hungarian 匹配代价
+        tp.w_box = cfg_->tracker.wBox;
+        tp.w_world = cfg_->tracker.wWorld;
+        tp.class_mismatch_penalty = cfg_->tracker.classMismatchPenalty;
+        // BotIdentity 身份稳定器
         tp.botIdentity = cfg_->tracker.botIdentity;
+        // 身份更新阈值
+        tp.min_identity_update_conf = cfg_->tracker.minIdentityUpdateConf;
+        // Official slot owner 机制
+        tp.slot_bind_min_conf = cfg_->tracker.slotBindMinConf;
+        tp.slot_takeover_miss = cfg_->tracker.slotTakeoverMiss;
+        tp.slot_release_miss = cfg_->tracker.slotReleaseMiss;
+        tp.max_slot_jump_dist = cfg_->tracker.maxSlotJumpDist;
+
         tracker_ = Tracker(tp);
-        RCLCPP_INFO(this->get_logger(), "Tracker 参数: max_miss=%d, max_predict=%d, min_hit=%d, max_gate_box=%.1f, class_mismatch_penalty=%.1f, max_tracks=%d",
-                    tp.max_miss, tp.max_predict, tp.min_hit, tp.max_gate_box, tp.class_mismatch_penalty, tp.max_tracks);
-        RCLCPP_INFO(this->get_logger(), "BotIdentity 参数: max_history=%d, purge_threshold=%d, min_history_for_stable=%d, decay=%.2f, num_classes=%d",
-                    tp.botIdentity.maxHistory, tp.botIdentity.purgeThreshold,
-                    tp.botIdentity.minHistoryForStable, tp.botIdentity.decay, tp.botIdentity.numClasses);
+        RCLCPP_INFO(this->get_logger(),
+            "Tracker 参数: max_miss=%d max_predict=%d min_hit=%d max_tracks=%d | "
+            "gate: box=%.1f world=%.2f | cost: w_box=%.2f w_world=%.2f class_pen=%.3f | "
+            "slot: bind=%.2f takeover=%d release=%d jump=%.2f",
+            tp.max_miss, tp.max_predict, tp.min_hit, tp.max_tracks,
+            tp.max_gate_box, tp.max_gate_world,
+            tp.w_box, tp.w_world, tp.class_mismatch_penalty,
+            tp.slot_bind_min_conf, tp.slot_takeover_miss, tp.slot_release_miss, tp.max_slot_jump_dist);
+        RCLCPP_INFO(this->get_logger(),
+            "BotIdentity 参数: max_history=%d purge=%d min_stable=%d decay=%.3f num_classes=%d",
+            tp.botIdentity.maxHistory, tp.botIdentity.purgeThreshold,
+            tp.botIdentity.minHistoryForStable, tp.botIdentity.decay, tp.botIdentity.numClasses);
 
         loadCalibrationAtStartup();
 

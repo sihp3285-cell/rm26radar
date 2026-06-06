@@ -88,13 +88,32 @@ struct MapConfig {
 };
 
 struct TrackerConfig {
+    // ========== Track 生命周期 ==========
     int maxMiss = 4;
     int maxPredict = 2;
     int minHit = 2;
-    float maxGateBox = 200.0f;
-    float classMismatchPenalty = 300.0f;
     int maxTracks = 20;
+
+    // ========== 物理匹配 gate ==========
+    float maxGateBox = 300.0f;
+    float maxGateWorld = 2.5f;
+
+    // ========== Hungarian 匹配代价 ==========
+    float wBox = 1.0f;
+    float wWorld = 1.0f;
+    float classMismatchPenalty = 0.25f;
+
+    // ========== BotIdentity 身份稳定器 ==========
     BotIdentityConfig botIdentity;
+
+    // ========== 身份更新阈值 ==========
+    float minIdentityUpdateConf = 0.20f;
+
+    // ========== Official slot owner 机制 ==========
+    float slotBindMinConf = 0.40f;
+    int slotTakeoverMiss = 6;
+    int slotReleaseMiss = 8;
+    float maxSlotJumpDist = 2.5f;
 };
 
 struct RuntimeConfig {
