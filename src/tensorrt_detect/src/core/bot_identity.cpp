@@ -1,5 +1,4 @@
 #include "bot_identity.hpp"
-#include <algorithm>
 
 BotIdentity::BotIdentity(const BotIdentityConfig& cfg) {
     configure(cfg);

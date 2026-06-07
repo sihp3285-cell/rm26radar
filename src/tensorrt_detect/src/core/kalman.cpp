@@ -84,11 +84,10 @@ void KalmanFilterBox::reset(const std::vector<float>& initial_bbox) {
         x(2) = initial_bbox[2];  // w
         x(3) = initial_bbox[3];  // h
     } else {
-        x(0) = 0.0f; x(1) = 0.0f; x(2) = 1.0f; x(3) = 1.0f;
+        x(2) = 1.0f;  // default w
+        x(3) = 1.0f;  // default h
     }
-    // 速度初始化为0
-    x(4) = 0.0f; x(5) = 0.0f; x(6) = 0.0f; x(7) = 0.0f;
-    
+
     P = Eigen::Matrix<float, 8, 8>::Identity() * 100.0f;
 }
 
@@ -161,9 +160,7 @@ void KalmanFilter2d::reset(const std::vector<float>& initial_pos) {
         x(0) = initial_pos[0];
         x(1) = initial_pos[1];
     }
-    // 速度初始化为0
-    x(2) = 0.0f; x(3) = 0.0f;
-    
+
     P = Eigen::Matrix<float, 4, 4>::Identity() * 100.0f;
 }
 

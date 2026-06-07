@@ -27,10 +27,7 @@ Model::Model(const std::string modelPath, const int &inputSize, const float &sco
     this->modelType = modelType;
 
     // 确保 CUDA primary context 提前初始化，避免多线程并发初始化导致 SIGSEGV
-    cudaError_t initErr = cudaFree(0);
-    if (initErr != cudaSuccess) {
-        throw std::runtime_error(std::string("CUDA 初始化失败: ") + cudaGetErrorString(initErr));
-    }
+    cudaFree(0);
 
     std::ifstream engineFile(modelPath, std::ios::binary);
     std::vector<char> engineData;
@@ -119,26 +116,17 @@ Model::Model(const std::string modelPath, const int &inputSize, const float &sco
 Model::~Model()
 {
     for (auto &buffer : this->buffers)
-    {
-        if (buffer)
-            cudaFree(buffer);
-    }
-    if (gpuInputBuffer8U_)
-        cudaFree(gpuInputBuffer8U_);
-    if (hInputBuffer8U_)
-        cudaFreeHost(hInputBuffer8U_);
-    if (prob_)
-        cudaFreeHost(prob_);
+        cudaFree(buffer);
+    cudaFree(gpuInputBuffer8U_);
+    cudaFreeHost(hInputBuffer8U_);
+    cudaFreeHost(prob_);
     if (inputTex_)
         cudaDestroyTextureObject(inputTex_);
     if (readyEvent_)
         cudaEventDestroy(readyEvent_);
-    if (this->context)
-        delete this->context;
-    if (this->engine)
-        delete this->engine;
-    if (this->runtime)
-        delete this->runtime;
+    delete this->context;
+    delete this->engine;
+    delete this->runtime;
     if (this->stream)
         cudaStreamDestroy(this->stream);
 }

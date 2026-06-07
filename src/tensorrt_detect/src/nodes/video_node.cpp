@@ -114,9 +114,7 @@ public:
         if(capture_thread_.joinable()) {
             capture_thread_.join();
         }
-        if(cap_.isOpened()) {
-            cap_.release();
-        }
+        cap_.release();
         RCLCPP_INFO(this->get_logger(), "视频流子线程已安全关闭。");
     }
 };

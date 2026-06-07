@@ -4,13 +4,13 @@
 
 # ========== Track 生命周期 ==========
 max_miss: 6                       # 连续丢失多少帧后 track 标记为 DEAD（不再输出）
-max_predict: 3                    # 连续丢失多少帧内保持 PREDICTED（卡尔曼外推仍显示在地图上）
+max_predict: 4                    # 连续丢失多少帧内保持 PREDICTED（卡尔曼外推仍显示在地图上）
 min_hit: 3                        # 最少命中次数才允许对外输出 / 绑定 slot
 max_tracks: 20                    # 最大同时跟踪的 PhysicalTrack 数量
 
 # ========== 物理匹配 gate ==========
 max_gate_box: 1500.0              # 像素框中心距离门限（匈牙利匹配代价矩阵门限）
-max_gate_world: 5.0                # 世界坐标 gate（米），<= 0 则禁用
+max_gate_world: 6.0                # 世界坐标 gate（米），<= 0 则禁用
 
 # ========== Hungarian 匹配代价 ==========
 # cost = w_box * (d_box / max_gate_box) + w_world * (d_world / max_gate_world) + class_penalty
@@ -27,18 +27,18 @@ min_identity_update_conf: 0.20
 slot_bind_min_conf: 0.20
 
 # owner 短期丢失时仍受保护，不允许其他 track 抢槽
-slot_takeover_miss: 3
+slot_takeover_miss: 4
 
 # owner 丢失超过该值后释放槽位
-slot_release_miss: 5
+slot_release_miss: 6
 
 # 防止同一个 official slot 在地图上瞬移（米），<= 0 则禁用
-max_slot_jump_dist: 5.0
+max_slot_jump_dist: 12.0
 
 # ========== BotIdentity 身份稳定器参数 ==========
 bot_identity:
   max_history: 30                 # 历史观测最大保存帧数
   purge_threshold: 20             # 连续丢失多少帧后清空历史
-  min_history_for_stable: 6       # 稳定身份最小历史长度门槛
+  min_history_for_stable: 5       # 稳定身份最小历史长度门槛
   decay: 0.99                     # 指数加权衰减系数（越接近 1，记忆越久）
   num_classes: 9                  # 类别总数（CAR/ARMOR/R1~R4/S/OUTPOST/AIRPLANE）

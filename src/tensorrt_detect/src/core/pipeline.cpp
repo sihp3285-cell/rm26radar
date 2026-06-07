@@ -12,9 +12,7 @@ DetectPipeline::DetectPipeline(Config& cfg)
       classifyModel_(cfg.model.classifyModelPath, cfg.model.imgSize3, cfg.model.scoreThreshold3, cfg.model.iouThreshold3, cfg.model.isNMS3, modelType(cfg.model.modelType3)),
       cfg_(cfg)
 {
-    // 确保 CUDA primary context 已初始化（Model 构造函数内部也会 cudaFree(0)，此处做双重保障）
-    cudaFree(0);
-
+    // Model 构造函数内部已通过 cudaFree(0) 初始化 CUDA primary context
     if (!cfg.model.airplaneModelPath.empty()) {
         airplaneModel_ = std::make_unique<Model>(
             cfg.model.airplaneModelPath,
@@ -73,33 +71,31 @@ std::vector<Result> DetectPipeline::runArmorDetect(const cv::Mat& frame,
         if (!armorDetector_.Detect(frame(roi)))
             continue;
 
-        if (!armorDetector_.detectResults.empty()) {
-            auto maxArmor = std::max_element(armorDetector_.detectResults.begin(),
-                                            armorDetector_.detectResults.end(),
-                [](const Result& a, const Result& b) {
-                    return a.confidence < b.confidence;
-                });
+        auto maxArmor = std::max_element(armorDetector_.detectResults.begin(),
+                                        armorDetector_.detectResults.end(),
+            [](const Result& a, const Result& b) {
+                return a.confidence < b.confidence;
+            });
 
-            Result armor = *maxArmor;
-            int raw_id = armor.idx;
+        Result armor = *maxArmor;
+        int raw_id = armor.idx;
 
-            armor.box.x += roi.x;
-            armor.box.y += roi.y;
-            armor.car_box = det.box;
+        armor.box.x += roi.x;
+        armor.box.y += roi.y;
+        armor.car_box = det.box;
 
-            constexpr int DEAD_ARMOR_ID = 0;
-            armor.idx = robot_id::ARMOR;
-            armor.isDead = (raw_id == DEAD_ARMOR_ID);
-            if (armor.isDead) {
-                armor.armorColor = robot_id::UNKNOWN;
-            } else {
-                armor.armorColor = raw_id;
-            }
-
-            armor.worldPoint = cv::Point2f(det.box.x + det.box.width  / 2.0f,
-                                           det.box.y + det.box.height / 2.0f);
-            armorResults.push_back(armor);
+        constexpr int DEAD_ARMOR_ID = 0;
+        armor.idx = robot_id::ARMOR;
+        armor.isDead = (raw_id == DEAD_ARMOR_ID);
+        if (armor.isDead) {
+            armor.armorColor = robot_id::UNKNOWN;
+        } else {
+            armor.armorColor = raw_id;
         }
+
+        armor.worldPoint = cv::Point2f(det.box.x + det.box.width  / 2.0f,
+                                       det.box.y + det.box.height / 2.0f);
+        armorResults.push_back(armor);
     }
 
     lastArmorDetectMs_ = elapsedMs(t0, std::chrono::steady_clock::now());

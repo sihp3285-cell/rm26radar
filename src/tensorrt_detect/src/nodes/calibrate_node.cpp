@@ -421,9 +421,6 @@ int main(int argc, char** argv)
 {
     rclcpp::init(argc, argv);
     auto node = std::make_shared<CalibrateNode>();
-    if (!node) {
-        return -1;
-    }
     // 使用多线程 Executor：标定流程在 service callback 中阻塞执行，
     // 需要另一个线程来处理 pose_node reload 等嵌套 service 调用的响应
     rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 2);
