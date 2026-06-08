@@ -216,7 +216,31 @@ void Tracker::build_outputs_with_slot_owner() {
 
             auto [stable_cls, stable_conf] = owner_track->bot_id.getStableClass();
 
-            // 已经绑定到这个 slot 之后，不要求每一帧 stable_cls 都等于 nominal class。
+            // ============================================================
+            // 身份漂移自检：
+            // 当 owner 的 stable_class 已成熟（conf >= slot_bind_min_conf），
+            // 且映射到的 slot 与当前占用的 slot 不一致时，主动释放当前槽位。
+            //
+            // 场景：Robot A 实际是 R1，但 BotIdentity 早期被误分类污染，
+            // 错误地绑定了 SLOT_RED_R2。后续分类纠正后 stable_cls 变成 R1，
+            // 此时应释放 SLOT_RED_R2，让 A 在 Phase 2 中竞争 SLOT_RED_R1，
+            // 同时真正的 R2 也能竞争 SLOT_RED_R2。
+            //
+            // BotIdentity 的指数平滑保证了 stable_cls 变化是持续的而非瞬态噪声，
+            // 因此用 slot_bind_min_conf（与首次绑定同一阈值）作为释放条件是安全的。
+            // ============================================================
+            if (stable_cls >= 0 && stable_conf >= params_.slot_bind_min_conf) {
+                int mapped_slot = slot_for(owner_track->team_id, stable_cls);
+                if (mapped_slot != slot_idx) {
+                    // 身份已漂移到其他槽位（或非 R1~S 类别），释放当前槽
+                    owner.track_id = -1;
+                    owner.lost_frames = 0;
+                    // 保留 last_world / has_last_world，用于 Phase 2 防瞬移
+                    continue;
+                }
+            }
+
+            // 已绑定后不要求每帧 stable_cls 都等于 nominal class。
             // 遮挡误识别时，仍然保持原 slot owner。
             int output_cls = results[slot_idx].class_id;
             float output_conf = owner.last_conf;
@@ -503,6 +527,39 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections) {
 
             if (matched) {
                 const auto& det = detections[c];
+
+                // ============================================================
+                // 身份切换保护：
+                // 当非 ACTIVE 的 track 被重新匹配到一个 class 不同的检测框时，
+                // 该 track 很可能已经切换到了不同的物理目标。
+                //
+                // 场景：Car A (R1) 旋转闪烁 → T1 进入 PREDICTED。
+                // Car B (R2) 驶入且位置靠近 T1 的 Kalman 预测位置 →
+                // 匈牙利匹配器仅凭物理距离将 T1 匹配给 Car B。
+                // 若不重置 BotIdentity，T1 的 R1 历史会污染 Car B 的身份，
+                // 导致地图上 Car B 的位置显示 R1。
+                //
+                // 修复：当 (1) track 之前不是 ACTIVE，
+                //       (2) track 有成熟的 stable_class，
+                //       (3) 检测的 class 与 stable_class 不一致时，
+                // 清空 BotIdentity 并释放已占用的 slot，
+                // 让 track 用新 class 重新积累身份证据。
+                // ============================================================
+                if (track.state != TrackState::ACTIVE) {
+                    auto [prev_stable_cls, prev_stable_conf] = track.bot_id.getStableClass();
+                    if (prev_stable_cls >= 0 &&
+                        prev_stable_conf >= params_.slot_bind_min_conf &&
+                        det.class_id != prev_stable_cls) {
+                        track.bot_id.reset();
+                        // 释放该 track 占据的 slot，避免以错误身份继续输出
+                        for (auto& owner : slot_owners_) {
+                            if (owner.track_id == track.track_id) {
+                                owner.track_id = -1;
+                                owner.lost_frames = 0;
+                            }
+                        }
+                    }
+                }
 
                 std::vector<float> box_meas = {
                     det.box.x + det.box.width  / 2.0f,
