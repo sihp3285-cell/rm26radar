@@ -146,17 +146,21 @@ private:
             }
 
             if (publish_debug_image_) {
-                frame.copyTo(debug_frame_);
-                drawDetect(debug_frame_, results, cfg_->model.classNames);
-
-                if (debug_frame_.cols > debug_output_max_width_) {
-                    const double debug_scale = static_cast<double>(debug_output_max_width_) /
-                                               static_cast<double>(debug_frame_.cols);
-                    const int target_height = static_cast<int>(debug_frame_.rows * debug_scale);
-                    cv::resize(debug_frame_, debug_output_frame_, cv::Size(debug_output_max_width_, target_height));
+                // 先 resize 再画框：避免 resize 插值把文字线条模糊
+                // 在缩小后的图上绘制也更快（像素量大幅减少）
+                double scale_x = 1.0, scale_y = 1.0;
+                if (frame.cols > debug_output_max_width_) {
+                    scale_x = static_cast<double>(debug_output_max_width_) / frame.cols;
+                    scale_y = scale_x;  // 等比缩放
+                    int target_h = static_cast<int>(frame.rows * scale_y);
+                    cv::resize(frame, debug_output_frame_, cv::Size(debug_output_max_width_, target_h));
                 } else {
-                    debug_output_frame_ = debug_frame_;
+                    // 必须 deep copy：frame 数据来自 cv_bridge::toCvShare（不拥有数据），
+                    // 回调结束后 ROS 消息销毁，数据即失效，浅拷贝会导致悬空指针
+                    frame.copyTo(debug_output_frame_);
                 }
+
+                drawDetect(debug_output_frame_, results, cfg_->model.classNames, scale_x, scale_y);
 
                 debug_cv_image_.header = msg->header;
                 debug_cv_image_.header.frame_id = "detected_frame";
@@ -234,7 +238,6 @@ private:
     std::chrono::steady_clock::time_point last_time_ = std::chrono::steady_clock::now();
     double fps_ = 0.0;
     cv::Mat detect_input_frame_;
-    cv::Mat debug_frame_;
     cv::Mat debug_output_frame_;
     cv_bridge::CvImage debug_cv_image_{std_msgs::msg::Header(), "bgr8"};
 };

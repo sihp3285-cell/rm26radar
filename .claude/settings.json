@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dmesg)",
+      "Bash(journalctl -xe --no-pager)",
+      "Read(//var/crash/**)",
+      "Read(//var/lib/systemd/coredump/**)",
+      "Read(//proc/sys/kernel/**)"
+    ]
+  }
+}
