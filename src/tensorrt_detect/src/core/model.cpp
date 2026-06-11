@@ -168,52 +168,103 @@ cv::Mat Model::preprocessSingle(const cv::Mat& frame, float& rx, float& ry)
 
 void Model::preprocessing(const cv::Mat &frame)
 {
-    int img_w = frame.cols;
-    int img_h = frame.rows;
+    if (frame.empty()) {
+        throw std::runtime_error("Model::preprocessing got empty frame");
+    }
 
-    float scale = std::min((float)this->input_w / img_w, (float)this->input_h / img_h);
-    int new_w = int(img_w * scale);
-    int new_h = int(img_h * scale);
+    cv::Mat input = frame;
 
-    this->rx = (float)img_w / new_w;
-    this->ry = (float)img_h / new_h;
+    // 确保是 3 通道 8-bit 图像
+    if (input.type() != CV_8UC3) {
+        if (input.type() == CV_8UC1) {
+            cv::cvtColor(input, input, cv::COLOR_GRAY2BGR);
+        } else if (input.type() == CV_8UC4) {
+            cv::cvtColor(input, input, cv::COLOR_BGRA2BGR);
+        } else {
+            throw std::runtime_error("Model::preprocessing only supports CV_8UC1/CV_8UC3/CV_8UC4 input");
+        }
+    }
 
-    size_t imgBytes = frame.step[0] * frame.rows;
+    // 关键：ROI 可能不是连续内存，必须 clone
+    if (!input.isContinuous()) {
+        input = input.clone();
+    }
+
+    int img_w = input.cols;
+    int img_h = input.rows;
+
+    float scale = std::min(
+        static_cast<float>(this->input_w) / img_w,
+        static_cast<float>(this->input_h) / img_h
+    );
+
+    int new_w = std::max(1, static_cast<int>(img_w * scale));
+    int new_h = std::max(1, static_cast<int>(img_h * scale));
+
+    this->rx = static_cast<float>(img_w) / new_w;
+    this->ry = static_cast<float>(img_h) / new_h;
+
+    const size_t imgBytes = input.total() * input.elemSize();
 
     // Ensure pinned CPU staging buffer for async DMA
     if (hInputCapacity_ < imgBytes) {
         if (hInputBuffer8U_) cudaFreeHost(hInputBuffer8U_);
         hInputBuffer8U_ = nullptr;
+
         cudaError_t err = cudaMallocHost(&hInputBuffer8U_, imgBytes);
         if (err != cudaSuccess) {
             hInputCapacity_ = 0;
-            throw std::runtime_error(std::string("cudaMallocHost hInputBuffer8U_ failed: ") + cudaGetErrorString(err));
+            throw std::runtime_error(
+                std::string("cudaMallocHost hInputBuffer8U_ failed: ") +
+                cudaGetErrorString(err)
+            );
         }
         hInputCapacity_ = imgBytes;
     }
 
-    memcpy(hInputBuffer8U_, frame.data, imgBytes);
+    memcpy(hInputBuffer8U_, input.data, imgBytes);
 
     // Ensure device-side raw image buffer
     if (gpuInputCapacity_ < imgBytes) {
+        if (inputTex_ != 0) {
+            cudaDestroyTextureObject(inputTex_);
+            inputTex_ = 0;
+        }
+
         if (gpuInputBuffer8U_) cudaFree(gpuInputBuffer8U_);
         gpuInputBuffer8U_ = nullptr;
+
         cudaError_t err = cudaMalloc(&gpuInputBuffer8U_, imgBytes);
         if (err != cudaSuccess) {
             gpuInputCapacity_ = 0;
-            throw std::runtime_error(std::string("cudaMalloc gpuInputBuffer8U_ failed: ") + cudaGetErrorString(err));
+            throw std::runtime_error(
+                std::string("cudaMalloc gpuInputBuffer8U_ failed: ") +
+                cudaGetErrorString(err)
+            );
         }
         gpuInputCapacity_ = imgBytes;
     }
 
-    // Async H2D from pinned memory
-    cudaMemcpyAsync(gpuInputBuffer8U_, hInputBuffer8U_, imgBytes, cudaMemcpyHostToDevice, this->stream);
+    cudaMemcpyAsync(
+        gpuInputBuffer8U_,
+        hInputBuffer8U_,
+        imgBytes,
+        cudaMemcpyHostToDevice,
+        this->stream
+    );
 
-    // Try texture-backed preprocessing; fall back to raw pointer kernel on failure
     bool useTex = false;
-    if (inputTex_ == 0 || texSrcW_ != img_w || texSrcH_ != img_h || texSrcStep_ != static_cast<int>(frame.step[0])) {
-        if (inputTex_ != 0) cudaDestroyTextureObject(inputTex_);
-        inputTex_ = 0;
+    const int inputStep = static_cast<int>(input.step[0]);
+
+    if (inputTex_ == 0 ||
+        texSrcW_ != img_w ||
+        texSrcH_ != img_h ||
+        texSrcStep_ != inputStep) {
+
+        if (inputTex_ != 0) {
+            cudaDestroyTextureObject(inputTex_);
+            inputTex_ = 0;
+        }
 
         cudaResourceDesc resDesc = {};
         resDesc.resType = cudaResourceTypePitch2D;
@@ -221,7 +272,7 @@ void Model::preprocessing(const cv::Mat &frame)
         resDesc.res.pitch2D.desc = cudaCreateChannelDesc(8, 8, 8, 0, cudaChannelFormatKindUnsigned);
         resDesc.res.pitch2D.width = img_w;
         resDesc.res.pitch2D.height = img_h;
-        resDesc.res.pitch2D.pitchInBytes = frame.step[0];
+        resDesc.res.pitch2D.pitchInBytes = inputStep;
 
         cudaTextureDesc texDesc = {};
         texDesc.addressMode[0] = cudaAddressModeClamp;
@@ -234,7 +285,7 @@ void Model::preprocessing(const cv::Mat &frame)
         if (texErr == cudaSuccess) {
             texSrcW_ = img_w;
             texSrcH_ = img_h;
-            texSrcStep_ = static_cast<int>(frame.step[0]);
+            texSrcStep_ = inputStep;
             useTex = true;
         }
     } else {
@@ -257,7 +308,7 @@ void Model::preprocessing(const cv::Mat &frame)
     } else {
         launch_preprocess(
             static_cast<const uint8_t*>(gpuInputBuffer8U_),
-            img_w, img_h, static_cast<int>(frame.step[0]),
+            img_w, img_h, inputStep,
             static_cast<float*>(buffers[0]),
             input_w, input_h,
             static_cast<float>(img_w) / new_w,

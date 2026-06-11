@@ -166,7 +166,7 @@ std::vector<Result> DetectPipeline::detectOutpost(const cv::Mat& frame) {
 
 
 void DetectPipeline::runClassify(const cv::Mat& frame, std::vector<Result>& detections) {
-    const cv::Rect imgBound(0, 0, frame.cols, frame.rows); // 定义边界
+    const cv::Rect imgBound(0, 0, frame.cols, frame.rows);
 
     for (auto& armor : detections) {
         if (armor.isDead) {
@@ -174,24 +174,27 @@ void DetectPipeline::runClassify(const cv::Mat& frame, std::vector<Result>& dete
             continue;
         }
 
-        cv::Rect safeBox = armor.box & imgBound; 
+        cv::Rect safeBox = armor.box & imgBound;
 
         if (safeBox.width <= 0 || safeBox.height <= 0) {
             continue;
         }
 
-        cv::Mat armorROI = frame(safeBox); // 现在这里绝对安全了
-        
-        int raw_id = classifyModel_.predictClass(armorROI); 
+        cv::Mat armorROI = frame(safeBox).clone();
+
+        if (armorROI.empty()) {
+            continue;
+        }
+
+        int raw_id = classifyModel_.predictClass(armorROI);
+
         if (raw_id == 4) {
-            armor.idx = 6; 
-        } 
-        else if (raw_id >= 0 && raw_id <= 3) {
-            armor.idx = raw_id + 2; 
+            armor.idx = 6;
+        } else if (raw_id >= 0 && raw_id <= 3) {
+            armor.idx = raw_id + 2;
         }
     }
 }
-
 
 std::vector<Result> DetectPipeline::runAirplaneDetect(const cv::Mat& frame) {
     if (!airplaneModel_) {
