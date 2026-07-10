@@ -1,1 +1,0 @@
-/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect_msgs/rosidl_typesupport_fastrtps_cpp/tensorrt_detect_msgs/msg/detail/detection_box__rosidl_typesupport_fastrtps_cpp.hpp

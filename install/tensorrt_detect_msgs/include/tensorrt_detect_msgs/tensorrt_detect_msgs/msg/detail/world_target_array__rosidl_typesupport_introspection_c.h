@@ -1,1 +1,0 @@
-/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect_msgs/rosidl_typesupport_introspection_c/tensorrt_detect_msgs/msg/detail/world_target_array__rosidl_typesupport_introspection_c.h

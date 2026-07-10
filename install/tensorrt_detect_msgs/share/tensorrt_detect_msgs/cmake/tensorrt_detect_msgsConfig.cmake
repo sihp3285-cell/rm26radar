@@ -1,1 +1,0 @@
-/home/delphine/rm/tensorrt10_detect/build/tensorrt_detect_msgs/ament_cmake_core/tensorrt_detect_msgsConfig.cmake

@@ -1,1 +1,0 @@
-/home/delphine/rm/tensorrt10_detect/src/tensorrt_detect/launch/detect_pipeline.launch.py
