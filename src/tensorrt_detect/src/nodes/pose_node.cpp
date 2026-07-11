@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <unordered_map>
 #include <algorithm>
+#include <cmath>
 
 #include "tensorrt_detect_msgs/msg/world_target.hpp"
 #include "tensorrt_detect_msgs/msg/world_target_array.hpp"
@@ -227,6 +228,26 @@ private:
         }
 
         try {
+            // 使用上游图像/检测消息的采集时间计算真实帧间隔，而不是回调到达时间。
+            // 首帧、零时间戳、时间倒退或异常大间隔均回退到 Kalman 默认 dt。
+            float tracker_dt = -1.0f;
+            const int64_t stamp_ns = rclcpp::Time(msg->header.stamp).nanoseconds();
+            if (stamp_ns > 0) {
+                if (last_detection_stamp_ns_ > 0) {
+                    const double dt_seconds =
+                        static_cast<double>(stamp_ns - last_detection_stamp_ns_) * 1e-9;
+                    if (std::isfinite(dt_seconds) && dt_seconds > 0.0 && dt_seconds <= 1.0) {
+                        tracker_dt = static_cast<float>(dt_seconds);
+                    } else {
+                        RCLCPP_WARN_THROTTLE(
+                            this->get_logger(), *this->get_clock(), 5000,
+                            "检测消息时间戳异常，dt=%.6f s，本帧使用 Kalman 默认 dt",
+                            dt_seconds);
+                    }
+                }
+                last_detection_stamp_ns_ = stamp_ns;
+            }
+
             // ---- 0. 批量预计算所有检测的世界坐标 ----
             std::vector<cv::Rect> boxes_for_raycast;
             boxes_for_raycast.reserve(msg->detections.size());
@@ -310,7 +331,7 @@ private:
             }
 
             // ---- 2. Tracker 更新（Kalman 平滑 + 固定槽位数据关联，不含 Outpost/死亡装甲板）----
-            tracker_.update(meas);
+            tracker_.update(meas, tracker_dt);
 
             // ---- 3. 固定槽位 + Outpost + 动态死亡装甲板 发布 ----
             auto world_msg = std::make_unique<tensorrt_detect_msgs::msg::WorldTargetArray>();
@@ -378,6 +399,7 @@ private:
     std::unique_ptr<PoseSolver> pose_solver_;
     Tracker tracker_;
     bool is_calibrated_ = false;
+    int64_t last_detection_stamp_ns_ = 0;
 
     std::string config_dir_;
     std::string input_topic_;

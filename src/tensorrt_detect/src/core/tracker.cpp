@@ -411,7 +411,7 @@ Tracker::SlotOutput Tracker::get_slot(int idx) const {
 // 核心更新：物理匹配优先，class 只做轻量软惩罚
 // ==========================================================
 
-void Tracker::update(const std::vector<WorldMeasurement>& detections) {
+void Tracker::update(const std::vector<WorldMeasurement>& detections, float dt) {
     const int n_cols = static_cast<int>(detections.size());
 
     // ------------------------------------------------------
@@ -426,7 +426,7 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections) {
             continue;  // 死亡车辆冻结
         }
 
-        auto box_pred = track.kf_box.predict();
+        auto box_pred = track.kf_box.predict(dt);
 
         track.last_box = cv::Rect(
             static_cast<int>(box_pred[0] - box_pred[2] / 2.0f),
@@ -435,7 +435,7 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections) {
             static_cast<int>(box_pred[3])
         );
 
-        auto world_pred = track.kf_world.predict();
+        auto world_pred = track.kf_world.predict(dt);
         track.last_world = cv::Point2f(world_pred[0], world_pred[1]);
     }
 
@@ -444,6 +444,9 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections) {
     // ------------------------------------------------------
     const int n_rows = static_cast<int>(tracks_.size());
     std::vector<bool> det_matched(n_cols, false);
+    // 已接近现有轨迹、但被 Kalman 创新门控拒绝的异常观测，不能在 Step 4
+    // 立即创建新轨迹，否则单帧误识别会产生幽灵 track。
+    std::vector<bool> det_suppressed(n_cols, false);
 
     if (n_rows > 0 && n_cols > 0) {
         radar_core::tracker::HungarianAlgorithm hungarian;
@@ -494,13 +497,15 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections) {
                     static_cast<float>(det.box.width),
                     static_cast<float>(det.box.height)
                 };
-                if (params_.kalman_gate_box > 0.0f &&
-                    track.kf_box.innovationSquared(box_meas) > params_.kalman_gate_box) {
-                    continue;
-                }
-                if (params_.kalman_gate_world > 0.0f &&
+                const bool box_gate_rejected =
+                    params_.kalman_gate_box > 0.0f &&
+                    track.kf_box.innovationSquared(box_meas) > params_.kalman_gate_box;
+                const bool world_gate_rejected =
+                    params_.kalman_gate_world > 0.0f &&
                     track.kf_world.innovationSquared({det.world.x, det.world.y}) >
-                        params_.kalman_gate_world) {
+                        params_.kalman_gate_world;
+                if (box_gate_rejected || world_gate_rejected) {
+                    det_suppressed[c] = true;
                     continue;
                 }
 
@@ -681,7 +686,7 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections) {
     // Step 4: 未匹配 detection 创建新 PhysicalTrack
     // ------------------------------------------------------
     for (int c = 0; c < n_cols; ++c) {
-        if (det_matched[c]) {
+        if (det_matched[c] || det_suppressed[c]) {
             continue;
         }
 

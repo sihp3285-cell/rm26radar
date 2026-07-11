@@ -93,8 +93,9 @@ public:
 
     explicit Tracker(const TrackerParams& params = TrackerParams());
 
-    // 输入新一帧观测，更新所有 track 状态，并在 update 末尾刷新 last_outputs_
-    void update(const std::vector<WorldMeasurement>& detections);
+    // 输入新一帧观测，更新所有 track 状态，并在 update 末尾刷新 last_outputs_。
+    // dt 使用 ROS 消息时间戳计算的真实帧间隔（秒）；<= 0 时滤波器使用默认值。
+    void update(const std::vector<WorldMeasurement>& detections, float dt = -1.0f);
 
     // 单个槽位的对外输出状态
     struct SlotOutput {
