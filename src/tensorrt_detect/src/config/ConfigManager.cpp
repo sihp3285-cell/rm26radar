@@ -164,6 +164,12 @@ void Config::loadModelConfig(const std::string& path) {
     model.minRoiSize  = cfg["minRoiSize"] ? cfg["minRoiSize"].as<int>() : 0;
     model.padRatio    = cfg["padRatio"] ? cfg["padRatio"].as<float>() : 0.0f;
     model.classIdxBase = cfg["classIdxBase"] ? cfg["classIdxBase"].as<int>() : 0;
+    model.multiCarRecognition = cfg["multi_car_recognition"]
+                                    ? cfg["multi_car_recognition"].as<bool>() : true;
+    model.armorCanvasPadding = cfg["armor_canvas_padding"]
+                                  ? std::max(0, cfg["armor_canvas_padding"].as<int>()) : 2;
+    model.maxArmorRois = cfg["max_armor_rois"]
+                            ? std::max(1, cfg["max_armor_rois"].as<int>()) : 4;
 
     model.classNames = parseClassNamesNode(cfg["classNames"]);
 

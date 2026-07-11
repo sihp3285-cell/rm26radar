@@ -56,6 +56,10 @@ struct ModelConfig {
     float padRatio = 0.0f;
     int classIdxBase = 0;
 
+    bool multiCarRecognition = true;
+    int armorCanvasPadding = 2;
+    int maxArmorRois = 4;
+
     std::vector<std::string> classNames;
 
     bool outpostEnabled = false;

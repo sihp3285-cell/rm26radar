@@ -47,3 +47,6 @@ classNames:
 minRoiSize: 30
 padRatio: 0.25
 classIdxBase: 2
+multi_car_recognition: false
+armor_canvas_padding: 2
+max_armor_rois: 4

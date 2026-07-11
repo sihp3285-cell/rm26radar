@@ -4,6 +4,7 @@
 #include "robot_id.hpp"
 #include <iostream>
 #include <cuda_runtime_api.h>
+#include <cmath>
 
 
 DetectPipeline::DetectPipeline(Config& cfg)
@@ -63,39 +64,88 @@ std::vector<Result> DetectPipeline::runArmorDetect(const cv::Mat& frame,
     std::vector<Result> armorResults;
     const cv::Rect imgBound(0, 0, frame.cols, frame.rows);
 
+    struct PackedRoi {
+        const Result* car;
+        cv::Rect source;
+        cv::Rect canvas;
+        float scale;
+    };
+
+    std::vector<PackedRoi> rois;
+    rois.reserve(detections.size());
     for (const auto& det : detections) {
         cv::Rect roi = det.box & imgBound;
-        if (roi.width < cfg_.model.minRoiSize || roi.height < cfg_.model.minRoiSize)
-            continue;
+        if (roi.width >= cfg_.model.minRoiSize && roi.height >= cfg_.model.minRoiSize)
+            rois.push_back(PackedRoi{&det, roi, {}, 1.0f});
+    }
 
-        if (!armorDetector_.Detect(frame(roi)))
-            continue;
+    const int batchSize = cfg_.model.multiCarRecognition
+                              ? std::max(1, cfg_.model.maxArmorRois) : 1;
+    for (size_t begin = 0; begin < rois.size(); begin += batchSize) {
+        const int count = std::min<int>(batchSize, rois.size() - begin);
+        const int cols = static_cast<int>(std::ceil(std::sqrt(count)));
+        const int rows = (count + cols - 1) / cols;
+        const int canvasSize = cfg_.model.imgSize2;
+        const int cellW = canvasSize / cols;
+        const int cellH = canvasSize / rows;
+        const int padding = cfg_.model.armorCanvasPadding;
+        cv::Mat canvas(canvasSize, canvasSize, CV_8UC3, cv::Scalar(114, 114, 114));
 
-        auto maxArmor = std::max_element(armorDetector_.detectResults.begin(),
-                                        armorDetector_.detectResults.end(),
-            [](const Result& a, const Result& b) {
-                return a.confidence < b.confidence;
-            });
-
-        Result armor = *maxArmor;
-        int raw_id = armor.idx;
-
-        armor.box.x += roi.x;
-        armor.box.y += roi.y;
-        armor.car_box = det.box;
-
-        constexpr int DEAD_ARMOR_ID = 0;
-        armor.idx = robot_id::ARMOR;
-        armor.isDead = (raw_id == DEAD_ARMOR_ID);
-        if (armor.isDead) {
-            armor.armorColor = robot_id::UNKNOWN;
-        } else {
-            armor.armorColor = raw_id;
+        for (int i = 0; i < count; ++i) {
+            auto& packed = rois[begin + i];
+            // 单 ROI 保持原实现的左上角 letterbox 布局，关闭拼接时行为不变。
+            const int tilePadding = count == 1 ? 0 : padding;
+            const int availableW = std::max(1, cellW - 2 * tilePadding);
+            const int availableH = std::max(1, cellH - 2 * tilePadding);
+            packed.scale = std::min(static_cast<float>(availableW) / packed.source.width,
+                                    static_cast<float>(availableH) / packed.source.height);
+            const int resizedW = std::max(1, static_cast<int>(packed.source.width * packed.scale));
+            const int resizedH = std::max(1, static_cast<int>(packed.source.height * packed.scale));
+            const int cellX = (i % cols) * cellW;
+            const int cellY = (i / cols) * cellH;
+            packed.canvas = cv::Rect(count == 1 ? 0 : cellX + (cellW - resizedW) / 2,
+                                     count == 1 ? 0 : cellY + (cellH - resizedH) / 2,
+                                     resizedW, resizedH);
+            cv::resize(frame(packed.source), canvas(packed.canvas), packed.canvas.size());
         }
 
-        armor.worldPoint = cv::Point2f(det.box.x + det.box.width  / 2.0f,
-                                       det.box.y + det.box.height / 2.0f);
-        armorResults.push_back(armor);
+        if (!armorDetector_.Detect(canvas))
+            continue;
+
+        std::vector<const Result*> best(count, nullptr);
+        for (const auto& candidate : armorDetector_.detectResults) {
+            const cv::Point center(candidate.box.x + candidate.box.width / 2,
+                                   candidate.box.y + candidate.box.height / 2);
+            for (int i = 0; i < count; ++i) {
+                const auto& packed = rois[begin + i];
+                if (packed.canvas.contains(center) &&
+                    (!best[i] || candidate.confidence > best[i]->confidence)) {
+                    best[i] = &candidate;
+                    break;
+                }
+            }
+        }
+
+        for (int i = 0; i < count; ++i) {
+            if (!best[i]) continue;
+            const auto& packed = rois[begin + i];
+            Result armor = *best[i];
+            const int raw_id = armor.idx;
+            armor.box.x = packed.source.x +
+                          static_cast<int>((armor.box.x - packed.canvas.x) / packed.scale);
+            armor.box.y = packed.source.y +
+                          static_cast<int>((armor.box.y - packed.canvas.y) / packed.scale);
+            armor.box.width = static_cast<int>(armor.box.width / packed.scale);
+            armor.box.height = static_cast<int>(armor.box.height / packed.scale);
+            armor.box &= imgBound;
+            armor.car_box = packed.car->box;
+            armor.idx = robot_id::ARMOR;
+            armor.isDead = (raw_id == 0);
+            armor.armorColor = armor.isDead ? robot_id::UNKNOWN : raw_id;
+            armor.worldPoint = cv::Point2f(packed.car->box.x + packed.car->box.width / 2.0f,
+                                           packed.car->box.y + packed.car->box.height / 2.0f);
+            armorResults.push_back(armor);
+        }
     }
 
     lastArmorDetectMs_ = elapsedMs(t0, std::chrono::steady_clock::now());
