@@ -485,7 +485,26 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections) {
                     }
                 }
 
-                // 3. 归一化物理代价
+                // 3. Kalman 创新门控：使用当前预测协方差自适应调整 gate。
+                // 相比固定距离阈值，预测越不确定时允许的空间范围越大，
+                // 稳定跟踪时则会更严格地拒绝离群观测。
+                const std::vector<float> box_meas = {
+                    det.box.x + det.box.width / 2.0f,
+                    det.box.y + det.box.height / 2.0f,
+                    static_cast<float>(det.box.width),
+                    static_cast<float>(det.box.height)
+                };
+                if (params_.kalman_gate_box > 0.0f &&
+                    track.kf_box.innovationSquared(box_meas) > params_.kalman_gate_box) {
+                    continue;
+                }
+                if (params_.kalman_gate_world > 0.0f &&
+                    track.kf_world.innovationSquared({det.world.x, det.world.y}) >
+                        params_.kalman_gate_world) {
+                    continue;
+                }
+
+                // 4. 归一化物理代价
                 float box_norm = d_box / std::max(params_.max_gate_box, 1.0f);
 
                 float world_norm = 0.0f;
@@ -496,7 +515,7 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections) {
                 float cost = params_.w_box * box_norm
                            + params_.w_world * world_norm;
 
-                // 4. class 只做轻量软惩罚，不参与 gate
+                // 5. class 只做轻量软惩罚，不参与 gate
                 if (track_stable_cls >= 0 && det.class_id != track_stable_cls) {
                     cost += params_.class_mismatch_penalty;
                 }
@@ -579,7 +598,8 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections) {
                     track.last_world = det.world;
                     track.detected_world = det.world;
                 } else {
-                    auto box_upd = track.kf_box.update(box_meas);
+                    auto box_upd = track.kf_box.update(
+                        box_meas, params_.kalman_gate_box);
 
                     track.last_box = cv::Rect(
                         static_cast<int>(box_upd[0] - box_upd[2] / 2.0f),
@@ -588,7 +608,8 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections) {
                         static_cast<int>(box_upd[3])
                     );
 
-                    auto world_upd = track.kf_world.update({det.world.x, det.world.y});
+                    auto world_upd = track.kf_world.update(
+                        {det.world.x, det.world.y}, params_.kalman_gate_world);
                     track.last_world = cv::Point2f(world_upd[0], world_upd[1]);
 
                     track.detected_world = det.world;

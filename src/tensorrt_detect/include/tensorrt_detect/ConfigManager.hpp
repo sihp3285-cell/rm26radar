@@ -101,6 +101,8 @@ struct TrackerConfig {
     // ========== 物理匹配 gate ==========
     float maxGateBox = 300.0f;
     float maxGateWorld = 2.5f;
+    float kalmanGateBox = 18.467f;
+    float kalmanGateWorld = 13.816f;
 
     // ========== Hungarian 匹配代价 ==========
     float wBox = 1.0f;

@@ -28,7 +28,16 @@ public:
      * @param bbox 测量的边界框 [cx, cy, w, h]
      * @return 更新后的位置 [cx, cy, w, h]
      */
-    std::vector<float> update(const std::vector<float>& bbox);
+    std::vector<float> update(
+        const std::vector<float>& bbox,
+        float gate_threshold = -1.0f,
+        bool* accepted = nullptr);
+
+    /**
+     * 计算测量创新的 NIS（平方马氏距离）。
+     * 可直接用于卡方门控；无效测量返回 infinity。
+     */
+    float innovationSquared(const std::vector<float>& bbox) const;
     
     /**
      * 重置滤波器
@@ -81,7 +90,16 @@ public:
      * @param pos 测量的位置 [x, y]
      * @return 更新后的位置 [x, y]
      */
-    std::vector<float> update(const std::vector<float>& pos);
+    std::vector<float> update(
+        const std::vector<float>& pos,
+        float gate_threshold = -1.0f,
+        bool* accepted = nullptr);
+
+    /**
+     * 计算测量创新的 NIS（平方马氏距离）。
+     * 可直接用于卡方门控；无效测量返回 infinity。
+     */
+    float innovationSquared(const std::vector<float>& pos) const;
     
     /**
      * 重置滤波器
@@ -112,4 +130,3 @@ public:
 private:
     float dt_, q_std_, r_std_;
 };
-

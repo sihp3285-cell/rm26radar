@@ -35,6 +35,11 @@ struct TrackerParams {
     // 如果 world 是米制坐标，可先尝试 2.0~3.0；如果暂时不用，设为 <= 0。
     float max_gate_world = 2.5f;
 
+    // Kalman 创新 NIS 门控阈值（卡方分布）。box 为 4 维，world 为 2 维；
+    // 默认值对应约 99.9% 置信区间，<= 0 可关闭对应门控。
+    float kalman_gate_box = 18.467f;
+    float kalman_gate_world = 13.816f;
+
     // ========== Hungarian 匹配代价 ==========
     // 新版建议使用归一化代价：
     // cost = w_box * box_norm + w_world * world_norm + class_penalty

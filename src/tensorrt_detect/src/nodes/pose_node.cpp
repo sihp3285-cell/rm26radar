@@ -52,6 +52,8 @@ public:
         // 物理匹配 gate
         tp.max_gate_box = cfg_->tracker.maxGateBox;
         tp.max_gate_world = cfg_->tracker.maxGateWorld;
+        tp.kalman_gate_box = cfg_->tracker.kalmanGateBox;
+        tp.kalman_gate_world = cfg_->tracker.kalmanGateWorld;
         // Hungarian 匹配代价
         tp.w_box = cfg_->tracker.wBox;
         tp.w_world = cfg_->tracker.wWorld;
@@ -69,10 +71,10 @@ public:
         tracker_ = Tracker(tp);
         RCLCPP_INFO(this->get_logger(),
             "Tracker 参数: max_miss=%d max_predict=%d min_hit=%d max_tracks=%d | "
-            "gate: box=%.1f world=%.2f | cost: w_box=%.2f w_world=%.2f class_pen=%.3f | "
+            "gate: box=%.1f world=%.2f kalman_box=%.3f kalman_world=%.3f | cost: w_box=%.2f w_world=%.2f class_pen=%.3f | "
             "slot: bind=%.2f takeover=%d release=%d jump=%.2f",
             tp.max_miss, tp.max_predict, tp.min_hit, tp.max_tracks,
-            tp.max_gate_box, tp.max_gate_world,
+            tp.max_gate_box, tp.max_gate_world, tp.kalman_gate_box, tp.kalman_gate_world,
             tp.w_box, tp.w_world, tp.class_mismatch_penalty,
             tp.slot_bind_min_conf, tp.slot_takeover_miss, tp.slot_release_miss, tp.max_slot_jump_dist);
         RCLCPP_INFO(this->get_logger(),

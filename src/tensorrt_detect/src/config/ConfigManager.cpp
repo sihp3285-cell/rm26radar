@@ -216,6 +216,8 @@ void Config::loadTrackerConfig(const std::string& path) {
     // ========== 物理匹配 gate ==========
     tracker.maxGateBox = cfg["max_gate_box"] ? cfg["max_gate_box"].as<float>() : 300.0f;
     tracker.maxGateWorld = cfg["max_gate_world"] ? cfg["max_gate_world"].as<float>() : 2.5f;
+    tracker.kalmanGateBox = cfg["kalman_gate_box"] ? cfg["kalman_gate_box"].as<float>() : 18.467f;
+    tracker.kalmanGateWorld = cfg["kalman_gate_world"] ? cfg["kalman_gate_world"].as<float>() : 13.816f;
 
     // ========== Hungarian 匹配代价 ==========
     tracker.wBox = cfg["w_box"] ? cfg["w_box"].as<float>() : 1.0f;

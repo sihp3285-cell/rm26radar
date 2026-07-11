@@ -12,6 +12,11 @@ max_tracks: 20                    # 最大同时跟踪的 PhysicalTrack 数量
 max_gate_box: 1500.0              # 像素框中心距离门限（匈牙利匹配代价矩阵门限）
 max_gate_world: 6.0                # 世界坐标 gate（米），<= 0 则禁用
 
+# Kalman 创新 NIS（平方马氏距离）门控；阈值来自卡方分布，<= 0 则禁用
+# 默认采用约 99.9% 置信区间：box 4 自由度，world 2 自由度
+kalman_gate_box: -1.0
+kalman_gate_world: 30.0
+
 # ========== Hungarian 匹配代价 ==========
 # cost = w_box * (d_box / max_gate_box) + w_world * (d_world / max_gate_world) + class_penalty
 w_box: 1.0                        # 像素框归一化距离权重

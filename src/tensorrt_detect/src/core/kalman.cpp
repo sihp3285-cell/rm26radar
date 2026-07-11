@@ -1,5 +1,6 @@
 #include "kalman.hpp"
 #include <cmath>
+#include <limits>
 
 // ==========================================
 // KalmanFilterBox (对应像素框) - 8维固定大小矩阵
@@ -57,21 +58,57 @@ std::vector<float> KalmanFilterBox::predict(float dt) {
     return {x(0), x(1), x(2), x(3)};
 }
 
-std::vector<float> KalmanFilterBox::update(const std::vector<float>& bbox) {
-    // 港科大防跳变逻辑: Detect jumping (5K分辨率下使用100像素阈值)
-    if (std::abs(x(0) - bbox[0]) > 100.0f || std::abs(x(1) - bbox[1]) > 100.0f) {
-        reset(bbox);
-        return bbox;
+float KalmanFilterBox::innovationSquared(const std::vector<float>& bbox) const {
+    if (bbox.size() != 4) {
+        return std::numeric_limits<float>::infinity();
     }
-    
+
     Eigen::Matrix<float, 4, 1> z;
     z << bbox[0], bbox[1], bbox[2], bbox[3];
-    
+    if (!z.allFinite()) {
+        return std::numeric_limits<float>::infinity();
+    }
+
+    const Eigen::Matrix<float, 4, 1> innovation = z - H * x;
+    const Eigen::Matrix<float, 4, 4> S = H * P * H.transpose() + R;
+    const Eigen::LDLT<Eigen::Matrix<float, 4, 4>> ldlt(S);
+    if (ldlt.info() != Eigen::Success) {
+        return std::numeric_limits<float>::infinity();
+    }
+
+    const Eigen::Matrix<float, 4, 1> normalized = ldlt.solve(innovation);
+    if (ldlt.info() != Eigen::Success || !normalized.allFinite()) {
+        return std::numeric_limits<float>::infinity();
+    }
+    return std::max(0.0f, innovation.dot(normalized));
+}
+
+std::vector<float> KalmanFilterBox::update(
+    const std::vector<float>& bbox, float gate_threshold, bool* accepted) {
+    const float nis = innovationSquared(bbox);
+    const bool measurement_accepted = std::isfinite(nis) &&
+        (gate_threshold <= 0.0f || nis <= gate_threshold);
+    if (accepted != nullptr) {
+        *accepted = measurement_accepted;
+    }
+    if (!measurement_accepted) {
+        return {x(0), x(1), x(2), x(3)};
+    }
+
+    Eigen::Matrix<float, 4, 1> z;
+    z << bbox[0], bbox[1], bbox[2], bbox[3];
+
     Eigen::Matrix<float, 4, 4> S = H * P * H.transpose() + R;
-    Eigen::Matrix<float, 8, 4> K = P * H.transpose() * S.inverse();
-    
-    x = x + K * (z - H * x);
-    P = (Eigen::Matrix<float, 8, 8>::Identity() - K * H) * P;
+    Eigen::LDLT<Eigen::Matrix<float, 4, 4>> ldlt(S);
+    const Eigen::Matrix<float, 8, 4> K =
+        ldlt.solve((H * P).eval()).transpose();
+
+    x += K * (z - H * x);
+    // Joseph 形式比 (I-KH)P 更能保持协方差的对称性和半正定性。
+    const Eigen::Matrix<float, 8, 8> I_KH =
+        Eigen::Matrix<float, 8, 8>::Identity() - K * H;
+    P = I_KH * P * I_KH.transpose() + K * R * K.transpose();
+    P = 0.5f * (P + P.transpose()).eval();
     
     return {x(0), x(1), x(2), x(3)};
 }
@@ -135,22 +172,56 @@ std::vector<float> KalmanFilter2d::predict(float dt) {
     return {x(0), x(1)};
 }
 
-std::vector<float> KalmanFilter2d::update(const std::vector<float>& pos) {
-    // 【保守策略】防跳变：测量与预测偏差超过 5 米直接重置，以识别为准
-    float jump_dist = std::hypot(x(0) - pos[0], x(1) - pos[1]);
-    if (jump_dist > 5.0f) {
-        reset(pos);
-        return pos;
+float KalmanFilter2d::innovationSquared(const std::vector<float>& pos) const {
+    if (pos.size() < 2) {
+        return std::numeric_limits<float>::infinity();
     }
 
     Eigen::Matrix<float, 2, 1> z;
     z << pos[0], pos[1];
-    
+    if (!z.allFinite()) {
+        return std::numeric_limits<float>::infinity();
+    }
+
+    const Eigen::Matrix<float, 2, 1> innovation = z - H * x;
+    const Eigen::Matrix<float, 2, 2> S = H * P * H.transpose() + R;
+    const Eigen::LDLT<Eigen::Matrix<float, 2, 2>> ldlt(S);
+    if (ldlt.info() != Eigen::Success) {
+        return std::numeric_limits<float>::infinity();
+    }
+
+    const Eigen::Matrix<float, 2, 1> normalized = ldlt.solve(innovation);
+    if (ldlt.info() != Eigen::Success || !normalized.allFinite()) {
+        return std::numeric_limits<float>::infinity();
+    }
+    return std::max(0.0f, innovation.dot(normalized));
+}
+
+std::vector<float> KalmanFilter2d::update(
+    const std::vector<float>& pos, float gate_threshold, bool* accepted) {
+    const float nis = innovationSquared(pos);
+    const bool measurement_accepted = std::isfinite(nis) &&
+        (gate_threshold <= 0.0f || nis <= gate_threshold);
+    if (accepted != nullptr) {
+        *accepted = measurement_accepted;
+    }
+    if (!measurement_accepted) {
+        return {x(0), x(1)};
+    }
+
+    Eigen::Matrix<float, 2, 1> z;
+    z << pos[0], pos[1];
+
     Eigen::Matrix<float, 2, 2> S = H * P * H.transpose() + R;
-    Eigen::Matrix<float, 4, 2> K = P * H.transpose() * S.inverse();
-    
-    x = x + K * (z - H * x);
-    P = (Eigen::Matrix<float, 4, 4>::Identity() - K * H) * P;
+    Eigen::LDLT<Eigen::Matrix<float, 2, 2>> ldlt(S);
+    const Eigen::Matrix<float, 4, 2> K =
+        ldlt.solve((H * P).eval()).transpose();
+
+    x += K * (z - H * x);
+    const Eigen::Matrix<float, 4, 4> I_KH =
+        Eigen::Matrix<float, 4, 4>::Identity() - K * H;
+    P = I_KH * P * I_KH.transpose() + K * R * K.transpose();
+    P = 0.5f * (P + P.transpose()).eval();
     return {x(0), x(1)};
 }
 
@@ -171,5 +242,4 @@ std::vector<float> KalmanFilter2d::get_position() const {
 std::vector<float> KalmanFilter2d::get_velocity() const {
     return {x(2), x(3)};
 }
-
 
