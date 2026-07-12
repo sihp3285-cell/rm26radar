@@ -55,6 +55,8 @@ public:
         tp.max_gate_world = cfg_->tracker.maxGateWorld;
         tp.kalman_gate_box = cfg_->tracker.kalmanGateBox;
         tp.kalman_gate_world = cfg_->tracker.kalmanGateWorld;
+        tp.negative_gate_box = cfg_->tracker.negativeGateBox;
+        tp.negative_gate_world = cfg_->tracker.negativeGateWorld;
         // Hungarian 匹配代价
         tp.w_box = cfg_->tracker.wBox;
         tp.w_world = cfg_->tracker.wWorld;
@@ -72,10 +74,11 @@ public:
         tracker_ = Tracker(tp);
         RCLCPP_INFO(this->get_logger(),
             "Tracker 参数: max_miss=%d max_predict=%d min_hit=%d max_tracks=%d | "
-            "gate: box=%.1f world=%.2f kalman_box=%.3f kalman_world=%.3f | cost: w_box=%.2f w_world=%.2f class_pen=%.3f | "
+            "gate: box=%.1f world=%.2f kalman_box=%.3f kalman_world=%.3f negative_box=%.1f negative_world=%.2f | cost: w_box=%.2f w_world=%.2f class_pen=%.3f | "
             "slot: bind=%.2f takeover=%d release=%d jump=%.2f",
             tp.max_miss, tp.max_predict, tp.min_hit, tp.max_tracks,
             tp.max_gate_box, tp.max_gate_world, tp.kalman_gate_box, tp.kalman_gate_world,
+            tp.negative_gate_box, tp.negative_gate_world,
             tp.w_box, tp.w_world, tp.class_mismatch_penalty,
             tp.slot_bind_min_conf, tp.slot_takeover_miss, tp.slot_release_miss, tp.max_slot_jump_dist);
         RCLCPP_INFO(this->get_logger(),
@@ -267,7 +270,7 @@ private:
 
             // ---- 1. 解算所有检测的世界坐标，构建观测输入 ----
             // Outpost 不走 Tracker，直接透传
-            // 死亡装甲板（ARMOR + is_dead）不走固定槽位，动态追加
+            // 死亡装甲板（ARMOR + is_dead）作为 Tracker 负观测，同时动态追加死亡点
             // 正常装甲板（R1~S）进入固定槽位跟踪
             std::vector<WorldMeasurement> meas;
             meas.reserve(msg->detections.size());
@@ -298,7 +301,7 @@ private:
                     continue;
                 }
 
-                // 死亡装甲板动态追加，不走固定槽位（固定槽位没有 ARMOR 类别）
+                // 死亡装甲板仍动态发布，同时作为负观测传入 Tracker。
                 if (det.idx == robot_id::ARMOR && det.is_dead) {
                     tensorrt_detect_msgs::msg::WorldTarget t;
                     t.idx      = 11 + static_cast<int>(dead_targets.size());
@@ -317,6 +320,16 @@ private:
                     t.stable_class_id  = -1;
                     t.stable_class_conf = 0.0f;
                     dead_targets.push_back(t);
+
+                    WorldMeasurement negative;
+                    negative.class_id = robot_id::ARMOR;
+                    negative.team_id = robot_id::UNKNOWN;
+                    negative.score = det.confidence;
+                    negative.is_dead = true;
+                    negative.is_negative = true;
+                    negative.box = cv::Rect(det.x, det.y, det.width, det.height);
+                    negative.world = world_pos;
+                    meas.push_back(negative);
                     continue;
                 }
 
@@ -330,7 +343,7 @@ private:
                 meas.push_back(m);
             }
 
-            // ---- 2. Tracker 更新（Kalman 平滑 + 固定槽位数据关联，不含 Outpost/死亡装甲板）----
+            // ---- 2. Tracker 更新（正常观测 + 死亡装甲板负观测；不含 Outpost）----
             tracker_.update(meas, tracker_dt);
 
             // ---- 3. 固定槽位 + Outpost + 动态死亡装甲板 发布 ----

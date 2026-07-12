@@ -17,6 +17,11 @@ max_gate_world: 6.0                # 世界坐标 gate（米），<= 0 则禁用
 kalman_gate_box: -1.0
 kalman_gate_world: 30.0
 
+# 死亡装甲板负观测抑制邻域；启用项需同时满足，避免误伤相邻活车
+# 某项 <= 0 可禁用该维度，两项都禁用则关闭负观测抑制
+negative_gate_box: 200.0          # 像素框中心距离（像素）
+negative_gate_world: 1.0          # 世界坐标距离（米）
+
 # ========== Hungarian 匹配代价 ==========
 # cost = w_box * (d_box / max_gate_box) + w_world * (d_world / max_gate_world) + class_penalty
 w_box: 1.0                        # 像素框归一化距离权重

@@ -212,6 +212,7 @@ void Tracker::build_outputs_with_slot_owner() {
 
         // owner 仍然可以输出：ACTIVE / PREDICTED
         if (is_output_state(owner_track->state) &&
+            !owner_track->negative_suppressed &&
             owner_track->hit_count >= params_.min_hit) {
 
             auto [stable_cls, stable_conf] = owner_track->bot_id.getStableClass();
@@ -282,6 +283,10 @@ void Tracker::build_outputs_with_slot_owner() {
         const auto& track = tracks_[i];
 
         if (!is_output_state(track.state)) {
+            continue;
+        }
+
+        if (track.negative_suppressed) {
             continue;
         }
 
@@ -418,6 +423,8 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections, float dt) 
     // Step 1: Kalman predict
     // ------------------------------------------------------
     for (auto& track : tracks_) {
+        track.negative_suppressed = false;
+
         if (!track.initialized || track.state == TrackState::DEAD) {
             continue;
         }
@@ -448,6 +455,53 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections, float dt) 
     // 立即创建新轨迹，否则单帧误识别会产生幽灵 track。
     std::vector<bool> det_suppressed(n_cols, false);
 
+    // 负观测的 box/world gate 是“启用项同时满足”。这样死亡点与相邻活车
+    // 仅在单一坐标域接近时，不会轻易抑制活车身份。
+    const auto is_near_negative = [this](
+        const cv::Rect& box,
+        const cv::Point2f& world,
+        const WorldMeasurement& negative) {
+        bool enabled = false;
+        bool inside = true;
+
+        if (params_.negative_gate_box > 0.0f) {
+            enabled = true;
+            inside = inside &&
+                box_center_distance(box, negative.box) <= params_.negative_gate_box;
+        }
+        if (params_.negative_gate_world > 0.0f) {
+            enabled = true;
+            inside = inside &&
+                point_distance(world, negative.world) <= params_.negative_gate_world;
+        }
+        return enabled && inside;
+    };
+
+    // 负观测本身永远不参与关联/建轨；同时抑制其邻域内可能由死亡车辆
+    // 短暂误分类产生的正观测，以及已有轨迹的当帧身份输出。
+    for (int negative_idx = 0; negative_idx < n_cols; ++negative_idx) {
+        const auto& negative = detections[negative_idx];
+        if (!negative.is_negative) {
+            continue;
+        }
+
+        det_suppressed[negative_idx] = true;
+
+        for (int c = 0; c < n_cols; ++c) {
+            if (!detections[c].is_negative &&
+                is_near_negative(detections[c].box, detections[c].world, negative)) {
+                det_suppressed[c] = true;
+            }
+        }
+
+        for (auto& track : tracks_) {
+            if (track.initialized && track.state != TrackState::DEAD &&
+                is_near_negative(track.last_box, track.last_world, negative)) {
+                track.negative_suppressed = true;
+            }
+        }
+    }
+
     if (n_rows > 0 && n_cols > 0) {
         radar_core::tracker::HungarianAlgorithm hungarian;
 
@@ -467,6 +521,10 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections, float dt) 
 
             for (int c = 0; c < n_cols; ++c) {
                 const auto& det = detections[c];
+
+                if (det_suppressed[c]) {
+                    continue;
+                }
 
                 // 队伍不同，硬过滤
                 if (det.team_id != track.team_id) {

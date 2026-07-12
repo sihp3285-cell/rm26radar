@@ -7,7 +7,7 @@
 # ─────────────────────────────────────────────
 video_node:
   ros__parameters:
-    video_path: "/home/delphine/rm/car_project/test/06.mp4"
+    video_path: "/home/delphine/rm/car_project/test/07.mp4"
     topic_name: "/image_raw"
     fps: 20
 
@@ -63,6 +63,8 @@ pose_node:
     # max_gate_world: 2.5            # 世界坐标 gate（米），<= 0 则禁用
     # kalman_gate_box: 18.467        # 4维 box 创新 NIS 门限（约 99.9%）
     # kalman_gate_world: 13.816      # 2维 world 创新 NIS 门限（约 99.9%）
+    # negative_gate_box: 200.0       # 死亡负观测像素中心抑制距离
+    # negative_gate_world: 1.0       # 死亡负观测世界坐标抑制距离（米）
     # w_box: 1.0                     # 像素框归一化距离权重
     # w_world: 1.0                   # 世界坐标归一化距离权重
     # class_mismatch_penalty: 0.25   # 跨兵种匹配惩罚（归一化代价，推荐 0.1~0.5）

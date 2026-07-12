@@ -40,6 +40,11 @@ struct TrackerParams {
     float kalman_gate_box = 18.467f;
     float kalman_gate_world = 13.816f;
 
+    // 死亡装甲板负观测的邻域。启用的维度必须同时满足，避免抑制相邻活车；
+    // 对应值 <= 0 时禁用该维度，两个都禁用则关闭负观测抑制。
+    float negative_gate_box = 200.0f;
+    float negative_gate_world = 1.0f;
+
     // ========== Hungarian 匹配代价 ==========
     // 新版建议使用归一化代价：
     // cost = w_box * box_norm + w_world * world_norm + class_penalty
@@ -145,6 +150,7 @@ private:
 
         TrackState state = TrackState::DEAD;
         bool initialized = false;        // Kalman 是否已初始化
+        bool negative_suppressed = false; // 本帧命中死亡负观测，不输出身份
 
         KalmanFilterBox kf_box;          // 8维 [cx, cy, w, h, vx, vy, vw, vh]
         KalmanFilter2d kf_world;         // 4维 [x, z, vx, vz]

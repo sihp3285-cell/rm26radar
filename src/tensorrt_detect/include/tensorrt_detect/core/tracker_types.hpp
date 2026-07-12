@@ -23,6 +23,11 @@ struct WorldMeasurement {
     float score = 0.0f;
 
     bool is_dead = false;
+
+    // 负观测只用于抑制附近的正观测与轨迹输出，不参与 Kalman 修正、
+    // BotIdentity 投票或新轨迹创建。当前由死亡 ARMOR 观测设置。
+    bool is_negative = false;
+
     cv::Rect box;          // 像素框 [x, y, w, h]
     cv::Point2f world;     // world.x = world_x, world.y = world_z，world_y 始终为 0
 

@@ -103,6 +103,8 @@ struct TrackerConfig {
     float maxGateWorld = 2.5f;
     float kalmanGateBox = 18.467f;
     float kalmanGateWorld = 13.816f;
+    float negativeGateBox = 200.0f;
+    float negativeGateWorld = 1.0f;
 
     // ========== Hungarian 匹配代价 ==========
     float wBox = 1.0f;
