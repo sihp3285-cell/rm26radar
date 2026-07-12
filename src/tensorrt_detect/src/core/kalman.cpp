@@ -9,7 +9,9 @@ KalmanFilterBox::KalmanFilterBox(float dt, float q_std, float r_std)
     : dt_(dt), q_std_(q_std), r_std_(r_std)
 {
     x.setZero();
+    // 初始协方差较大，表示初始状态不确定，需要通过观测来更新
     P = Eigen::Matrix<float, 8, 8>::Identity() * 100.0f;
+    // 状态转移矩阵：只考虑位置和速度
     F = Eigen::Matrix<float, 8, 8>::Identity();
     // 位置 += 速度 * dt
     for(int i=0; i<4; i++) F(i, i+4) = dt;
@@ -148,7 +150,7 @@ KalmanFilter2d::KalmanFilter2d(float q_std, float r_std, float dt)
 
     R = Eigen::Matrix<float, 2, 2>::Identity() * (r_std * r_std);
     Q.setZero();
-    
+      
     reset();
 }
 

@@ -153,7 +153,8 @@ private:
         }
 
         auto guard = [this](bool*) { is_calibrating_ = false; };
-        std::unique_ptr<bool, decltype(guard)> scope_guard(nullptr, guard);
+        bool guard_token = false;
+        std::unique_ptr<bool, decltype(guard)> scope_guard(&guard_token, guard);
 
         RCLCPP_INFO(this->get_logger(), "开始标定流程，尝试捕获图像...");
 

@@ -343,6 +343,16 @@ private:
                 meas.push_back(m);
             }
 
+            // 死亡装甲板不进入 Tracker；短暂漏检时保留最近结果，避免地图单帧闪烁。
+            if (!dead_targets.empty()) {
+                cached_dead_targets_ = dead_targets;
+                dead_targets_miss_frames_ = 0;
+            } else if (!cached_dead_targets_.empty() && dead_targets_miss_frames_++ < 2) {
+                dead_targets = cached_dead_targets_;
+            } else {
+                cached_dead_targets_.clear();
+            }
+
             // ---- 2. Tracker 更新（正常观测 + 死亡装甲板负观测；不含 Outpost）----
             tracker_.update(meas, tracker_dt);
 
@@ -413,6 +423,8 @@ private:
     Tracker tracker_;
     bool is_calibrated_ = false;
     int64_t last_detection_stamp_ns_ = 0;
+    std::vector<tensorrt_detect_msgs::msg::WorldTarget> cached_dead_targets_;
+    int dead_targets_miss_frames_ = 0;
 
     std::string config_dir_;
     std::string input_topic_;
