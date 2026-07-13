@@ -121,23 +121,51 @@ bool Tracker::is_output_state(TrackState state) const {
     return state == TrackState::ACTIVE || state == TrackState::PREDICTED;
 }
 
-// owner 是否还应该被保护。
-// 只要 owner track 还存在，且没有丢失太久，就不允许其他 track 抢这个槽。
-bool Tracker::is_owner_protected(const SlotOwner& owner) const {
-    if (owner.track_id < 0) {
-        return false;
+void Tracker::reserve_owner(SlotOwner& owner) {
+    if (owner.state == SlotOwnerState::OWNED) {
+        owner.state = SlotOwnerState::RESERVED;
+        owner.lease_frames = params_.slot_lease_frames;
+    }
+}
+
+void Tracker::update_identity_state(
+    PhysicalTrack& track,
+    const WorldMeasurement& detection) {
+    const bool valid =
+        detection.class_conf >= params_.min_identity_update_conf &&
+        slot_for(track.team_id, detection.class_id) >= 0;
+    if (!valid) {
+        track.pending_class = -1;
+        track.pending_class_frames = 0;
+        return;
     }
 
-    const PhysicalTrack* owner_track = find_track_by_id(owner.track_id);
-    if (!owner_track) {
-        return false;
+    if (detection.class_id == track.committed_class) {
+        track.pending_class = -1;
+        track.pending_class_frames = 0;
+        return;
     }
 
-    if (owner_track->state == TrackState::DEAD) {
-        return false;
+    if (detection.class_id == track.pending_class) {
+        track.pending_class_frames++;
+    } else {
+        track.pending_class = detection.class_id;
+        track.pending_class_frames = 1;
     }
 
-    return owner_track->miss_count <= params_.slot_takeover_miss;
+    const int confirm_frames = track.committed_class < 0
+        ? params_.identity_confirm_frames
+        : params_.identity_switch_confirm_frames;
+    const auto stats = track.bot_id.getStats();
+    if (track.pending_class_frames >= confirm_frames &&
+        stats.class_id == track.pending_class &&
+        stats.confidence >= params_.slot_bind_min_conf &&
+        stats.stability >= params_.slot_min_stability &&
+        stats.switch_rate <= params_.slot_max_switch_rate) {
+        track.committed_class = track.pending_class;
+        track.pending_class = -1;
+        track.pending_class_frames = 0;
+    }
 }
 
 // ---------------- 填充 SlotOutput ----------------
@@ -179,104 +207,95 @@ void Tracker::fill_slot_output(
 
 void Tracker::build_outputs_with_slot_owner() {
     auto results = make_empty_outputs();
-
     std::unordered_set<int> used_tracks;
 
-    // ------------------------------------------------------
-    // Phase 1: 先处理已有 owner
-    // ------------------------------------------------------
+    // Phase 1: 已有 owner 优先；不可输出时转 RESERVED 并独立倒计时。
     for (int slot_idx = 0; slot_idx < NUM_SLOTS; ++slot_idx) {
         auto& owner = slot_owners_[slot_idx];
-
-        if (owner.track_id < 0) {
+        if (owner.state == SlotOwnerState::FREE) {
             continue;
         }
 
         PhysicalTrack* owner_track = find_track_by_id(owner.track_id);
 
-        // owner track 已经不存在或者 DEAD：释放 owner，但保留 last_world 用于防瞬移
-        if (!owner_track || owner_track->state == TrackState::DEAD) {
-            owner.track_id = -1;
-            owner.lost_frames = 0;
-            continue;
-        }
-
-        owner.lost_frames = owner_track->miss_count;
-
-        // owner 丢失太久：释放 owner
-        if (owner_track->miss_count > params_.slot_release_miss) {
-            owner.track_id = -1;
-            owner.lost_frames = 0;
-            continue;
-        }
-
-        // owner 仍然可以输出：ACTIVE / PREDICTED
-        if (is_output_state(owner_track->state) &&
-            !owner_track->negative_suppressed &&
-            owner_track->hit_count >= params_.min_hit) {
-
-            auto [stable_cls, stable_conf] = owner_track->bot_id.getStableClass();
-
-            // ============================================================
-            // 身份漂移自检：
-            // 当 owner 的 stable_class 已成熟（conf >= slot_bind_min_conf），
-            // 且映射到的 slot 与当前占用的 slot 不一致时，主动释放当前槽位。
-            //
-            // 场景：Robot A 实际是 R1，但 BotIdentity 早期被误分类污染，
-            // 错误地绑定了 SLOT_RED_R2。后续分类纠正后 stable_cls 变成 R1，
-            // 此时应释放 SLOT_RED_R2，让 A 在 Phase 2 中竞争 SLOT_RED_R1，
-            // 同时真正的 R2 也能竞争 SLOT_RED_R2。
-            //
-            // BotIdentity 的指数平滑保证了 stable_cls 变化是持续的而非瞬态噪声，
-            // 因此用 slot_bind_min_conf（与首次绑定同一阈值）作为释放条件是安全的。
-            // ============================================================
-            if (stable_cls >= 0 && stable_conf >= params_.slot_bind_min_conf) {
-                int mapped_slot = slot_for(owner_track->team_id, stable_cls);
-                if (mapped_slot != slot_idx) {
-                    // 身份已漂移到其他槽位（或非 R1~S 类别），释放当前槽
-                    owner.track_id = -1;
-                    owner.lost_frames = 0;
-                    // 保留 last_world / has_last_world，用于 Phase 2 防瞬移
+        // 同一身份出现多个物理轨迹时，不让已绑定关系压过更可靠的近期观测。
+        if (owner_track &&
+            slot_for(owner_track->team_id, owner_track->committed_class) == slot_idx) {
+            float best_recent_conf = owner_track->bot_id.getRecentConfidence(
+                owner_track->committed_class);
+            for (auto& track : tracks_) {
+                if (track.track_id == owner.track_id ||
+                    track.state != TrackState::ACTIVE ||
+                    track.negative_suppressed ||
+                    track.hit_count < params_.min_hit ||
+                    track.pending_class >= 0 ||
+                    slot_for(track.team_id, track.committed_class) != slot_idx) {
                     continue;
                 }
+
+                const auto challenger_stats = track.bot_id.getStats();
+                if (challenger_stats.class_id != track.committed_class ||
+                    challenger_stats.confidence < params_.slot_bind_min_conf ||
+                    challenger_stats.stability < params_.slot_min_stability ||
+                    challenger_stats.switch_rate > params_.slot_max_switch_rate) {
+                    continue;
+                }
+
+                if (owner.has_last_world && params_.max_slot_jump_dist > 0.0f &&
+                    point_distance(track.last_world, owner.last_world) >
+                        params_.max_slot_jump_dist) {
+                    continue;
+                }
+
+                const float recent_conf = track.bot_id.getRecentConfidence(
+                    track.committed_class);
+                if (recent_conf > best_recent_conf) {
+                    owner.track_id = track.track_id;
+                    owner.state = SlotOwnerState::OWNED;
+                    owner_track = &track;
+                    best_recent_conf = recent_conf;
+                }
             }
-
-            // 已绑定后不要求每帧 stable_cls 都等于 nominal class。
-            // 遮挡误识别时，仍然保持原 slot owner。
-            int output_cls = results[slot_idx].class_id;
-            float output_conf = owner.last_conf;
-
-            if (stable_cls == output_cls && stable_conf > 0.0f) {
-                output_conf = stable_conf;
-            }
-
-            if (output_conf <= 0.0f) {
-                output_conf = stable_conf;
-            }
-
-            fill_slot_output(
-                results[slot_idx],
-                slot_idx,
-                *owner_track,
-                output_cls,
-                output_conf,
-                owner.lost_frames
-            );
-
-            owner.last_world = owner_track->last_world;
-            owner.has_last_world = true;
-            owner.last_conf = output_conf;
-
-            used_tracks.insert(owner_track->track_id);
         }
 
-        // 如果 owner 是 LOST，但没超过 slot_release_miss：
-        // 不输出，但也不释放，这样可以防止短期遮挡时被其他 track 抢槽。
+        const bool can_reclaim = owner_track &&
+            is_output_state(owner_track->state) &&
+            !owner_track->negative_suppressed &&
+            owner_track->hit_count >= params_.min_hit &&
+            slot_for(owner_track->team_id, owner_track->committed_class) == slot_idx;
+
+        if (owner.state == SlotOwnerState::RESERVED) {
+            if (can_reclaim) {
+                owner.state = SlotOwnerState::OWNED;
+            } else if (--owner.lease_frames <= 0) {
+                owner.state = SlotOwnerState::FREE;
+                owner.track_id = -1;
+            }
+        }
+
+        if (owner.state != SlotOwnerState::OWNED) {
+            continue;
+        }
+
+        if (!can_reclaim) {
+            reserve_owner(owner);
+            continue;
+        }
+
+        const auto stats = owner_track->bot_id.getStats();
+        const float output_conf = stats.class_id == owner_track->committed_class
+            ? stats.confidence : owner.last_conf;
+        fill_slot_output(results[slot_idx], slot_idx, *owner_track,
+                         owner_track->committed_class, output_conf, 0);
+
+        owner.lease_frames = params_.slot_lease_frames;
+        owner.last_world = owner_track->last_world;
+        owner.has_last_world = true;
+        owner.last_conf = output_conf;
+        used_tracks.insert(owner_track->track_id);
     }
 
-    // ------------------------------------------------------
-    // Phase 2: 收集没有 owner 的 slot 候选者
-    // ------------------------------------------------------
+    // Phase 2: 只有身份已提交且稳定的 track 才能竞争 FREE slot。
     std::array<std::vector<SlotCandidate>, NUM_SLOTS> candidates;
 
     for (int i = 0; i < static_cast<int>(tracks_.size()); ++i) {
@@ -298,21 +317,22 @@ void Tracker::build_outputs_with_slot_owner() {
             continue;
         }
 
-        auto [stable_cls, stable_conf] = track.bot_id.getStableClass();
-
-        if (stable_cls < 0 || stable_conf < params_.slot_bind_min_conf) {
+        const auto stats = track.bot_id.getStats();
+        if (track.committed_class < 0 || track.pending_class >= 0 ||
+            stats.class_id != track.committed_class ||
+            stats.confidence < params_.slot_bind_min_conf ||
+            stats.stability < params_.slot_min_stability ||
+            stats.switch_rate > params_.slot_max_switch_rate) {
             continue;
         }
 
-        int slot_idx = slot_for(track.team_id, stable_cls);
+        int slot_idx = slot_for(track.team_id, track.committed_class);
         if (slot_idx < 0) {
             continue;
         }
 
         auto& owner = slot_owners_[slot_idx];
-
-        // 如果该 slot 仍有受保护 owner，不能抢
-        if (is_owner_protected(owner)) {
+        if (owner.state != SlotOwnerState::FREE) {
             continue;
         }
 
@@ -332,9 +352,10 @@ void Tracker::build_outputs_with_slot_owner() {
         SlotCandidate cand;
         cand.track_index = i;
         cand.slot_idx = slot_idx;
-        cand.stable_class_id = stable_cls;
-        cand.stable_class_conf = stable_conf;
-        cand.priority = state_bonus + stable_conf + age_bonus;
+        cand.stable_class_id = track.committed_class;
+        cand.stable_class_conf = stats.confidence;
+        cand.priority = state_bonus + stats.confidence + stats.stability +
+                        stats.margin - stats.switch_rate + age_bonus;
 
         candidates[slot_idx].push_back(cand);
     }
@@ -370,9 +391,10 @@ void Tracker::build_outputs_with_slot_owner() {
 
             auto& owner = slot_owners_[slot_idx];
 
-            // 绑定新的 owner
+            // 绑定新的 owner，并在每个有效输出帧续租。
+            owner.state = SlotOwnerState::OWNED;
             owner.track_id = track.track_id;
-            owner.lost_frames = track.miss_count;
+            owner.lease_frames = params_.slot_lease_frames;
             owner.last_world = track.last_world;
             owner.has_last_world = true;
             owner.last_conf = cand.stable_class_conf;
@@ -383,7 +405,7 @@ void Tracker::build_outputs_with_slot_owner() {
                 track,
                 cand.stable_class_id,
                 cand.stable_class_conf,
-                owner.lost_frames
+                0
             );
 
             used_tracks.insert(track.track_id);
@@ -517,7 +539,7 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections, float dt) 
                 continue;
             }
 
-            auto [track_stable_cls, stable_conf] = track.bot_id.getStableClass();
+            const int track_class = track.committed_class;
 
             for (int c = 0; c < n_cols; ++c) {
                 const auto& det = detections[c];
@@ -579,7 +601,7 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections, float dt) 
                            + params_.w_world * world_norm;
 
                 // 5. class 只做轻量软惩罚，不参与 gate
-                if (track_stable_cls >= 0 && det.class_id != track_stable_cls) {
+                if (track_class >= 0 && det.class_id != track_class) {
                     cost += params_.class_mismatch_penalty;
                 }
 
@@ -609,39 +631,6 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections, float dt) 
 
             if (matched) {
                 const auto& det = detections[c];
-
-                // ============================================================
-                // 身份切换保护：
-                // 当非 ACTIVE 的 track 被重新匹配到一个 class 不同的检测框时，
-                // 该 track 很可能已经切换到了不同的物理目标。
-                //
-                // 场景：Car A (R1) 旋转闪烁 → T1 进入 PREDICTED。
-                // Car B (R2) 驶入且位置靠近 T1 的 Kalman 预测位置 →
-                // 匈牙利匹配器仅凭物理距离将 T1 匹配给 Car B。
-                // 若不重置 BotIdentity，T1 的 R1 历史会污染 Car B 的身份，
-                // 导致地图上 Car B 的位置显示 R1。
-                //
-                // 修复：当 (1) track 之前不是 ACTIVE，
-                //       (2) track 有成熟的 stable_class，
-                //       (3) 检测的 class 与 stable_class 不一致时，
-                // 清空 BotIdentity 并释放已占用的 slot，
-                // 让 track 用新 class 重新积累身份证据。
-                // ============================================================
-                if (track.state != TrackState::ACTIVE) {
-                    auto [prev_stable_cls, prev_stable_conf] = track.bot_id.getStableClass();
-                    if (prev_stable_cls >= 0 &&
-                        prev_stable_conf >= params_.slot_bind_min_conf &&
-                        det.class_id != prev_stable_cls) {
-                        track.bot_id.reset();
-                        // 释放该 track 占据的 slot，避免以错误身份继续输出
-                        for (auto& owner : slot_owners_) {
-                            if (owner.track_id == track.track_id) {
-                                owner.track_id = -1;
-                                owner.lost_frames = 0;
-                            }
-                        }
-                    }
-                }
 
                 std::vector<float> box_meas = {
                     det.box.x + det.box.width  / 2.0f,
@@ -684,13 +673,11 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections, float dt) 
                     track.detected_world = det.world;
                 }
 
-                // 关键改动：
-                // 低置信分类不写入 BotIdentity，避免遮挡误识别污染身份池。
-                // 注意：这里要求 det.score 是分类置信度。
-                // 如果 det.score 是检测框置信度，你应该换成 classifier_conf 字段。
-                if (det.score >= params_.min_identity_update_conf) {
-                    track.bot_id.update(det.class_id, det.score);
+                track.bot_id.updateRecent(det.class_id, det.class_conf);
+                if (det.class_conf >= params_.min_identity_update_conf) {
+                    track.bot_id.update(det.class_id, det.class_conf, det.class_margin);
                 }
+                update_identity_state(track, det);
 
                 track.hit_count++;
                 track.miss_count = 0;
@@ -760,9 +747,11 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections, float dt) 
 
         track.bot_id.configure(params_.botIdentity);
 
-        if (det.score >= params_.min_identity_update_conf) {
-            track.bot_id.update(det.class_id, det.score);
+        track.bot_id.updateRecent(det.class_id, det.class_conf);
+        if (det.class_conf >= params_.min_identity_update_conf) {
+            track.bot_id.update(det.class_id, det.class_conf, det.class_margin);
         }
+        update_identity_state(track, det);
 
         track.initialized = true;
         track.state = TrackState::ACTIVE;

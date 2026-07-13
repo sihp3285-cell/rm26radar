@@ -116,11 +116,14 @@ struct TrackerConfig {
 
     // ========== 身份更新阈值 ==========
     float minIdentityUpdateConf = 0.20f;
+    int identityConfirmFrames = 3;
+    int identitySwitchConfirmFrames = 5;
 
     // ========== Official slot owner 机制 ==========
     float slotBindMinConf = 0.40f;
-    int slotTakeoverMiss = 6;
-    int slotReleaseMiss = 8;
+    int slotLeaseFrames = 8;
+    float slotMinStability = 0.70f;
+    float slotMaxSwitchRate = 0.35f;
     float maxSlotJumpDist = 2.5f;
 };
 

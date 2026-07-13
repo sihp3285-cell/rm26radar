@@ -26,6 +26,15 @@ public:
     struct Observation {
         int class_id;
         float class_conf;
+        float class_margin;
+    };
+
+    struct Stats {
+        int class_id = -1;
+        float confidence = 0.0f;
+        float margin = 0.0f;
+        float switch_rate = 0.0f;
+        float stability = 0.0f;
     };
 
     BotIdentity() = default;
@@ -34,7 +43,8 @@ public:
     void configure(const BotIdentityConfig& cfg);
 
     // 收到新观测时调用
-    void update(int class_id, float class_conf);
+    void update(int class_id, float class_conf, float class_margin);
+    void updateRecent(int class_id, float class_conf);
 
     // 本帧未匹配到时调用
     void markLost();
@@ -49,6 +59,8 @@ public:
 
     // 返回 {stable_class_id, normalized_confidence}
     std::pair<int, float> getStableClass() const;
+    Stats getStats() const;
+    float getRecentConfidence(int class_id) const;
 
 private:
     int maxHistory_ = 50;
@@ -58,5 +70,6 @@ private:
     int numClasses_ = 9;
 
     std::deque<Observation> history_;
+    std::deque<std::pair<int, float>> recent_history_;
     int lost_counter_ = 0;
 };

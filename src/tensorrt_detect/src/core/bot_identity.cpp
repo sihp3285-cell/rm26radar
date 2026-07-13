@@ -12,11 +12,19 @@ void BotIdentity::configure(const BotIdentityConfig& cfg) {
     numClasses_ = cfg.numClasses;
 }
 
-void BotIdentity::update(int class_id, float class_conf) {
+void BotIdentity::update(int class_id, float class_conf, float class_margin) {
     lost_counter_ = 0;
-    history_.push_back({class_id, class_conf});
+    history_.push_back({class_id, class_conf, class_margin});
     if (history_.size() > static_cast<size_t>(maxHistory_)) {
         history_.pop_front();
+    }
+}
+
+void BotIdentity::updateRecent(int class_id, float class_conf) {
+    recent_history_.push_back({class_id, std::max(class_conf, 0.0f)});
+    constexpr size_t RECENT_WINDOW = 5;
+    if (recent_history_.size() > RECENT_WINDOW) {
+        recent_history_.pop_front();
     }
 }
 
@@ -29,6 +37,7 @@ void BotIdentity::markLost() {
 
 void BotIdentity::reset() {
     history_.clear();
+    recent_history_.clear();
     lost_counter_ = 0;
 }
 
@@ -41,15 +50,22 @@ bool BotIdentity::shouldPurge() const {
 }
 
 std::pair<int, float> BotIdentity::getStableClass() const {
+    const auto stats = getStats();
+    return {stats.class_id, stats.confidence};
+}
+
+BotIdentity::Stats BotIdentity::getStats() const {
+    Stats stats;
     if (history_.empty()) {
-        return {-1, 0.0f};
-    }
-    if (history_.size() < static_cast<size_t>(minHistoryForStable_)) {
-        return {-1, 0.0f};
+        return stats;
     }
 
     std::vector<float> scores(numClasses_, 0.0f);
+    std::vector<float> margins(numClasses_, 0.0f);
+    std::vector<float> class_weights(numClasses_, 0.0f);
     float weight_sum = 0.0f;
+    float score_sum = 0.0f;
+    int switches = 0;
 
     int N = static_cast<int>(history_.size());
     for (int i = 0; i < N; ++i) {
@@ -57,7 +73,14 @@ std::pair<int, float> BotIdentity::getStableClass() const {
         float weight = std::pow(decay_, N - 1 - i);
         const auto& obs = history_[i];
         if (obs.class_id >= 0 && obs.class_id < numClasses_) {
-            scores[obs.class_id] += obs.class_conf * weight;
+            const float evidence = obs.class_conf * weight;
+            scores[obs.class_id] += evidence;
+            margins[obs.class_id] += std::max(obs.class_margin, 0.0f) * evidence;
+            class_weights[obs.class_id] += evidence;
+            score_sum += evidence;
+            if (i > 0 && history_[i - 1].class_id != obs.class_id) {
+                switches++;
+            }
         }
         weight_sum += weight;
     }
@@ -71,6 +94,28 @@ std::pair<int, float> BotIdentity::getStableClass() const {
         }
     }
 
-    float normalized_conf = weight_sum > 0.0f ? best_score / weight_sum : 0.0f;
-    return {best_id, normalized_conf};
+    stats.confidence = weight_sum > 0.0f ? best_score / weight_sum : 0.0f;
+    stats.margin = best_id >= 0 && class_weights[best_id] > 0.0f
+        ? margins[best_id] / class_weights[best_id] : 0.0f;
+    stats.switch_rate = history_.size() > 1
+        ? static_cast<float>(switches) / static_cast<float>(history_.size() - 1) : 0.0f;
+    stats.stability = score_sum > 0.0f ? best_score / score_sum : 0.0f;
+    if (history_.size() >= static_cast<size_t>(minHistoryForStable_)) {
+        stats.class_id = best_id;
+    }
+    return stats;
+}
+
+float BotIdentity::getRecentConfidence(int class_id) const {
+    if (recent_history_.empty()) {
+        return 0.0f;
+    }
+
+    float confidence = 0.0f;
+    for (const auto& observation : recent_history_) {
+        if (observation.first == class_id) {
+            confidence += observation.second;
+        }
+    }
+    return confidence / static_cast<float>(recent_history_.size());
 }

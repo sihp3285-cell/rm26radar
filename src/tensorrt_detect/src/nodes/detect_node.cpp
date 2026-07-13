@@ -102,6 +102,8 @@ private:
                 tensorrt_detect_msgs::msg::DetectionBox box;
                 box.idx         = res.idx;
                 box.confidence  = res.confidence;
+                box.class_conf  = res.classConfidence;
+                box.class_margin = res.classMargin;
                 box.x           = res.box.x;
                 box.y           = res.box.y;
                 box.width       = res.box.width;
@@ -125,6 +127,8 @@ private:
                 statusBox.idx = robot_id::OUTPOST;
                 statusBox.is_dead = !pipeline_->isOutpostAlive();
                 statusBox.confidence = 0.0f;
+                statusBox.class_conf = -1.0f;
+                statusBox.class_margin = -1.0f;
                 armor_msg->detections.push_back(statusBox);
             }
 

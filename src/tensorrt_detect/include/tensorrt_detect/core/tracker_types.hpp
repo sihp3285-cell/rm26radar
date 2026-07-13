@@ -18,8 +18,7 @@ struct WorldMeasurement {
     int class_id = 0;
     int team_id = 0;
 
-    // 兼容旧逻辑：当前项目里通常用 score 同时表示检测/分类置信度。
-    // 更推荐后续明确拆成 detect_score 和 class_conf。
+    // 检测框置信度；身份更新使用下方独立的 class_conf。
     float score = 0.0f;
 
     bool is_dead = false;
@@ -31,8 +30,6 @@ struct WorldMeasurement {
     cv::Rect box;          // 像素框 [x, y, w, h]
     cv::Point2f world;     // world.x = world_x, world.y = world_z，world_y 始终为 0
 
-    // 可选增强字段：不破坏旧代码。
-    // 后续如果分类器能输出完整 softmax，建议填这两个。
     // class_conf: 分类器 top1 置信度
     // class_margin: top1 - top2
     float class_conf = -1.0f;

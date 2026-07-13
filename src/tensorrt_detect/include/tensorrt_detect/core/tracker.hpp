@@ -18,7 +18,7 @@
 //
 // 核心目标：
 //   1. Tracker 匹配阶段主要相信物理连续性，分类只作为轻量软惩罚
-//   2. stable_class 只作为绑定 slot 的依据之一，不能每帧直接抢槽
+//   2. 只有连续确认后的 committed_class 才能参与 slot 绑定
 //   3. official slot 一旦绑定 track_id，owner 短期丢失/遮挡时不被其他 track 抢走
 // ==========================================
 struct TrackerParams {
@@ -59,19 +59,23 @@ struct TrackerParams {
     BotIdentityConfig botIdentity;
 
     // 低于该置信度的分类结果不写入 BotIdentity，避免遮挡/低质量 ROI 污染身份池。
-    // 如果 WorldMeasurement 后续提供 class_conf，建议用 class_conf 而不是 detection score。
+    // 低于该值的 class_conf 不写入身份历史。
     float min_identity_update_conf = 0.20f;
+
+    // 新身份和身份切换都必须连续多帧确认。
+    int identity_confirm_frames = 3;
+    int identity_switch_confirm_frames = 5;
 
     // ========== Official slot owner 机制 ==========
     // track 第一次绑定 official slot 时，stable confidence 至少要达到该值。
     float slot_bind_min_conf = 0.40f;
 
-    // owner 短期丢失时仍受保护，不允许其他 track 抢槽。
-    // 若 max_miss 很小，这个值实际会受 track 被 erase 的时机影响。
-    int slot_takeover_miss = 6;
+    // owner 不可输出后进入 RESERVED，租约独立于 track 的 miss_count。
+    int slot_lease_frames = 8;
 
-    // owner 丢失超过该值后释放槽位。
-    int slot_release_miss = 8;
+    // 不稳定身份禁止参与空槽竞争。
+    float slot_min_stability = 0.70f;
+    float slot_max_switch_rate = 0.35f;
 
     // 防止同一个 official slot 在地图上瞬移。
     // 单位同 WorldMeasurement::world；若暂时不用，设为 <= 0。
@@ -156,6 +160,9 @@ private:
         KalmanFilter2d kf_world;         // 4维 [x, z, vx, vz]
 
         BotIdentity bot_id;              // 身份轨迹池：跨帧持久化 class 历史
+        int committed_class = -1;         // 连续确认后才用于槽位映射
+        int pending_class = -1;           // 正在连续确认的候选身份
+        int pending_class_frames = 0;
 
         cv::Rect last_box;
         cv::Point2f last_world;          // Kalman 后的平滑世界坐标
@@ -167,9 +174,16 @@ private:
 
     // official slot 的持久 owner。
     // 只要 owner track 还活着或短期丢失，其他 track 不允许因为误分类抢槽。
+    enum class SlotOwnerState {
+        FREE,
+        RESERVED,
+        OWNED
+    };
+
     struct SlotOwner {
+        SlotOwnerState state = SlotOwnerState::FREE;
         int track_id = -1;
-        int lost_frames = 0;
+        int lease_frames = 0;
 
         cv::Point2f last_world{0.0f, 0.0f};
         bool has_last_world = false;
@@ -184,7 +198,6 @@ private:
 
         int stable_class_id = -1;
         float stable_class_conf = 0.0f;
-
         float priority = 0.0f;
     };
 
@@ -204,7 +217,7 @@ private:
     static float box_center_distance(const cv::Rect& a, const cv::Rect& b);
     static float point_distance(const cv::Point2f& a, const cv::Point2f& b);
 
-    // 将 (team, stable_class) 映射到 official slot 索引 0-9，无法映射返回 -1
+    // 将 (team, committed_class) 映射到 official slot 索引 0-9，无法映射返回 -1
     static int slot_for(int team, int class_id);
 
     // 初始化 10 个空 official slot 输出
@@ -214,7 +227,8 @@ private:
     const PhysicalTrack* find_track_by_id(int track_id) const;
 
     bool is_output_state(TrackState state) const;
-    bool is_owner_protected(const SlotOwner& owner) const;
+    void reserve_owner(SlotOwner& owner);
+    void update_identity_state(PhysicalTrack& track, const WorldMeasurement& detection);
 
     void fill_slot_output(
         SlotOutput& out,

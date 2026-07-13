@@ -228,11 +228,14 @@ void Config::loadTrackerConfig(const std::string& path) {
 
     // ========== 身份更新阈值 ==========
     tracker.minIdentityUpdateConf = cfg["min_identity_update_conf"] ? cfg["min_identity_update_conf"].as<float>() : 0.20f;
+    tracker.identityConfirmFrames = cfg["identity_confirm_frames"] ? cfg["identity_confirm_frames"].as<int>() : 3;
+    tracker.identitySwitchConfirmFrames = cfg["identity_switch_confirm_frames"] ? cfg["identity_switch_confirm_frames"].as<int>() : 5;
 
     // ========== Official slot owner 机制 ==========
     tracker.slotBindMinConf = cfg["slot_bind_min_conf"] ? cfg["slot_bind_min_conf"].as<float>() : 0.40f;
-    tracker.slotTakeoverMiss = cfg["slot_takeover_miss"] ? cfg["slot_takeover_miss"].as<int>() : 6;
-    tracker.slotReleaseMiss = cfg["slot_release_miss"] ? cfg["slot_release_miss"].as<int>() : 8;
+    tracker.slotLeaseFrames = cfg["slot_lease_frames"] ? cfg["slot_lease_frames"].as<int>() : 8;
+    tracker.slotMinStability = cfg["slot_min_stability"] ? cfg["slot_min_stability"].as<float>() : 0.70f;
+    tracker.slotMaxSwitchRate = cfg["slot_max_switch_rate"] ? cfg["slot_max_switch_rate"].as<float>() : 0.35f;
     tracker.maxSlotJumpDist = cfg["max_slot_jump_dist"] ? cfg["max_slot_jump_dist"].as<float>() : 2.5f;
 
     // ========== BotIdentity 身份稳定器 ==========

@@ -65,22 +65,27 @@ public:
         tp.botIdentity = cfg_->tracker.botIdentity;
         // 身份更新阈值
         tp.min_identity_update_conf = cfg_->tracker.minIdentityUpdateConf;
+        tp.identity_confirm_frames = cfg_->tracker.identityConfirmFrames;
+        tp.identity_switch_confirm_frames = cfg_->tracker.identitySwitchConfirmFrames;
         // Official slot owner 机制
         tp.slot_bind_min_conf = cfg_->tracker.slotBindMinConf;
-        tp.slot_takeover_miss = cfg_->tracker.slotTakeoverMiss;
-        tp.slot_release_miss = cfg_->tracker.slotReleaseMiss;
+        tp.slot_lease_frames = cfg_->tracker.slotLeaseFrames;
+        tp.slot_min_stability = cfg_->tracker.slotMinStability;
+        tp.slot_max_switch_rate = cfg_->tracker.slotMaxSwitchRate;
         tp.max_slot_jump_dist = cfg_->tracker.maxSlotJumpDist;
 
         tracker_ = Tracker(tp);
         RCLCPP_INFO(this->get_logger(),
             "Tracker 参数: max_miss=%d max_predict=%d min_hit=%d max_tracks=%d | "
             "gate: box=%.1f world=%.2f kalman_box=%.3f kalman_world=%.3f negative_box=%.1f negative_world=%.2f | cost: w_box=%.2f w_world=%.2f class_pen=%.3f | "
-            "slot: bind=%.2f takeover=%d release=%d jump=%.2f",
+            "identity: initial=%d switch=%d | slot: bind=%.2f lease=%d stability=%.2f switch_rate=%.2f jump=%.2f",
             tp.max_miss, tp.max_predict, tp.min_hit, tp.max_tracks,
             tp.max_gate_box, tp.max_gate_world, tp.kalman_gate_box, tp.kalman_gate_world,
             tp.negative_gate_box, tp.negative_gate_world,
             tp.w_box, tp.w_world, tp.class_mismatch_penalty,
-            tp.slot_bind_min_conf, tp.slot_takeover_miss, tp.slot_release_miss, tp.max_slot_jump_dist);
+            tp.identity_confirm_frames, tp.identity_switch_confirm_frames,
+            tp.slot_bind_min_conf, tp.slot_lease_frames, tp.slot_min_stability,
+            tp.slot_max_switch_rate, tp.max_slot_jump_dist);
         RCLCPP_INFO(this->get_logger(),
             "BotIdentity 参数: max_history=%d purge=%d min_stable=%d decay=%.3f num_classes=%d",
             tp.botIdentity.maxHistory, tp.botIdentity.purgeThreshold,
@@ -325,6 +330,8 @@ private:
                     negative.class_id = robot_id::ARMOR;
                     negative.team_id = robot_id::UNKNOWN;
                     negative.score = det.confidence;
+                    negative.class_conf = det.class_conf;
+                    negative.class_margin = det.class_margin;
                     negative.is_dead = true;
                     negative.is_negative = true;
                     negative.box = cv::Rect(det.x, det.y, det.width, det.height);
@@ -337,6 +344,8 @@ private:
                 m.class_id = det.idx;
                 m.team_id  = det.armor_color;
                 m.score    = det.confidence;
+                m.class_conf = det.class_conf;
+                m.class_margin = det.class_margin;
                 m.is_dead  = det.is_dead;
                 m.box      = cv::Rect(det.x, det.y, det.width, det.height);
                 m.world    = world_pos;  // x=world_x, y=world_z
