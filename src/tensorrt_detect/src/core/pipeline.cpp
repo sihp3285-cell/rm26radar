@@ -236,13 +236,7 @@ void DetectPipeline::runClassify(const cv::Mat& frame, std::vector<Result>& dete
             continue;
         }
 
-        const auto normal = classifyModel_.predictClass(armorROI);
-        cv::rotate(armorROI, armorROI, cv::ROTATE_180);
-        const auto rotated = classifyModel_.predictClass(armorROI);
-        const auto& prediction =
-            rotated.confidence > normal.confidence ||
-            (rotated.confidence == normal.confidence && rotated.margin > normal.margin)
-                ? rotated : normal;
+        const auto prediction = classifyModel_.predictClass(armorROI);
 
         const int raw_id = prediction.classId;
         armor.classConfidence = prediction.confidence;

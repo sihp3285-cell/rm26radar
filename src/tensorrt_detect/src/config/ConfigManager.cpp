@@ -224,7 +224,17 @@ void Config::loadTrackerConfig(const std::string& path) {
     // ========== Hungarian 匹配代价 ==========
     tracker.wBox = cfg["w_box"] ? cfg["w_box"].as<float>() : 1.0f;
     tracker.wWorld = cfg["w_world"] ? cfg["w_world"].as<float>() : 1.0f;
-    tracker.classMismatchPenalty = cfg["class_mismatch_penalty"] ? cfg["class_mismatch_penalty"].as<float>() : 0.25f;
+    tracker.classMismatchMinPenalty = cfg["class_mismatch_min_penalty"]
+        ? cfg["class_mismatch_min_penalty"].as<float>() : 0.05f;
+    tracker.classMismatchPenalty = cfg["class_mismatch_penalty"]
+        ? cfg["class_mismatch_penalty"].as<float>() : 0.40f;
+
+    // 两端先限制为非负；若配置顺序颠倒则交换，保留用户给出的完整区间。
+    tracker.classMismatchMinPenalty = std::max(0.0f, tracker.classMismatchMinPenalty);
+    tracker.classMismatchPenalty = std::max(0.0f, tracker.classMismatchPenalty);
+    if (tracker.classMismatchMinPenalty > tracker.classMismatchPenalty) {
+        std::swap(tracker.classMismatchMinPenalty, tracker.classMismatchPenalty);
+    }
 
     // ========== 身份更新阈值 ==========
     tracker.minIdentityUpdateConf = cfg["min_identity_update_conf"] ? cfg["min_identity_update_conf"].as<float>() : 0.20f;

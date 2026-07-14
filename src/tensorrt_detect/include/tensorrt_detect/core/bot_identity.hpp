@@ -30,11 +30,11 @@ public:
     };
 
     struct Stats {
-        int class_id = -1;
-        float confidence = 0.0f;
-        float margin = 0.0f;
-        float switch_rate = 0.0f;
-        float stability = 0.0f;
+        int class_id = -1;//历史加权总分最高的类别
+        float confidence = 0.0f;//历史加权总分最高的类别置信度
+        float margin = 0.0f;//top1-top2 再按类别加权平均
+        float switch_rate = 0.0f;//已提交身份的连续切换确认帧数
+        float stability = 0.0f;//身份稳定性
     };
 
     BotIdentity() = default;

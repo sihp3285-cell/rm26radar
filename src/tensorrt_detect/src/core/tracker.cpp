@@ -17,6 +17,14 @@ constexpr float INF_COST = 1e6f;
 // ---------------- 构造 / reset ----------------
 
 Tracker::Tracker(const TrackerParams& params) : params_(params) {
+    // 防御直接通过 TrackerParams 构造的调用方：端点先限制为非负，顺序颠倒时交换。
+    params_.class_mismatch_min_penalty =
+        std::max(0.0f, params_.class_mismatch_min_penalty);
+    params_.class_mismatch_penalty =
+        std::max(0.0f, params_.class_mismatch_penalty);
+    if (params_.class_mismatch_min_penalty > params_.class_mismatch_penalty) {
+        std::swap(params_.class_mismatch_min_penalty, params_.class_mismatch_penalty);
+    }
     last_outputs_ = make_empty_outputs();
 }
 
@@ -43,6 +51,37 @@ float Tracker::box_center_distance(const cv::Rect& a, const cv::Rect& b) {
 
 float Tracker::point_distance(const cv::Point2f& a, const cv::Point2f& b) {
     return std::hypot(a.x - b.x, a.y - b.y);
+}
+
+float Tracker::calculate_class_mismatch_penalty(
+    const PhysicalTrack& track,
+    const WorldMeasurement& detection
+) const {
+    // 保持类别约束为软约束：未提交身份或类别一致时不增加代价。
+    if (track.committed_class < 0 || detection.class_id == track.committed_class) {
+        return 0.0f;
+    }
+
+    const auto stats = track.bot_id.getStats();
+    const float track_stability = std::clamp(stats.stability, 0.0f, 1.0f);
+    const float track_switch_reliability =
+        1.0f - std::clamp(stats.switch_rate, 0.0f, 1.0f);
+    const float track_reliability = std::clamp(
+        track_stability * track_switch_reliability,
+        0.0f,
+        1.0f
+    );
+    const float detection_reliability =
+        std::clamp(detection.class_conf, 0.0f, 1.0f);
+    const float combined_reliability = std::clamp(
+        track_reliability * detection_reliability,
+        0.0f,
+        1.0f
+    );
+
+    return params_.class_mismatch_min_penalty +
+        (params_.class_mismatch_penalty - params_.class_mismatch_min_penalty) *
+            combined_reliability;
 }
 
 // ---------------- official slot 映射 ----------------
@@ -539,8 +578,6 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections, float dt) 
                 continue;
             }
 
-            const int track_class = track.committed_class;
-
             for (int c = 0; c < n_cols; ++c) {
                 const auto& det = detections[c];
 
@@ -585,7 +622,6 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections, float dt) 
                     track.kf_world.innovationSquared({det.world.x, det.world.y}) >
                         params_.kalman_gate_world;
                 if (box_gate_rejected || world_gate_rejected) {
-                    det_suppressed[c] = true;
                     continue;
                 }
 
@@ -600,10 +636,8 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections, float dt) 
                 float cost = params_.w_box * box_norm
                            + params_.w_world * world_norm;
 
-                // 5. class 只做轻量软惩罚，不参与 gate
-                if (track_class >= 0 && det.class_id != track_class) {
-                    cost += params_.class_mismatch_penalty;
-                }
+                // 5. class 只做可靠度相关的软惩罚，不参与 gate 或直接拒绝匹配
+                cost += calculate_class_mismatch_penalty(track, det);
 
                 cost_matrix[r][c] = cost;
             }

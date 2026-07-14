@@ -109,7 +109,8 @@ struct TrackerConfig {
     // ========== Hungarian 匹配代价 ==========
     float wBox = 1.0f;
     float wWorld = 1.0f;
-    float classMismatchPenalty = 0.25f;
+    float classMismatchMinPenalty = 0.05f;
+    float classMismatchPenalty = 0.40f;  // 最大类别不一致软惩罚
 
     // ========== BotIdentity 身份稳定器 ==========
     BotIdentityConfig botIdentity;

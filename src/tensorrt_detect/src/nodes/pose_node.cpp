@@ -60,6 +60,7 @@ public:
         // Hungarian 匹配代价
         tp.w_box = cfg_->tracker.wBox;
         tp.w_world = cfg_->tracker.wWorld;
+        tp.class_mismatch_min_penalty = cfg_->tracker.classMismatchMinPenalty;
         tp.class_mismatch_penalty = cfg_->tracker.classMismatchPenalty;
         // BotIdentity 身份稳定器
         tp.botIdentity = cfg_->tracker.botIdentity;
@@ -77,12 +78,13 @@ public:
         tracker_ = Tracker(tp);
         RCLCPP_INFO(this->get_logger(),
             "Tracker 参数: max_miss=%d max_predict=%d min_hit=%d max_tracks=%d | "
-            "gate: box=%.1f world=%.2f kalman_box=%.3f kalman_world=%.3f negative_box=%.1f negative_world=%.2f | cost: w_box=%.2f w_world=%.2f class_pen=%.3f | "
+            "gate: box=%.1f world=%.2f kalman_box=%.3f kalman_world=%.3f negative_box=%.1f negative_world=%.2f | cost: w_box=%.2f w_world=%.2f class_pen=[%.3f, %.3f] | "
             "identity: initial=%d switch=%d | slot: bind=%.2f lease=%d stability=%.2f switch_rate=%.2f jump=%.2f",
             tp.max_miss, tp.max_predict, tp.min_hit, tp.max_tracks,
             tp.max_gate_box, tp.max_gate_world, tp.kalman_gate_box, tp.kalman_gate_world,
             tp.negative_gate_box, tp.negative_gate_world,
-            tp.w_box, tp.w_world, tp.class_mismatch_penalty,
+            tp.w_box, tp.w_world, tp.class_mismatch_min_penalty,
+            tp.class_mismatch_penalty,
             tp.identity_confirm_frames, tp.identity_switch_confirm_frames,
             tp.slot_bind_min_conf, tp.slot_lease_frames, tp.slot_min_stability,
             tp.slot_max_switch_rate, tp.max_slot_jump_dist);

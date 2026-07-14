@@ -51,9 +51,10 @@ struct TrackerParams {
     float w_box = 1.0f;
     float w_world = 1.0f;
 
-    // 注意：新版这里不是“像素等效距离”，而是归一化代价惩罚。
-    // 不建议继续使用 300.0；推荐 0.1~0.5。
-    float class_mismatch_penalty = 0.25f;
+    // 类别不一致只增加软惩罚，不参与 gate。惩罚在最小值和最大值之间，
+    // 由轨迹身份稳定性、切换率和当前检测分类置信度共同决定。
+    float class_mismatch_min_penalty = 0.05f;
+    float class_mismatch_penalty = 0.40f;  // 最大类别不一致惩罚
 
     // ========== BotIdentity 身份稳定器 ==========
     BotIdentityConfig botIdentity;
@@ -216,6 +217,12 @@ private:
 private:
     static float box_center_distance(const cv::Rect& a, const cv::Rect& b);
     static float point_distance(const cv::Point2f& a, const cv::Point2f& b);
+
+    // committed 身份与检测类别冲突时，根据双方可靠度计算软惩罚；否则返回 0。
+    float calculate_class_mismatch_penalty(
+        const PhysicalTrack& track,
+        const WorldMeasurement& detection
+    ) const;
 
     // 将 (team, committed_class) 映射到 official slot 索引 0-9，无法映射返回 -1
     static int slot_for(int team, int class_id);
