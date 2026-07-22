@@ -1,0 +1,25 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "ROS2: 编译并刷新 IntelliSense",
+            "type": "shell",
+            "command": "/bin/bash",
+            "args": [
+                "-lc",
+                "source /opt/ros/jazzy/setup.bash && if [ -f '${workspaceFolder}/install/setup.bash' ]; then source '${workspaceFolder}/install/setup.bash'; fi && cd '${workspaceFolder}' && colcon build --packages-select tensorrt_detect_msgs position_prior tensorrt_detect --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON && jq -s 'add' build/position_prior/compile_commands.json build/tensorrt_detect/compile_commands.json > build/compile_commands.json"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "构建 ROS2 包并合并 position_prior 与 tensorrt_detect 的 compile_commands.json。"
+        }
+    ]
+}

@@ -65,7 +65,7 @@ struct ModelConfig {
     bool outpostEnabled = false;
     std::vector<int> outpostRoi;           // [x, y, width, height]
     float outpostScoreThreshold = 0.0f;
-    int outpostMissThreshold = 20;         // 前哨站未检测判定死亡阈值（帧数）
+    float outpostMissTimeoutS = 1.0f;      // 前哨站连续未检测判定死亡时间（秒）
 };
 
 struct CameraConfig {
@@ -93,8 +93,10 @@ struct MapConfig {
 
 struct TrackerConfig {
     // ========== Track 生命周期 ==========
-    int maxMiss = 4;
-    int maxPredict = 2;
+    float maxLostTimeS = 0.30f;
+    float maxPredictTimeS = 0.20f;
+    float deadRetentionTimeS = 0.10f;
+    float deadTargetHoldTimeS = 0.10f;
     int minHit = 2;
     int maxTracks = 20;
 
@@ -117,12 +119,12 @@ struct TrackerConfig {
 
     // ========== 身份更新阈值 ==========
     float minIdentityUpdateConf = 0.20f;
-    int identityConfirmFrames = 3;
-    int identitySwitchConfirmFrames = 5;
+    int identityConfirmObservations = 3;
+    int identitySwitchConfirmObservations = 5;
 
     // ========== Official slot owner 机制 ==========
     float slotBindMinConf = 0.40f;
-    int slotLeaseFrames = 8;
+    float slotLeaseTimeS = 0.30f;
     float slotMinStability = 0.70f;
     float slotMaxSwitchRate = 0.35f;
     float maxSlotJumpDist = 2.5f;
@@ -173,5 +175,6 @@ private:
     static void validateModelConfig(const ModelConfig& cfg);
     static void validateCameraConfig(const CameraConfig& cfg);
     static void validateMapConfig(const MapConfig& cfg);
+    static void validateTrackerConfig(const TrackerConfig& cfg);
 
 };

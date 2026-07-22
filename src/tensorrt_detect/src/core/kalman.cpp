@@ -47,7 +47,7 @@ void KalmanFilterBox::updateQ(float dt) {
 }
 
 std::vector<float> KalmanFilterBox::predict(float dt) {
-    float use_dt = (dt > 0) ? dt : dt_;
+    float use_dt = (dt >= 0) ? dt : dt_;
     
     // 更新状态转移矩阵中的dt
     for(int i=0; i<4; i++) F(i, i+4) = use_dt;
@@ -155,7 +155,7 @@ KalmanFilter2d::KalmanFilter2d(float q_std, float r_std, float dt)
 }
 
 std::vector<float> KalmanFilter2d::predict(float dt) {
-    float use_dt = (dt > 0) ? dt : dt_;
+    float use_dt = (dt >= 0) ? dt : dt_;
     float dt2 = use_dt * use_dt;
     float dt3 = dt2 * use_dt / 2.0f;
     float dt4 = dt2 * dt2 / 4.0f;
@@ -244,4 +244,3 @@ std::vector<float> KalmanFilter2d::get_position() const {
 std::vector<float> KalmanFilter2d::get_velocity() const {
     return {x(2), x(3)};
 }
-

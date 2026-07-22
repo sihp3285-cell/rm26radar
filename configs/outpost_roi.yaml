@@ -5,7 +5,7 @@ outpost_roi:
   - 78
   - 30
 outpost_score_threshold: 0.1
-outpost_miss_threshold: 30
+outpost_miss_timeout_s: 1.5
 outpost_mappoints_red:
   - 439
   - 92

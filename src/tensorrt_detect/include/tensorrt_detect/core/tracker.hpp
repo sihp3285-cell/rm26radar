@@ -6,6 +6,7 @@
 #include "robot_id.hpp"
 
 #include <array>
+#include <cstdint>
 #include <vector>
 
 // BotIdentityConfig 定义在 bot_identity.hpp 中，此处直接复用
@@ -23,8 +24,9 @@
 // ==========================================
 struct TrackerParams {
     // ========== Track 生命周期 ==========
-    int max_miss = 4;                // 连续丢失多少帧后 track 标记为 DEAD
-    int max_predict = 2;             // 连续丢失多少帧内保持 PREDICTED，卡尔曼外推仍显示
+    float max_lost_time_s = 0.30f;   // 从最后真实观测起多久后标记为 DEAD
+    float max_predict_time_s = 0.20f;// 丢失多久内保持 PREDICTED，卡尔曼外推仍显示
+    float dead_retention_time_s = 0.10f; // DEAD 状态继续保留多久，供下游看见状态变化
     int min_hit = 2;                 // 最少命中次数才允许对外输出 / 绑定 slot
     int max_tracks = 20;             // 最大同时跟踪的 PhysicalTrack 数量
 
@@ -63,16 +65,16 @@ struct TrackerParams {
     // 低于该值的 class_conf 不写入身份历史。
     float min_identity_update_conf = 0.20f;
 
-    // 新身份和身份切换都必须连续多帧确认。
-    int identity_confirm_frames = 3;
-    int identity_switch_confirm_frames = 5;
+    // 新身份和身份切换都必须通过连续有效观测确认。
+    int identity_confirm_observations = 3;
+    int identity_switch_confirm_observations = 5;
 
     // ========== Official slot owner 机制 ==========
     // track 第一次绑定 official slot 时，stable confidence 至少要达到该值。
     float slot_bind_min_conf = 0.40f;
 
-    // owner 不可输出后进入 RESERVED，租约独立于 track 的 miss_count。
-    int slot_lease_frames = 8;
+    // owner 不可输出后进入 RESERVED，租约按物理时间计算。
+    float slot_lease_time_s = 0.30f;
 
     // 不稳定身份禁止参与空槽竞争。
     float slot_min_stability = 0.70f;
@@ -104,8 +106,11 @@ public:
     explicit Tracker(const TrackerParams& params = TrackerParams());
 
     // 输入新一帧观测，更新所有 track 状态，并在 update 末尾刷新 last_outputs_。
-    // dt 使用 ROS 消息时间戳计算的真实帧间隔（秒）；<= 0 时滤波器使用默认值。
-    void update(const std::vector<WorldMeasurement>& detections, float dt = -1.0f);
+    // dt 使用 ROS 消息时间戳计算的真实间隔（秒）；< 0 时滤波器使用默认值，0 不推进时间。
+    void update(
+        const std::vector<WorldMeasurement>& detections,
+        float dt = -1.0f,
+        std::int64_t timestamp_ns = 0);
 
     // 单个槽位的对外输出状态
     struct SlotOutput {
@@ -120,20 +125,29 @@ public:
         int track_id = -1;
 
         bool valid = false;          // 当前是否有效：ACTIVE / PREDICTED 且满足 min_hit
-        TrackState state = TrackState::DEAD;
+        TrackState state = TrackState::INVALID;
+        PositionSource position_source = PositionSource::INVALID;
+        bool observed = false;
 
         cv::Rect smoothed_box;
         cv::Point2f smoothed_world;  // 建议输出 Kalman 后的 last_world
+        cv::Point2f velocity;
+        std::array<double, 16> state_covariance{};
+        bool covariance_valid = false;
 
         bool is_dead = false;
         float score = 0.0f;
+        float detection_confidence = 0.0f;
+        float tracking_confidence = 0.0f;
+        std::int64_t last_observed_time_ns = 0;
+        float lost_duration_s = 0.0f;
 
         // BotIdentity / SlotOwner 输出给下游看的稳定身份
         int stable_class_id = -1;
         float stable_class_conf = 0.0f;
 
-        // 当前 owner 已连续丢失帧数，调试 slot owner 释放/接管时很有用
-        int owner_lost_frames = 0;
+        // 当前 owner 已连续丢失时间，调试 slot owner 释放/接管时很有用
+        float owner_lost_duration_s = 0.0f;
     };
 
     // 获取指定 official slot 的当前状态，兼容旧接口
@@ -163,7 +177,7 @@ private:
         BotIdentity bot_id;              // 身份轨迹池：跨帧持久化 class 历史
         int committed_class = -1;         // 连续确认后才用于槽位映射
         int pending_class = -1;           // 正在连续确认的候选身份
-        int pending_class_frames = 0;
+        int pending_class_observations = 0;
 
         cv::Rect last_box;
         cv::Point2f last_world;          // Kalman 后的平滑世界坐标
@@ -171,6 +185,10 @@ private:
 
         float last_score = 0.0f;
         bool last_is_dead = false;
+        bool observed_this_update = false;
+        std::int64_t last_observed_time_ns = 0;
+        float lost_duration_s = 0.0f;
+        std::int64_t dead_since_time_ns = 0;
     };
 
     // official slot 的持久 owner。
@@ -184,7 +202,7 @@ private:
     struct SlotOwner {
         SlotOwnerState state = SlotOwnerState::FREE;
         int track_id = -1;
-        int lease_frames = 0;
+        std::int64_t reserved_since_time_ns = 0;
 
         cv::Point2f last_world{0.0f, 0.0f};
         bool has_last_world = false;
@@ -213,6 +231,8 @@ private:
 
     // update() 后缓存好的 10 个 official slot 输出
     std::vector<SlotOutput> last_outputs_;
+    std::int64_t current_time_ns_ = 0;
+    bool time_initialized_ = false;
 
 private:
     static float box_center_distance(const cv::Rect& a, const cv::Rect& b);
@@ -235,6 +255,8 @@ private:
 
     bool is_output_state(TrackState state) const;
     void reserve_owner(SlotOwner& owner);
+    void update_lifecycle(PhysicalTrack& track);
+    float calculate_tracking_confidence(const PhysicalTrack& track) const;
     void update_identity_state(PhysicalTrack& track, const WorldMeasurement& detection);
 
     void fill_slot_output(
@@ -243,7 +265,8 @@ private:
         const PhysicalTrack& track,
         int stable_class_id,
         float stable_class_conf,
-        int owner_lost_frames
+        float owner_lost_duration_s,
+        bool valid
     ) const;
 
     // 在 update() 最后调用：根据 tracks_、BotIdentity 和 slot_owners_ 生成稳定 official outputs

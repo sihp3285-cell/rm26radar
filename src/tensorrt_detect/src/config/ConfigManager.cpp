@@ -74,6 +74,7 @@ Config::Config(const std::string& configDir) {
             // tracker.yaml 可选，加载失败不阻断
         }
     }
+    validateTrackerConfig(tracker);
     if (fs::exists(calibYaml)) {
         try {
             loadCalibConfig(calibYaml);
@@ -96,8 +97,8 @@ Config::Config(const std::string& configDir) {
             if (cfg["outpost_score_threshold"]) {
                 model.outpostScoreThreshold = cfg["outpost_score_threshold"].as<float>();
             }
-            if (cfg["outpost_miss_threshold"]) {
-                model.outpostMissThreshold = cfg["outpost_miss_threshold"].as<int>();
+            if (cfg["outpost_miss_timeout_s"]) {
+                model.outpostMissTimeoutS = cfg["outpost_miss_timeout_s"].as<float>();
             }
             if (cfg["outpost_mappoints_red"]) {
                 map.outpostMapPointsRed = cfg["outpost_mappoints_red"].as<std::vector<int>>();
@@ -180,9 +181,9 @@ void Config::loadModelConfig(const std::string& path) {
     model.outpostScoreThreshold = cfg["outpost_score_threshold"]
                                       ? cfg["outpost_score_threshold"].as<float>()
                                       : 0.0f;
-    model.outpostMissThreshold = cfg["outpost_miss_threshold"]
-                                     ? cfg["outpost_miss_threshold"].as<int>()
-                                     : 20;
+    model.outpostMissTimeoutS = cfg["outpost_miss_timeout_s"]
+                                   ? cfg["outpost_miss_timeout_s"].as<float>()
+                                   : 1.0f;
 }
 
 void Config::loadCameraConfig(const std::string& path) {
@@ -208,8 +209,10 @@ void Config::loadTrackerConfig(const std::string& path) {
     YAML::Node cfg = YAML::LoadFile(path);
 
     // ========== Track 生命周期 ==========
-    tracker.maxMiss = cfg["max_miss"] ? cfg["max_miss"].as<int>() : 4;
-    tracker.maxPredict = cfg["max_predict"] ? cfg["max_predict"].as<int>() : 2;
+    tracker.maxLostTimeS = cfg["max_lost_time_s"] ? cfg["max_lost_time_s"].as<float>() : 0.30f;
+    tracker.maxPredictTimeS = cfg["max_predict_time_s"] ? cfg["max_predict_time_s"].as<float>() : 0.20f;
+    tracker.deadRetentionTimeS = cfg["dead_retention_time_s"] ? cfg["dead_retention_time_s"].as<float>() : 0.10f;
+    tracker.deadTargetHoldTimeS = cfg["dead_target_hold_time_s"] ? cfg["dead_target_hold_time_s"].as<float>() : 0.10f;
     tracker.minHit = cfg["min_hit"] ? cfg["min_hit"].as<int>() : 2;
     tracker.maxTracks = cfg["max_tracks"] ? cfg["max_tracks"].as<int>() : 20;
 
@@ -238,12 +241,12 @@ void Config::loadTrackerConfig(const std::string& path) {
 
     // ========== 身份更新阈值 ==========
     tracker.minIdentityUpdateConf = cfg["min_identity_update_conf"] ? cfg["min_identity_update_conf"].as<float>() : 0.20f;
-    tracker.identityConfirmFrames = cfg["identity_confirm_frames"] ? cfg["identity_confirm_frames"].as<int>() : 3;
-    tracker.identitySwitchConfirmFrames = cfg["identity_switch_confirm_frames"] ? cfg["identity_switch_confirm_frames"].as<int>() : 5;
+    tracker.identityConfirmObservations = cfg["identity_confirm_observations"] ? cfg["identity_confirm_observations"].as<int>() : 3;
+    tracker.identitySwitchConfirmObservations = cfg["identity_switch_confirm_observations"] ? cfg["identity_switch_confirm_observations"].as<int>() : 5;
 
     // ========== Official slot owner 机制 ==========
     tracker.slotBindMinConf = cfg["slot_bind_min_conf"] ? cfg["slot_bind_min_conf"].as<float>() : 0.40f;
-    tracker.slotLeaseFrames = cfg["slot_lease_frames"] ? cfg["slot_lease_frames"].as<int>() : 8;
+    tracker.slotLeaseTimeS = cfg["slot_lease_time_s"] ? cfg["slot_lease_time_s"].as<float>() : 0.30f;
     tracker.slotMinStability = cfg["slot_min_stability"] ? cfg["slot_min_stability"].as<float>() : 0.70f;
     tracker.slotMaxSwitchRate = cfg["slot_max_switch_rate"] ? cfg["slot_max_switch_rate"].as<float>() : 0.35f;
     tracker.maxSlotJumpDist = cfg["max_slot_jump_dist"] ? cfg["max_slot_jump_dist"].as<float>() : 2.5f;
@@ -252,7 +255,7 @@ void Config::loadTrackerConfig(const std::string& path) {
     if (cfg["bot_identity"]) {
         YAML::Node bi = cfg["bot_identity"];
         tracker.botIdentity.maxHistory = bi["max_history"] ? bi["max_history"].as<int>() : 50;
-        tracker.botIdentity.purgeThreshold = bi["purge_threshold"] ? bi["purge_threshold"].as<int>() : 30;
+        tracker.botIdentity.purgeAfterLostTimeS = bi["purge_after_lost_time_s"] ? bi["purge_after_lost_time_s"].as<float>() : 1.0f;
         tracker.botIdentity.minHistoryForStable = bi["min_history_for_stable"] ? bi["min_history_for_stable"].as<int>() : 8;
         tracker.botIdentity.decay = bi["decay"] ? bi["decay"].as<float>() : 0.97f;
         tracker.botIdentity.numClasses = bi["num_classes"] ? bi["num_classes"].as<int>() : 9;
@@ -327,6 +330,27 @@ void Config::validateModelConfig(const ModelConfig& cfg) {
     }
     if (cfg.classNames.empty()) {
         throw std::runtime_error("classNames 不能为空");
+    }
+    if (cfg.outpostMissTimeoutS < 0.0f) {
+        throw std::runtime_error("outpost_miss_timeout_s 不能为负数");
+    }
+}
+
+void Config::validateTrackerConfig(const TrackerConfig& cfg) {
+    if (cfg.maxPredictTimeS < 0.0f || cfg.maxLostTimeS < 0.0f ||
+        cfg.deadRetentionTimeS < 0.0f || cfg.deadTargetHoldTimeS < 0.0f ||
+        cfg.slotLeaseTimeS < 0.0f || cfg.botIdentity.purgeAfterLostTimeS < 0.0f) {
+        throw std::runtime_error("Tracker 物理时间参数不能为负数");
+    }
+    if (cfg.maxPredictTimeS > cfg.maxLostTimeS) {
+        throw std::runtime_error("max_predict_time_s 不能大于 max_lost_time_s");
+    }
+    if (cfg.minHit <= 0 || cfg.maxTracks <= 0 ||
+        cfg.identityConfirmObservations <= 0 ||
+        cfg.identitySwitchConfirmObservations <= 0 ||
+        cfg.botIdentity.maxHistory <= 0 ||
+        cfg.botIdentity.minHistoryForStable <= 0) {
+        throw std::runtime_error("Tracker 观测计数参数必须大于 0");
     }
 }
 

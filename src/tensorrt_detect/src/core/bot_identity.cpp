@@ -1,19 +1,21 @@
 #include "bot_identity.hpp"
 
+#include <algorithm>
+
 BotIdentity::BotIdentity(const BotIdentityConfig& cfg) {
     configure(cfg);
 }
 
 void BotIdentity::configure(const BotIdentityConfig& cfg) {
     maxHistory_ = cfg.maxHistory;
-    purgeThreshold_ = cfg.purgeThreshold;
+    purgeAfterLostTimeS_ = std::max(0.0f, cfg.purgeAfterLostTimeS);
     minHistoryForStable_ = cfg.minHistoryForStable;
     decay_ = cfg.decay;
     numClasses_ = cfg.numClasses;
 }
 
 void BotIdentity::update(int class_id, float class_conf, float class_margin) {
-    lost_counter_ = 0;
+    lost_duration_s_ = 0.0f;
     history_.push_back({class_id, class_conf, class_margin});
     if (history_.size() > static_cast<size_t>(maxHistory_)) {
         history_.pop_front();
@@ -28,9 +30,9 @@ void BotIdentity::updateRecent(int class_id, float class_conf) {
     }
 }
 
-void BotIdentity::markLost() {
-    lost_counter_++;
-    if (lost_counter_ >= purgeThreshold_) {
+void BotIdentity::markLost(float lost_duration_s) {
+    lost_duration_s_ = std::max(0.0f, lost_duration_s);
+    if (lost_duration_s_ >= purgeAfterLostTimeS_) {
         reset();
     }
 }
@@ -38,7 +40,7 @@ void BotIdentity::markLost() {
 void BotIdentity::reset() {
     history_.clear();
     recent_history_.clear();
-    lost_counter_ = 0;
+    lost_duration_s_ = 0.0f;
 }
 
 bool BotIdentity::empty() const {
@@ -46,7 +48,7 @@ bool BotIdentity::empty() const {
 }
 
 bool BotIdentity::shouldPurge() const {
-    return lost_counter_ >= purgeThreshold_;
+    return lost_duration_s_ >= purgeAfterLostTimeS_;
 }
 
 std::pair<int, float> BotIdentity::getStableClass() const {

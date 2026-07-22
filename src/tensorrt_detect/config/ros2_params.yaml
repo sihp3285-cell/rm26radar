@@ -55,9 +55,11 @@ pose_node:
     # Tracker 参数（由 config_dir/tracker.yaml 加载，此处仅为文档说明）
     # 实际修改请编辑 configs/tracker.yaml，重启 pose_node 生效
     # ══════════════════════════════════════════════════════════════
-    # max_miss: 6                    # 连续丢失多少帧后 track 标记为 DEAD
-    # max_predict: 3                 # 连续丢失多少帧内保持 PREDICTED（卡尔曼外推）
-    # min_hit: 3                     # 最少命中次数才允许对外输出 / 绑定 slot
+    # max_lost_time_s: 0.30          # 从最后真实观测起多久后 track 标记为 DEAD
+    # max_predict_time_s: 0.20       # 丢失多久内保持 PREDICTED（卡尔曼外推）
+    # dead_retention_time_s: 0.10    # DEAD 状态对下游的保留时间
+    # dead_target_hold_time_s: 0.10  # 死亡装甲板直接测量的显示保持时间
+    # min_hit: 3                     # 最少命中观测次数才允许对外输出 / 绑定 slot
     # max_tracks: 20                 # 最大同时跟踪的 PhysicalTrack 数量
     # max_gate_box: 1500.0           # 像素框中心距离门限
     # max_gate_world: 2.5            # 世界坐标 gate（米），<= 0 则禁用
@@ -71,13 +73,14 @@ pose_node:
     # class_mismatch_penalty: 0.40   # 跨兵种匹配的最大软惩罚（随身份/检测可靠度动态插值）
     # min_identity_update_conf: 0.20 # 身份更新最低置信度
     # slot_bind_min_conf: 0.40       # 绑定 slot 最低 stable confidence
-    # slot_takeover_miss: 6          # owner 丢失保护帧数（禁止其他 track 抢槽）
-    # slot_release_miss: 8           # owner 丢失释放槽位帧数
+    # identity_confirm_observations: 3        # 新身份连续确认观测次数
+    # identity_switch_confirm_observations: 8 # 身份切换连续确认观测次数
+    # slot_lease_time_s: 0.30        # owner 不可输出后的槽位租约时间
     # max_slot_jump_dist: 2.5        # 防 slot 瞬移最大距离（米），<= 0 则禁用
     # # BotIdentity 身份稳定器子参数:
-    # bot_identity.max_history: 30           # 历史观测最大保存帧数
-    # bot_identity.purge_threshold: 20       # 连续丢失多少帧后清空历史
-    # bot_identity.min_history_for_stable: 6 # 稳定身份最小历史长度门槛
+    # bot_identity.max_history: 30              # 历史有效观测最大保存次数
+    # bot_identity.purge_after_lost_time_s: 1.0 # 连续丢失多久后清空历史
+    # bot_identity.min_history_for_stable: 6    # 稳定身份最小观测次数门槛
     # bot_identity.decay: 0.99               # 指数加权衰减系数
     # bot_identity.num_classes: 9            # 类别总数
 
@@ -87,6 +90,8 @@ map_node:
     input_topic: "/world_targets"
     output_image_topic: "/map_image"
     output_map_topic: "/radar_map"
+    prior_topic: "/prior_predictions"
+    prior_display_timeout_s: 1.0
 
 qt_display_node:
   ros__parameters:

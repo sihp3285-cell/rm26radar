@@ -7,6 +7,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
+#include <chrono>
 #include "ConfigManager.hpp"
 
 struct PipelineTiming {
@@ -44,7 +45,8 @@ public:
     }
 
 
-    std::vector<Result> process(const cv::Mat& frame);
+    std::vector<Result> process(const cv::Mat& frame, float elapsed_s = -1.0f);
+    void resetTimeState();
     bool isOutpostAlive() const { return !outpostIsDead_; }
     PipelineTiming getLatestTiming() const;
 
@@ -55,14 +57,14 @@ private:
     std::unique_ptr<Model> airplaneModel_;
     Config& cfg_;
 
-    int outpostMissCount_ = 0;
+    float outpostMissDurationS_ = 0.0f;
     bool outpostIsDead_ = false;
     cv::Rect outpostLastBox_;
 
     std::vector<Result>   runDetect(const cv::Mat& frame);
     std::vector<Result>   runArmorDetect(const cv::Mat& frame,
                                          const std::vector<Result>& detections);
-    std::vector<Result>   detectOutpost(const cv::Mat& frame);
+    std::vector<Result>   detectOutpost(const cv::Mat& frame, float elapsed_s);
     void runClassify(const cv::Mat& frame, std::vector<Result>& detections);
     std::vector<Result>   runAirplaneDetect(const cv::Mat& frame);
 
@@ -91,6 +93,7 @@ private:
     double accTotalMs_ = 0.0;
     int accCount_ = 0;
     std::chrono::steady_clock::time_point lastStatsTime_ = std::chrono::steady_clock::now();
+    std::chrono::steady_clock::time_point lastProcessTime_ = std::chrono::steady_clock::now();
 
     mutable std::mutex timingMutex_;
     PipelineTiming latestTiming_;

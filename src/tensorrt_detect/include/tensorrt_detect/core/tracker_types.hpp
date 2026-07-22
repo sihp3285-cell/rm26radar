@@ -1,16 +1,27 @@
 #pragma once
 
 #include <opencv2/opencv.hpp>
+#include <array>
+#include <cstdint>
 
 // ==========================================
 // Tracker 公共数据结构
 // ==========================================
 
 enum class TrackState {
-    ACTIVE = 0,     // 正常跟踪中
-    PREDICTED = 1,  // 短暂丢失，卡尔曼外推中（仍可显示在地图上）
-    LOST = 2,       // 丢失较久，不再对外输出，但 track 还没彻底清理
-    DEAD = 3        // 超过最大丢失帧，等待删除或已经无效
+    INVALID = 0,    // official slot 当前没有对应物理轨迹
+    ACTIVE = 1,     // 正常跟踪中
+    PREDICTED = 2,  // 短暂丢失，卡尔曼外推中（仍可显示在地图上）
+    LOST = 3,       // 丢失较久，不再对外输出，但 track 还没彻底清理
+    DEAD = 4        // 超过最大丢失时间，等待清理
+};
+
+enum class PositionSource {
+    INVALID = 0,
+    MEASURED = 1,
+    TRACKED = 2,
+    PREDICTED = 3,
+    PRIOR_GUESSED = 4
 };
 
 // 单帧观测输入（像素框 + 世界坐标）
@@ -43,7 +54,7 @@ struct TrackedTarget {
     int class_id = 0;
     int hit_count = 0;     // 命中次数
     int miss_count = 0;    // 连续丢失次数
-    TrackState state = TrackState::ACTIVE;
+    TrackState state = TrackState::INVALID;
 
     cv::Rect smoothed_box;       // 平滑后的像素框
     cv::Point2f smoothed_world;  // 平滑后的世界坐标，x=world_x, y=world_z
@@ -53,4 +64,14 @@ struct TrackedTarget {
     // 可选：如果后续想把 BotIdentity 的稳定身份透传到旧接口，可以使用这两个字段。
     int stable_class_id = -1;
     float stable_class_conf = 0.0f;
+
+    bool observed = false;
+    cv::Point2f velocity;
+    std::array<double, 16> state_covariance{};
+    bool covariance_valid = false;
+    float detection_confidence = 0.0f;
+    float tracking_confidence = 0.0f;
+    std::int64_t last_observed_time_ns = 0;
+    float lost_duration_s = 0.0f;
+    PositionSource position_source = PositionSource::INVALID;
 };

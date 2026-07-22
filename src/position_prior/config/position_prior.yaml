@@ -1,0 +1,82 @@
+position_prior_node:
+  ros__parameters:
+    # Tracker 固定槽位目标输入。消息中必须包含兵种、观测状态、速度、
+    # 协方差、最后观测时间和 lost_duration_s 等完整跟踪信息。
+    input_topic: "/world_targets"
+
+    # 独立的先验预测输出。猜点不会覆盖 /world_targets，也不会回灌 Kalman。
+    output_topic: "/prior_predictions"
+
+    # Windows 离线工具生成的 v1 条件位置先验模型。
+    # 文件采用 JSON 文法（兼容 YAML 1.2），运行时由 yaml-cpp 只读加载。
+    model_path: "/home/delphine/rm/tensorrt10_detect/position_prior_toolkit/run_v1/04_rmuc2026_position_prior_v1.yaml"
+
+    # 模型文件的预期 SHA-256。实际哈希不一致时安全禁用猜点，节点不崩溃。
+    model_sha256: "b1a7384042939aca3fcfa3d45a5bbd3cd8b7e3bdeaa658aac24d17f36e2df53e"
+
+    # 模型上下文。当前实战链路没有稳定的比赛阶段信息，因此只使用全阶段模型；
+    # opening/early/middle/late 虽已离线导出，但暂不作为在线输入。
+    context: "all_phase"
+
+    # 从最后一次可靠真实观测起，至少丢失多少秒才允许启用先验。
+    # 该时间之前优先由 tracker/Kalman 进行短期外推。
+    guess_after_s: 2.0
+
+    # 最后可靠位置只接受连续、空间一致的真实检测。新出现或重新出现的车辆
+    # 需要连续 3 次检测落在半径 0.8 m 的区域内；单帧跳点不会覆盖旧缓存。
+    observation_confirm_count: 3
+    observation_confirm_radius_m: 0.8
+
+    # 相邻确认样本允许的最大时间间隔。超过后视为新的观测序列并重新累计。
+    observation_confirm_max_gap_s: 0.35
+
+    # 从模型稀疏分布中读取的候选数量，用于运动门控和概率融合。
+    # v1 模型每个条件最多导出 16 个候选，设置更大不会产生额外候选。
+    query_top_k: 16
+
+    # 通过可达性和运动门控后，写入 PriorPrediction 消息并显示的最大候选数。
+    output_top_k: 5
+
+    # 当前实测视频中工程先验相对保持最后位置平均误差改善约 37.8%，而英雄、
+    # 步兵和哨兵尚未表现出稳定收益，因此 shadow mode 默认只启用工程。
+    # 可选值：hero、engineer、infantry3、infantry4、sentry；设为空列表表示全部启用。
+    enabled_roles: ["engineer", "sentry"]
+
+    # 在线运动可达性使用的最大机器人速度，单位 m/s。
+    # 候选最大直线距离约为 max_speed_mps * lost_duration_s + margin。
+    max_speed_mps: 3.0
+
+    # 可达距离额外余量，单位 m，用于容纳定位误差、网格离散误差和速度估计误差。
+    reachability_margin_m: 0.5
+
+    # 猜点相对最后一次可靠观测位置的绝对距离上限，单位 m。
+    # 实际硬门限为 min(max_speed_mps * lost_duration_s + margin, 本参数)。
+    # 超出该距离的候选会被标记为不可达，不参与主猜点和 Top-K 有效显示。
+    max_guess_distance_m: 4.0
+
+    # 硬阈值以内的近距离偏好尺度，单位 m。候选距离越远，融合权重越低；
+    # 它不会替代兵种先验和速度方向，只用于抑制“虽未越界但明显偏远”的候选。
+    # 设置为 0 可关闭软偏好，但 max_guess_distance_m 硬阈值仍然生效。
+    distance_preference_sigma_m: 3.0
+
+    # 最低综合置信度，范围 [0,1]。低于该值时允许拒绝猜点。
+    # 综合置信度包含最后跟踪置信度、协方差、样本量、熵和可达概率质量；
+    # 它不再随丢失时间归零，也不是目标位于某个精确坐标的真实概率。
+    minimum_confidence: 0.10
+
+    # 启动时的我方阵营视角：false 表示我方蓝、只猜红方；true 表示我方红、
+    # 只猜蓝方。运行中 /flip_team 变化时会同步更新敌我筛选与坐标方向，
+    # 并清空切换前的观测缓存。
+    initial_flip_team: false
+
+    # canonical 红方视角下的矩形禁行区域，可连续填写多个矩形：
+    # blocked_regions_canonical: [min_x, min_y, max_x, max_y, ...]
+    # 候选中心落入矩形时会标为 blocked 并从有效猜点中排除。
+    # v1 暂未配置障碍物区域，因此使用节点内置的空列表默认值。
+
+    # Shadow-mode CSV 日志路径。记录 PREDICTION、REACQUIRED、置信度、
+    # 回退层级和重识别误差；不影响实时决策输出。
+    shadow_log_path: "/home/delphine/rm/tensorrt10_detect/log/position_prior_shadow.csv"
+
+    # 同一目标连续处于猜点状态时的最小日志记录间隔，单位秒，避免日志逐帧膨胀。
+    log_interval_s: 0.5

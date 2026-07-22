@@ -19,6 +19,11 @@ def launch_setup(context, *args, **kwargs):
         'config',
         'ros2_params.yaml',
     ])
+    prior_params_file = PathJoinSubstitution([
+        FindPackageShare('position_prior'),
+        'config',
+        'position_prior.yaml',
+    ])
 
     # ── 根据 mode 选择图像源节点 ──
     if mode == 'camera':
@@ -75,6 +80,15 @@ def launch_setup(context, *args, **kwargs):
     return [
         pipeline_container,
 
+        # 独立 shadow 节点：只发布先验消息与日志，不回灌 tracker。
+        Node(
+            package='position_prior',
+            executable='position_prior_node',
+            name='position_prior_node',
+            output='screen',
+            parameters=[prior_params_file],
+        ),
+
         # 标定节点（独立进程，含交互式 OpenCV 窗口）
         Node(
             package='tensorrt_detect',
@@ -91,6 +105,14 @@ def launch_setup(context, *args, **kwargs):
             name='qt_display_node',
             output='screen',
             parameters=[params_file],
+            # 从 Snap 版 VS Code 启动时，这些变量会让系统 Qt 误加载
+            # /snap/core20 的旧 GTK/glibc 依赖，表现为 libpthread 符号错误。
+            # 只隔离 Qt 子进程，不影响相机 SDK、TensorRT 或其他 ROS 节点。
+            additional_env={
+                'GTK_PATH': '',
+                'LOCPATH': '',
+                'QT_ACCESSIBILITY': '0',
+            },
         ),
 
         # ROI 设置节点（独立进程，含交互式 OpenCV 窗口）

@@ -30,7 +30,7 @@ airplane_interval_ms: 200
 outpost_enabled: true
 outpost_roi: [1807, 1451, 173, 65]
 outpost_score_threshold: 0.4
-outpost_miss_threshold: 20
+outpost_miss_timeout_s: 1.0
 #此处为默认值
 
 classNames:

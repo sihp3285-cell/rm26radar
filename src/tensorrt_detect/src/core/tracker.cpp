@@ -12,6 +12,7 @@
 
 namespace {
 constexpr float INF_COST = 1e6f;
+constexpr std::int64_t NS_PER_SECOND = 1000000000LL;
 }
 
 // ---------------- 构造 / reset ----------------
@@ -25,12 +26,19 @@ Tracker::Tracker(const TrackerParams& params) : params_(params) {
     if (params_.class_mismatch_min_penalty > params_.class_mismatch_penalty) {
         std::swap(params_.class_mismatch_min_penalty, params_.class_mismatch_penalty);
     }
+    params_.max_predict_time_s = std::max(0.0f, params_.max_predict_time_s);
+    params_.max_lost_time_s = std::max(
+        params_.max_predict_time_s, params_.max_lost_time_s);
+    params_.dead_retention_time_s = std::max(0.0f, params_.dead_retention_time_s);
+    params_.slot_lease_time_s = std::max(0.0f, params_.slot_lease_time_s);
     last_outputs_ = make_empty_outputs();
 }
 
 void Tracker::reset() {
     tracks_.clear();
     next_track_id_ = 0;
+    current_time_ns_ = 0;
+    time_initialized_ = false;
 
     for (auto& owner : slot_owners_) {
         owner = SlotOwner{};
@@ -115,10 +123,11 @@ std::vector<Tracker::SlotOutput> Tracker::make_empty_outputs() const {
         results[idx].class_id = cls;
         results[idx].track_id = -1;
         results[idx].valid    = false;
-        results[idx].state    = TrackState::DEAD;
+        results[idx].state    = TrackState::INVALID;
+        results[idx].position_source = PositionSource::INVALID;
         results[idx].stable_class_id = -1;
         results[idx].stable_class_conf = 0.0f;
-        results[idx].owner_lost_frames = 0;
+        results[idx].owner_lost_duration_s = 0.0f;
     };
 
     init_slot(SLOT_RED_R1,  robot_id::RED,  robot_id::R1);
@@ -163,8 +172,43 @@ bool Tracker::is_output_state(TrackState state) const {
 void Tracker::reserve_owner(SlotOwner& owner) {
     if (owner.state == SlotOwnerState::OWNED) {
         owner.state = SlotOwnerState::RESERVED;
-        owner.lease_frames = params_.slot_lease_frames;
+        owner.reserved_since_time_ns = current_time_ns_;
     }
+}
+
+void Tracker::update_lifecycle(PhysicalTrack& track) {
+    if (track.last_observed_time_ns <= 0 || current_time_ns_ <= 0) {
+        track.lost_duration_s = 0.0f;
+    } else {
+        track.lost_duration_s = static_cast<float>(
+            std::max<std::int64_t>(0, current_time_ns_ - track.last_observed_time_ns)) * 1e-9f;
+    }
+
+    if (track.lost_duration_s > params_.max_lost_time_s) {
+        if (track.state != TrackState::DEAD) {
+            track.dead_since_time_ns = current_time_ns_;
+        }
+        track.state = TrackState::DEAD;
+    } else if (track.lost_duration_s <= params_.max_predict_time_s) {
+        track.state = TrackState::PREDICTED;
+    } else {
+        track.state = TrackState::LOST;
+    }
+}
+
+float Tracker::calculate_tracking_confidence(const PhysicalTrack& track) const {
+    const float detection_confidence = std::clamp(track.last_score, 0.0f, 1.0f);
+    if (track.observed_this_update) {
+        return detection_confidence;
+    }
+    if (params_.max_lost_time_s <= 0.0f) {
+        return 0.0f;
+    }
+    const float remaining = std::clamp(
+        1.0f - track.lost_duration_s / params_.max_lost_time_s,
+        0.0f,
+        1.0f);
+    return detection_confidence * remaining;
 }
 
 void Tracker::update_identity_state(
@@ -175,35 +219,35 @@ void Tracker::update_identity_state(
         slot_for(track.team_id, detection.class_id) >= 0;
     if (!valid) {
         track.pending_class = -1;
-        track.pending_class_frames = 0;
+        track.pending_class_observations = 0;
         return;
     }
 
     if (detection.class_id == track.committed_class) {
         track.pending_class = -1;
-        track.pending_class_frames = 0;
+        track.pending_class_observations = 0;
         return;
     }
 
     if (detection.class_id == track.pending_class) {
-        track.pending_class_frames++;
+        track.pending_class_observations++;
     } else {
         track.pending_class = detection.class_id;
-        track.pending_class_frames = 1;
+        track.pending_class_observations = 1;
     }
 
-    const int confirm_frames = track.committed_class < 0
-        ? params_.identity_confirm_frames
-        : params_.identity_switch_confirm_frames;
+    const int confirm_observations = track.committed_class < 0
+        ? params_.identity_confirm_observations
+        : params_.identity_switch_confirm_observations;
     const auto stats = track.bot_id.getStats();
-    if (track.pending_class_frames >= confirm_frames &&
+    if (track.pending_class_observations >= confirm_observations &&
         stats.class_id == track.pending_class &&
         stats.confidence >= params_.slot_bind_min_conf &&
         stats.stability >= params_.slot_min_stability &&
         stats.switch_rate <= params_.slot_max_switch_rate) {
         track.committed_class = track.pending_class;
         track.pending_class = -1;
-        track.pending_class_frames = 0;
+        track.pending_class_observations = 0;
     }
 }
 
@@ -215,14 +259,19 @@ void Tracker::fill_slot_output(
     const PhysicalTrack& track,
     int stable_class_id,
     float stable_class_conf,
-    int owner_lost_frames
+    float owner_lost_duration_s,
+    bool valid
 ) const {
-    out.valid = true;
+    out.valid = valid;
     out.slot_idx = slot_idx;
 
     // nominal class / team 已经在 make_empty_outputs() 初始化过
     out.track_id = track.track_id;
     out.state = track.state;
+    out.observed = track.observed_this_update;
+    out.position_source = track.observed_this_update
+        ? PositionSource::TRACKED
+        : PositionSource::PREDICTED;
 
     out.smoothed_box = track.last_box;
 
@@ -230,14 +279,32 @@ void Tracker::fill_slot_output(
     // 统一输出 Kalman 后的 last_world，而不是 ACTIVE 时输出 detected_world。
     // 你原来 ACTIVE 用 detected_world，会让地图点更抖。
     out.smoothed_world = track.last_world;
+    const auto velocity = track.kf_world.get_velocity();
+    if (velocity.size() >= 2) {
+        out.velocity = cv::Point2f(velocity[0], velocity[1]);
+    }
+
+    out.covariance_valid = track.kf_world.P.allFinite();
+    if (out.covariance_valid) {
+        for (int row = 0; row < 4; ++row) {
+            for (int col = 0; col < 4; ++col) {
+                out.state_covariance[row * 4 + col] =
+                    static_cast<double>(track.kf_world.P(row, col));
+            }
+        }
+    }
 
     out.is_dead = track.last_is_dead;
     out.score = track.last_score;
+    out.detection_confidence = track.last_score;
+    out.tracking_confidence = calculate_tracking_confidence(track);
+    out.last_observed_time_ns = track.last_observed_time_ns;
+    out.lost_duration_s = track.lost_duration_s;
 
     out.stable_class_id = stable_class_id;
     out.stable_class_conf = stable_class_conf;
 
-    out.owner_lost_frames = owner_lost_frames;
+    out.owner_lost_duration_s = owner_lost_duration_s;
 }
 
 // ==========================================================
@@ -306,9 +373,25 @@ void Tracker::build_outputs_with_slot_owner() {
         if (owner.state == SlotOwnerState::RESERVED) {
             if (can_reclaim) {
                 owner.state = SlotOwnerState::OWNED;
-            } else if (--owner.lease_frames <= 0) {
-                owner.state = SlotOwnerState::FREE;
-                owner.track_id = -1;
+                owner.reserved_since_time_ns = 0;
+            } else {
+                if (owner_track &&
+                    slot_for(owner_track->team_id, owner_track->committed_class) == slot_idx) {
+                    fill_slot_output(
+                        results[slot_idx], slot_idx, *owner_track,
+                        owner_track->committed_class, owner.last_conf,
+                        owner_track->lost_duration_s, false);
+                }
+                const float reserved_duration_s = owner.reserved_since_time_ns > 0
+                    ? static_cast<float>(std::max<std::int64_t>(
+                          0, current_time_ns_ - owner.reserved_since_time_ns)) * 1e-9f
+                    : 0.0f;
+                if (reserved_duration_s >= params_.slot_lease_time_s) {
+                    owner.state = SlotOwnerState::FREE;
+                    owner.track_id = -1;
+                    owner.reserved_since_time_ns = 0;
+                }
+                continue;
             }
         }
 
@@ -317,6 +400,13 @@ void Tracker::build_outputs_with_slot_owner() {
         }
 
         if (!can_reclaim) {
+            if (owner_track &&
+                slot_for(owner_track->team_id, owner_track->committed_class) == slot_idx) {
+                fill_slot_output(
+                    results[slot_idx], slot_idx, *owner_track,
+                    owner_track->committed_class, owner.last_conf,
+                    owner_track->lost_duration_s, false);
+            }
             reserve_owner(owner);
             continue;
         }
@@ -325,9 +415,10 @@ void Tracker::build_outputs_with_slot_owner() {
         const float output_conf = stats.class_id == owner_track->committed_class
             ? stats.confidence : owner.last_conf;
         fill_slot_output(results[slot_idx], slot_idx, *owner_track,
-                         owner_track->committed_class, output_conf, 0);
+                         owner_track->committed_class, output_conf,
+                         owner_track->lost_duration_s, true);
 
-        owner.lease_frames = params_.slot_lease_frames;
+        owner.reserved_since_time_ns = 0;
         owner.last_world = owner_track->last_world;
         owner.has_last_world = true;
         owner.last_conf = output_conf;
@@ -433,7 +524,7 @@ void Tracker::build_outputs_with_slot_owner() {
             // 绑定新的 owner，并在每个有效输出帧续租。
             owner.state = SlotOwnerState::OWNED;
             owner.track_id = track.track_id;
-            owner.lease_frames = params_.slot_lease_frames;
+            owner.reserved_since_time_ns = 0;
             owner.last_world = track.last_world;
             owner.has_last_world = true;
             owner.last_conf = cand.stable_class_conf;
@@ -444,7 +535,8 @@ void Tracker::build_outputs_with_slot_owner() {
                 track,
                 cand.stable_class_id,
                 cand.stable_class_conf,
-                0
+                track.lost_duration_s,
+                true
             );
 
             used_tracks.insert(track.track_id);
@@ -477,7 +569,26 @@ Tracker::SlotOutput Tracker::get_slot(int idx) const {
 // 核心更新：物理匹配优先，class 只做轻量软惩罚
 // ==========================================================
 
-void Tracker::update(const std::vector<WorldMeasurement>& detections, float dt) {
+void Tracker::update(
+    const std::vector<WorldMeasurement>& detections,
+    float dt,
+    std::int64_t timestamp_ns) {
+    const float effective_dt = (std::isfinite(dt) && dt >= 0.0f) ? dt : 0.1f;
+    if (timestamp_ns > 0) {
+        if (time_initialized_ && timestamp_ns < current_time_ns_) {
+            reset();
+        }
+        current_time_ns_ = timestamp_ns;
+        time_initialized_ = true;
+    } else {
+        if (!time_initialized_) {
+            current_time_ns_ = NS_PER_SECOND;
+            time_initialized_ = true;
+        } else {
+            current_time_ns_ += static_cast<std::int64_t>(effective_dt * NS_PER_SECOND);
+        }
+    }
+
     const int n_cols = static_cast<int>(detections.size());
 
     // ------------------------------------------------------
@@ -485,6 +596,7 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections, float dt) 
     // ------------------------------------------------------
     for (auto& track : tracks_) {
         track.negative_suppressed = false;
+        track.observed_this_update = false;
 
         if (!track.initialized || track.state == TrackState::DEAD) {
             continue;
@@ -652,6 +764,10 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections, float dt) 
         for (int r = 0; r < n_rows; ++r) {
             auto& track = tracks_[r];
 
+            if (!track.initialized || track.state == TrackState::DEAD) {
+                continue;
+            }
+
             int c = -1;
             if (r < static_cast<int>(assignment.size())) {
                 c = assignment[r];
@@ -716,6 +832,10 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections, float dt) 
                 track.hit_count++;
                 track.miss_count = 0;
                 track.state = TrackState::ACTIVE;
+                track.observed_this_update = true;
+                track.last_observed_time_ns = current_time_ns_;
+                track.lost_duration_s = 0.0f;
+                track.dead_since_time_ns = 0;
 
                 track.last_score = det.score;
                 track.last_is_dead = det.is_dead;
@@ -727,15 +847,8 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections, float dt) 
                     // 死亡车辆冻结，不增加 miss
                 } else {
                     track.miss_count++;
-                    track.bot_id.markLost();
-
-                    if (track.miss_count > params_.max_miss) {
-                        track.state = TrackState::DEAD;
-                    } else if (track.miss_count <= params_.max_predict) {
-                        track.state = TrackState::PREDICTED;
-                    } else {
-                        track.state = TrackState::LOST;
-                    }
+                    update_lifecycle(track);
+                    track.bot_id.markLost(track.lost_duration_s);
                 }
             }
         }
@@ -749,15 +862,8 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections, float dt) 
             }
 
             track.miss_count++;
-            track.bot_id.markLost();
-
-            if (track.miss_count > params_.max_miss) {
-                track.state = TrackState::DEAD;
-            } else if (track.miss_count <= params_.max_predict) {
-                track.state = TrackState::PREDICTED;
-            } else {
-                track.state = TrackState::LOST;
-            }
+            update_lifecycle(track);
+            track.bot_id.markLost(track.lost_duration_s);
         }
     }
 
@@ -792,6 +898,9 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections, float dt) 
 
         track.hit_count = 1;
         track.miss_count = 0;
+        track.observed_this_update = true;
+        track.last_observed_time_ns = current_time_ns_;
+        track.lost_duration_s = 0.0f;
 
         track.last_box = det.box;
         track.last_world = det.world;
@@ -821,8 +930,12 @@ void Tracker::update(const std::vector<WorldMeasurement>& detections, float dt) 
             tracks_.begin(),
             tracks_.end(),
             [this](const PhysicalTrack& t) {
-                return t.state == TrackState::DEAD &&
-                       t.miss_count > params_.max_miss + 2;
+                if (t.state != TrackState::DEAD || t.dead_since_time_ns <= 0) {
+                    return false;
+                }
+                const float dead_duration_s = static_cast<float>(
+                    std::max<std::int64_t>(0, current_time_ns_ - t.dead_since_time_ns)) * 1e-9f;
+                return dead_duration_s > params_.dead_retention_time_s;
             }
         ),
         tracks_.end()

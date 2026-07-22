@@ -5,6 +5,8 @@
 #include <std_srvs/srv/trigger.hpp>
 #include <opencv2/opencv.hpp>
 #include <filesystem>
+#include <cmath>
+#include <cstdint>
 #include <yaml-cpp/yaml.h>
 
 #include "tensorrt_detect_msgs/msg/detection_array.hpp"
@@ -74,7 +76,28 @@ private:
             auto cv_ptr = cv_bridge::toCvShare(msg, "bgr8");
             cv::Mat frame = cv_ptr->image;
 
-            std::vector<Result> results = pipeline_->process(frame);
+            float elapsed_s = -1.0f;
+            int64_t stamp_ns = rclcpp::Time(
+                msg->header.stamp, this->get_clock()->get_clock_type()).nanoseconds();
+            if (stamp_ns <= 0) {
+                stamp_ns = this->get_clock()->now().nanoseconds();
+            }
+            if (last_image_stamp_ns_ > 0) {
+                const double stamp_dt_s =
+                    static_cast<double>(stamp_ns - last_image_stamp_ns_) * 1e-9;
+                if (std::isfinite(stamp_dt_s) && stamp_dt_s >= 0.0) {
+                    elapsed_s = static_cast<float>(stamp_dt_s);
+                } else {
+                    RCLCPP_WARN(
+                        this->get_logger(),
+                        "图像时间倒退（dt=%.6f s），重置检测管线时间状态",
+                        stamp_dt_s);
+                    pipeline_->resetTimeState();
+                }
+            }
+            last_image_stamp_ns_ = stamp_ns;
+
+            std::vector<Result> results = pipeline_->process(frame, elapsed_s);
 
             auto now = std::chrono::steady_clock::now();
             double dt = std::chrono::duration<double>(now - last_time_).count();
@@ -215,9 +238,9 @@ private:
             cfg_->model.outpostScoreThreshold = cfg["outpost_score_threshold"]
                                                     ? cfg["outpost_score_threshold"].as<float>()
                                                     : 0.0f;
-            cfg_->model.outpostMissThreshold = cfg["outpost_miss_threshold"]
-                                                   ? cfg["outpost_miss_threshold"].as<int>()
-                                                   : 20;
+            cfg_->model.outpostMissTimeoutS = cfg["outpost_miss_timeout_s"]
+                                                  ? cfg["outpost_miss_timeout_s"].as<float>()
+                                                  : 1.0f;
 
             response->success = true;
             response->message = "outpost ROI 配置已重载";
@@ -244,6 +267,7 @@ private:
     cv::Mat detect_input_frame_;
     cv::Mat debug_output_frame_;
     cv_bridge::CvImage debug_cv_image_{std_msgs::msg::Header(), "bgr8"};
+    int64_t last_image_stamp_ns_ = 0;
 };
 
 #include <rclcpp_components/register_node_macro.hpp>

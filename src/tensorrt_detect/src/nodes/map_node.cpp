@@ -5,6 +5,12 @@
 #include <std_msgs/msg/bool.hpp>
 #include <opencv2/opencv.hpp>
 
+#include <algorithm>
+#include <cmath>
+#include <mutex>
+#include <sstream>
+#include <unordered_set>
+
 #include "tensorrt_detect_msgs/msg/world_target_array.hpp"
 #include "tensorrt_detect_msgs/msg/world_target.hpp"
 #include "tensorrt_detect_msgs/msg/radar_map.hpp"
@@ -13,6 +19,7 @@
 #include "robot_id.hpp"
 #include "map_analyzer.hpp"
 #include "tensorrt_detect_msgs/msg/map_tactics.hpp"
+#include "tensorrt_detect_msgs/msg/prior_prediction_array.hpp"
 #include "tracker.hpp"
 
 class MapNode : public rclcpp::Node
@@ -27,6 +34,8 @@ public:
         this->declare_parameter<std::string>("output_image_topic", "/map_image");
         this->declare_parameter<std::string>("output_map_topic", "/radar_map");
         this->declare_parameter<std::string>("output_tactics_topic", "/map_tactics");
+        this->declare_parameter<std::string>("prior_topic", "/prior_predictions");
+        this->declare_parameter<double>("prior_display_timeout_s", 1.0);
         this->declare_parameter<int>("out_team_id", robot_id::RED);
         this->declare_parameter<bool>("flip_team", false);
         this->declare_parameter<bool>("field_x_flip", false);
@@ -36,6 +45,9 @@ public:
         output_image_topic_ = this->get_parameter("output_image_topic").as_string();
         output_map_topic_ = this->get_parameter("output_map_topic").as_string();
         output_tactics_topic_ = this->get_parameter("output_tactics_topic").as_string();
+        prior_topic_ = this->get_parameter("prior_topic").as_string();
+        prior_display_timeout_s_ = std::max(
+            0.0, this->get_parameter("prior_display_timeout_s").as_double());
         out_team_id_ = this->get_parameter("out_team_id").as_int();
         flip_team_ = this->get_parameter("flip_team").as_bool();
         bool field_x_flip = this->get_parameter("field_x_flip").as_bool();
@@ -85,12 +97,137 @@ public:
         target_sub_ = this->create_subscription<tensorrt_detect_msgs::msg::WorldTargetArray>(
             input_topic_, rclcpp::QoS(10).best_effort(),
             std::bind(&MapNode::target_callback, this, std::placeholders::_1));
-        
+        prior_sub_ = this->create_subscription<
+            tensorrt_detect_msgs::msg::PriorPredictionArray>(
+                prior_topic_, rclcpp::QoS(10).best_effort(),
+                [this](const tensorrt_detect_msgs::msg::PriorPredictionArray::ConstSharedPtr msg) {
+                    std::lock_guard<std::mutex> lock(prior_mutex_);
+                    latest_prior_ = msg;
+                });
 
         RCLCPP_INFO(this->get_logger(), "MapNode 初始化完成，等待世界坐标输入...");
     }
 
 private:
+    void draw_prior_overlay(
+        cv::Mat& frame,
+        const tensorrt_detect_msgs::msg::WorldTargetArray& targets)
+    {
+        tensorrt_detect_msgs::msg::PriorPredictionArray::ConstSharedPtr prior;
+        {
+            std::lock_guard<std::mutex> lock(prior_mutex_);
+            prior = latest_prior_;
+        }
+        if (!prior || !prior->model_enabled || !radar_map_) {
+            return;
+        }
+
+        const rclcpp::Time current_time(targets.header.stamp);
+        const rclcpp::Time prior_time(prior->header.stamp);
+        if (prior_display_timeout_s_ > 0.0 &&
+            current_time.nanoseconds() > 0 && prior_time.nanoseconds() > 0 &&
+            std::abs((current_time - prior_time).seconds()) > prior_display_timeout_s_) {
+            return;
+        }
+
+        const cv::Scalar candidate_color(255, 180, 255);
+        const cv::Scalar primary_color(255, 0, 255);
+        std::unordered_set<std::int64_t> displayed_semantics;
+        for (const auto& prediction : prior->predictions) {
+            if (!prediction.valid) {
+                continue;
+            }
+            const int opponent_team = flip_team_ ? robot_id::BLUE : robot_id::RED;
+            // UI 防御过滤：即使接收到旧版本或异常发布者产生的己方先验，
+            // 也绝不在地图上绘制。
+            if (prediction.team_id != opponent_team) {
+                continue;
+            }
+            const std::int64_t semantic_key =
+                static_cast<std::int64_t>(prediction.team_id) * 100LL +
+                prediction.role_class_id;
+            // UI 再做一道语义去重，防止旧节点或异常发布者产生同方同兵种双猜点。
+            if (!displayed_semantics.insert(semantic_key).second) {
+                continue;
+            }
+            // 是否完成“重新观测确认”由 position prior 节点负责。这里不能因
+            // 单帧 observed 就隐藏先验，否则跳变误检测会绕过连续观测确认门。
+            if (prediction.slot_idx >= 0 &&
+                prediction.slot_idx < static_cast<int>(targets.targets.size())) {
+                const auto& current = targets.targets[prediction.slot_idx];
+                // TRACKING_DEAD/INVALID 仅表示 tracker 的短期生命周期结束；
+                // position prior 在自己的时间窗内仍应显示。只有真实观测或
+                // 机器人被明确判死时才在 UI 侧立即隐藏先验。
+                if (current.is_dead) {
+                    continue;
+                }
+            }
+
+            // 空心候选圆仅用于 UI，不进入 RadarMap 消息或 MapAnalyzer 决策。
+            for (const auto& candidate : prediction.candidates) {
+                if (!candidate.reachable || candidate.blocked ||
+                    !std::isfinite(candidate.world_x) ||
+                    !std::isfinite(candidate.world_z)) {
+                    continue;
+                }
+                const cv::Point2f raw = radar_map_->worldtomap(
+                    cv::Point2f(candidate.world_x, candidate.world_z));
+                const cv::Point point(
+                    static_cast<int>(std::lround(raw.x)),
+                    static_cast<int>(std::lround(raw.y)));
+                if (point.x < 0 || point.y < 0 ||
+                    point.x >= frame.cols || point.y >= frame.rows) {
+                    continue;
+                }
+                const int radius = std::clamp(
+                    3 + static_cast<int>(std::lround(8.0 * candidate.fused_probability)),
+                    3, 7);
+                cv::circle(frame, point, radius, cv::Scalar(255, 255, 255), 3, cv::LINE_AA);
+                cv::circle(frame, point, radius, candidate_color, 1, cv::LINE_AA);
+            }
+
+            const cv::Point2f raw = radar_map_->worldtomap(
+                cv::Point2f(prediction.prior_world_x, prediction.prior_world_z));
+            const cv::Point center(
+                static_cast<int>(std::lround(raw.x)),
+                static_cast<int>(std::lround(raw.y)));
+            if (center.x < 0 || center.y < 0 ||
+                center.x >= frame.cols || center.y >= frame.rows) {
+                continue;
+            }
+
+            const int size = 10;
+            std::vector<cv::Point> diamond{
+                {center.x, center.y - size}, {center.x + size, center.y},
+                {center.x, center.y + size}, {center.x - size, center.y}};
+            cv::polylines(frame, diamond, true, cv::Scalar(255, 255, 255), 5, cv::LINE_AA);
+            cv::polylines(frame, diamond, true, primary_color, 2, cv::LINE_AA);
+            cv::line(frame, center + cv::Point(-5, 0), center + cv::Point(5, 0),
+                     primary_color, 2, cv::LINE_AA);
+            cv::line(frame, center + cv::Point(0, -5), center + cv::Point(0, 5),
+                     primary_color, 2, cv::LINE_AA);
+
+            std::ostringstream label;
+            label << "P:";
+            if (prediction.role_class_id >= 0 &&
+                prediction.role_class_id < static_cast<int>(cfg_->model.classNames.size())) {
+                label << cfg_->model.classNames[prediction.role_class_id];
+            } else {
+                label << prediction.role_class_id;
+            }
+            label << ' ' << static_cast<int>(std::lround(
+                100.0 * std::clamp(static_cast<double>(prediction.prior_confidence), 0.0, 1.0)))
+                << "% " << prediction.horizon_seconds << "s "
+                << (prediction.fallback_level ==
+                    tensorrt_detect_msgs::msg::PriorPrediction::FALLBACK_LOCAL_ZONE ? "L" : "G");
+            const cv::Point text_point(center.x + 13, center.y - 12);
+            cv::putText(frame, label.str(), text_point, cv::FONT_HERSHEY_SIMPLEX,
+                        0.48, cv::Scalar(255, 255, 255), 4, cv::LINE_AA);
+            cv::putText(frame, label.str(), text_point, cv::FONT_HERSHEY_SIMPLEX,
+                        0.48, primary_color, 1, cv::LINE_AA);
+        }
+    }
+
     void target_callback(const tensorrt_detect_msgs::msg::WorldTargetArray::ConstSharedPtr msg)
     {
         try {
@@ -253,6 +390,8 @@ private:
             }
             // ======================================================
 
+            draw_prior_overlay(map_frame, *msg);
+
             std_msgs::msg::Header header = msg->header;
             header.frame_id = "radar_map";
             auto out_msg = std::make_unique<sensor_msgs::msg::Image>();
@@ -281,12 +420,17 @@ private:
     std::string output_image_topic_;
     std::string output_map_topic_;
     std::string output_tactics_topic_;
+    std::string prior_topic_;
+    double prior_display_timeout_s_ = 1.0;
 
     rclcpp::Subscription<tensorrt_detect_msgs::msg::WorldTargetArray>::SharedPtr target_sub_;
+    rclcpp::Subscription<tensorrt_detect_msgs::msg::PriorPredictionArray>::SharedPtr prior_sub_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_pub_;
     rclcpp::Publisher<tensorrt_detect_msgs::msg::RadarMap>::SharedPtr radar_map_pub_;
     rclcpp::Publisher<tensorrt_detect_msgs::msg::MapTactics>::SharedPtr tactics_pub_;
     std::unique_ptr<MapAnalyzer> analyzer_;
+    std::mutex prior_mutex_;
+    tensorrt_detect_msgs::msg::PriorPredictionArray::ConstSharedPtr latest_prior_;
 };
 
 #include <rclcpp_components/register_node_macro.hpp>

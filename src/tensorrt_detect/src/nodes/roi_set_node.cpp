@@ -364,8 +364,8 @@ private:
             if (!node["outpost_score_threshold"]) {
                 node["outpost_score_threshold"] = 0.4f;
             }
-            if (!node["outpost_miss_threshold"]) {
-                node["outpost_miss_threshold"] = 20;
+            if (!node["outpost_miss_timeout_s"]) {
+                node["outpost_miss_timeout_s"] = 1.0f;
             }
 
             std::ofstream fout(outpost_roi_path_);

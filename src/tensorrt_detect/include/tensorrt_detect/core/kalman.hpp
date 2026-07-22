@@ -18,7 +18,7 @@ public:
     
     /**
      * 预测下一状态
-     * @param dt 时间步长，<=0时使用默认值
+     * @param dt 时间步长，<0时使用默认值；0 表示不推进物理时间
      * @return 预测的位置 [cx, cy, w, h]
      */
     std::vector<float> predict(float dt = -1.0f);
@@ -80,7 +80,7 @@ public:
     
     /**
      * 预测下一状态
-     * @param dt 时间步长，<=0时使用默认值
+     * @param dt 时间步长，<0时使用默认值；0 表示不推进物理时间
      * @return 预测的位置 [x, y]
      */
     std::vector<float> predict(float dt = -1.0f);

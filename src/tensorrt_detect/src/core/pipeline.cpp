@@ -37,6 +37,14 @@ DetectPipeline::~DetectPipeline()
     }
 }
 
+void DetectPipeline::resetTimeState()
+{
+    outpostMissDurationS_ = 0.0f;
+    outpostIsDead_ = false;
+    outpostLastBox_ = cv::Rect();
+    lastProcessTime_ = std::chrono::steady_clock::now();
+}
+
 
 
 static inline double elapsedMs(const std::chrono::steady_clock::time_point& t0,
@@ -152,7 +160,7 @@ std::vector<Result> DetectPipeline::runArmorDetect(const cv::Mat& frame,
     return armorResults;
 }
 
-std::vector<Result> DetectPipeline::detectOutpost(const cv::Mat& frame) {
+std::vector<Result> DetectPipeline::detectOutpost(const cv::Mat& frame, float elapsed_s) {
     auto t0 = std::chrono::steady_clock::now();
     std::vector<Result> results;
     if (!cfg_.model.outpostEnabled || cfg_.model.outpostRoi.size() != 4) {
@@ -186,7 +194,7 @@ std::vector<Result> DetectPipeline::detectOutpost(const cv::Mat& frame) {
         }
 
         if (hasValidDetection) {
-            outpostMissCount_ = 0;
+            outpostMissDurationS_ = 0.0f;
             outpostIsDead_ = false;
 
             bestResult.box.x += safeOutpostRoi.x;
@@ -197,16 +205,16 @@ std::vector<Result> DetectPipeline::detectOutpost(const cv::Mat& frame) {
             outpostLastBox_ = bestResult.box;
             results.push_back(bestResult);
         } else {
-            outpostMissCount_++;
-            if (outpostMissCount_ >= cfg_.model.outpostMissThreshold) {
-                outpostMissCount_ = cfg_.model.outpostMissThreshold;
+            outpostMissDurationS_ += std::max(0.0f, elapsed_s);
+            if (outpostMissDurationS_ >= cfg_.model.outpostMissTimeoutS) {
+                outpostMissDurationS_ = cfg_.model.outpostMissTimeoutS;
                 outpostIsDead_ = true;
             }
         }
     } else {
-        outpostMissCount_++;
-        if (outpostMissCount_ >= cfg_.model.outpostMissThreshold) {
-            outpostMissCount_ = cfg_.model.outpostMissThreshold;
+        outpostMissDurationS_ += std::max(0.0f, elapsed_s);
+        if (outpostMissDurationS_ >= cfg_.model.outpostMissTimeoutS) {
+            outpostMissDurationS_ = cfg_.model.outpostMissTimeoutS;
             outpostIsDead_ = true;
         }
     }
@@ -266,8 +274,13 @@ std::vector<Result> DetectPipeline::runAirplaneDetect(const cv::Mat& frame) {
     return results;
 }
 
-std::vector<Result> DetectPipeline::process(const cv::Mat& frame) {
+std::vector<Result> DetectPipeline::process(const cv::Mat& frame, float elapsed_s) {
     auto t0 = std::chrono::steady_clock::now();
+    if (!std::isfinite(elapsed_s) || elapsed_s < 0.0f) {
+        elapsed_s = static_cast<float>(
+            std::chrono::duration<double>(t0 - lastProcessTime_).count());
+    }
+    lastProcessTime_ = t0;
 
     // 更新共享图像缓存并通知后台线程（只存右半，带宽减半）
     if (airplaneModel_) {
@@ -285,7 +298,7 @@ std::vector<Result> DetectPipeline::process(const cv::Mat& frame) {
 
     // Stage 2: armor + outpost 共用 armorDetector_
     auto armors = runArmorDetect(frame, cars);
-    auto outposts = detectOutpost(frame);
+    auto outposts = detectOutpost(frame, elapsed_s);
     auto t3 = std::chrono::steady_clock::now();
 
     // Stage 3: classify

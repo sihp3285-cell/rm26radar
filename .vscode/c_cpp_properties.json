@@ -1,0 +1,32 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "compileCommands": "${workspaceFolder}/build/compile_commands.json",
+            "compilerPath": "/usr/bin/c++",
+            "cStandard": "c17",
+            "cppStandard": "gnu++17",
+            "intelliSenseMode": "linux-gcc-x64",
+            "includePath": [
+                "${workspaceFolder}/src/position_prior/include",
+                "${workspaceFolder}/src/tensorrt_detect/include",
+                "${workspaceFolder}/src/tensorrt_detect/include/tensorrt_detect",
+                "${workspaceFolder}/src/tensorrt_detect/include/tensorrt_detect/core",
+                "${workspaceFolder}/install/tensorrt_detect_msgs/include/**",
+                "/opt/ros/jazzy/include/**",
+                "/usr/include/**"
+            ],
+            "browse": {
+                "path": [
+                    "${workspaceFolder}/src/position_prior/include",
+                    "${workspaceFolder}/src/tensorrt_detect/include",
+                    "${workspaceFolder}/install/tensorrt_detect_msgs/include",
+                    "/opt/ros/jazzy/include",
+                    "/usr/include"
+                ],
+                "limitSymbolsToIncludedHeaders": true
+            }
+        }
+    ],
+    "version": 4
+}

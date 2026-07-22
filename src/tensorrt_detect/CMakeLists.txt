@@ -44,6 +44,10 @@ find_package(CUDAToolkit REQUIRED)
 find_package(Open3D REQUIRED)
 find_package(Qt5 REQUIRED COMPONENTS Core Widgets)
 
+if(BUILD_TESTING)
+    find_package(ament_cmake_gtest REQUIRED)
+endif()
+
 # --- TensorRT 部分保持不变 ---
 set(TRT_ROOT "/opt/TensorRT/TensorRT-10.2.0.19")
 add_library(tensorrt_interface INTERFACE)
@@ -75,6 +79,7 @@ add_library(tensorrt_detect_core STATIC
     src/core/map_analyzer.cpp
     src/core/kalman.cpp
     src/core/tracker.cpp
+    src/core/tracker_message.cpp
     src/core/bot_identity.cpp
     src/core/hungarian.cpp
     src/core/preprocess.cu
@@ -205,6 +210,12 @@ install(TARGETS
 
 if(BUILD_CAMERA)
     install(TARGETS camera_node DESTINATION lib/${PROJECT_NAME})
+endif()
+
+if(BUILD_TESTING)
+    ament_add_gtest(test_tracker_state test/test_tracker_state.cpp)
+    target_link_libraries(test_tracker_state tensorrt_detect_core)
+    target_include_directories(test_tracker_state PRIVATE ${COMMON_INCLUDE_DIRS})
 endif()
 
 # component library 必须安装到 lib/ 根目录，否则 ament_index 路径对不上
