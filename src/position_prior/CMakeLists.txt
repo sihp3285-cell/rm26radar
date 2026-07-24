@@ -14,6 +14,8 @@ find_package(tensorrt_detect_msgs REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
 add_library(position_prior_core
+  src/blind_zone_prior.cpp
+  src/navigation_mesh.cpp
   src/observation_confirmation.cpp
   src/coordinate_transform.cpp
   src/position_prior_model.cpp
@@ -63,6 +65,11 @@ if(BUILD_TESTING)
 
   ament_add_gtest(test_prior_gate test/test_prior_gate.cpp)
   target_link_libraries(test_prior_gate position_prior_core)
+
+  ament_add_gtest(test_navigation_mesh test/test_navigation_mesh.cpp)
+  target_link_libraries(test_navigation_mesh position_prior_core yaml-cpp::yaml-cpp)
+  target_compile_definitions(test_navigation_mesh PRIVATE
+    POSITION_PRIOR_GENERATED_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../generated")
 
   ament_add_gtest(test_prior_lifecycle test/test_prior_lifecycle.cpp)
   target_link_libraries(test_prior_lifecycle position_prior_core)

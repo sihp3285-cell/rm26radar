@@ -43,6 +43,16 @@ cv::Point2f RadarMap::worldtomap(const cv::Point2f& worldPoint)const
     return mapPoint;
 }
 
+cv::Point2f RadarMap::worldtomapDisplay(const cv::Point2f& worldPoint)const
+{
+    cv::Point2f mapPoint = worldtomap(worldPoint);
+    if (flip_team_) {
+        mapPoint.x = static_cast<float>(map.cols - 1) - mapPoint.x;
+        mapPoint.y = static_cast<float>(map.rows - 1) - mapPoint.y;
+    }
+    return mapPoint;
+}
+
 cv::Mat RadarMap::drawMap(const std::vector<Mappoint>& mappoints,const std::vector<std::string>& classNames)const
 {
     cv::Mat frame = map.clone();

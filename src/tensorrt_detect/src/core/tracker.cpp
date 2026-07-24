@@ -729,9 +729,13 @@ void Tracker::update(
                 const bool box_gate_rejected =
                     params_.kalman_gate_box > 0.0f &&
                     track.kf_box.innovationSquared(box_meas) > params_.kalman_gate_box;
+                const auto* world_covariance =
+                    det.world_covariance_valid
+                        ? &det.world_covariance : nullptr;
                 const bool world_gate_rejected =
                     params_.kalman_gate_world > 0.0f &&
-                    track.kf_world.innovationSquared({det.world.x, det.world.y}) >
+                    track.kf_world.innovationSquared(
+                        {det.world.x, det.world.y}, world_covariance) >
                         params_.kalman_gate_world;
                 if (box_gate_rejected || world_gate_rejected) {
                     continue;
@@ -791,7 +795,11 @@ void Tracker::update(
 
                 if (!track.initialized || track.state == TrackState::DEAD) {
                     track.kf_box.reset(box_meas);
-                    track.kf_world.reset({det.world.x, det.world.y});
+                    const auto* world_covariance =
+                        det.world_covariance_valid
+                            ? &det.world_covariance : nullptr;
+                    track.kf_world.reset(
+                        {det.world.x, det.world.y}, world_covariance);
 
                     track.bot_id.reset();
 
@@ -810,8 +818,13 @@ void Tracker::update(
                         static_cast<int>(box_upd[3])
                     );
 
+                    const auto* world_covariance =
+                        det.world_covariance_valid
+                            ? &det.world_covariance : nullptr;
                     auto world_upd = track.kf_world.update(
-                        {det.world.x, det.world.y}, params_.kalman_gate_world);
+                        {det.world.x, det.world.y},
+                        params_.kalman_gate_world, nullptr,
+                        world_covariance);
                     track.last_world = cv::Point2f(world_upd[0], world_upd[1]);
 
                     track.detected_world = det.world;
@@ -917,7 +930,11 @@ void Tracker::update(
         };
 
         track.kf_box.reset(box_meas);
-        track.kf_world.reset({det.world.x, det.world.y});
+        const auto* world_covariance =
+            det.world_covariance_valid
+                ? &det.world_covariance : nullptr;
+        track.kf_world.reset(
+            {det.world.x, det.world.y}, world_covariance);
 
         tracks_.push_back(std::move(track));
     }

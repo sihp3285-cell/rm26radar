@@ -40,6 +40,10 @@ struct WorldMeasurement {
 
     cv::Rect box;          // 像素框 [x, y, w, h]
     cv::Point2f world;     // world.x = world_x, world.y = world_z，world_y 始终为 0
+    // pixel -> world 局部雅可比传播得到的方向相关测量协方差，
+    // 行主序 [xx, xz, zx, zz]。无效时 Kalman 使用原固定 R。
+    std::array<float, 4> world_covariance{{1.0f, 0.0f, 0.0f, 1.0f}};
+    bool world_covariance_valid = false;
 
     // class_conf: 分类器 top1 置信度
     // class_margin: top1 - top2

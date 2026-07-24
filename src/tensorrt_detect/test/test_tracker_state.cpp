@@ -191,3 +191,42 @@ TEST(TrackerState, VelocityCovarianceAndRosMessageAreComplete) {
     EXPECT_EQ(message.last_observed_time.sec, 10);
     EXPECT_EQ(message.last_observed_time.nanosec, 100000000u);
 }
+
+TEST(TrackerState, DirectionalMeasurementCovarianceSuppressesDepthJitter) {
+    Tracker precise_tracker(test_params());
+    Tracker anisotropic_tracker(test_params());
+
+    auto initial = measurement(0.0f, 0.0f);
+    initial.world_covariance = {0.01f, 0.0f, 0.0f, 0.01f};
+    initial.world_covariance_valid = true;
+    precise_tracker.update({initial}, 0.10f, seconds_to_ns(20.0));
+    anisotropic_tracker.update({initial}, 0.10f, seconds_to_ns(20.0));
+
+    auto precise_jump = measurement(0.0f, 1.0f);
+    precise_jump.world_covariance = {0.01f, 0.0f, 0.0f, 0.01f};
+    precise_jump.world_covariance_valid = true;
+    auto uncertain_depth_jump = precise_jump;
+    uncertain_depth_jump.world_covariance =
+        {0.01f, 0.0f, 0.0f, 2.25f};
+
+    precise_tracker.update(
+        {precise_jump}, 0.10f, seconds_to_ns(20.1));
+    anisotropic_tracker.update(
+        {uncertain_depth_jump}, 0.10f, seconds_to_ns(20.1));
+
+    const auto precise =
+        precise_tracker.get_slot(Tracker::SLOT_RED_R1);
+    const auto anisotropic =
+        anisotropic_tracker.get_slot(Tracker::SLOT_RED_R1);
+    ASSERT_TRUE(precise.valid);
+    ASSERT_TRUE(anisotropic.valid);
+    EXPECT_GT(precise.smoothed_world.y, 0.90f);
+    EXPECT_LT(anisotropic.smoothed_world.y, 0.40f);
+    EXPECT_LT(
+        std::abs(anisotropic.velocity.y),
+        std::abs(precise.velocity.y));
+    ASSERT_TRUE(anisotropic.covariance_valid);
+    EXPECT_GT(
+        anisotropic.state_covariance[5],
+        anisotropic.state_covariance[0]);
+}

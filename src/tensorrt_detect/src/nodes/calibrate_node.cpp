@@ -26,6 +26,8 @@ public:
         this->declare_parameter<std::string>("calib_result_path",
             "/home/delphine/rm/tensorrt10_detect/configs/calib_result.yaml");
         this->declare_parameter<double>("reprojection_threshold", 10.0);
+        // <= 0 表示禁用单点最大误差硬门限，恢复原始验收行为。
+        this->declare_parameter<double>("reprojection_max_threshold", 0.0);
         this->declare_parameter<bool>("auto_calibrate", true);
         this->declare_parameter<int>("auto_calibrate_delay_sec", 2);
 
@@ -33,6 +35,8 @@ public:
         image_topic_ = this->get_parameter("image_topic").as_string();
         calib_result_path_ = this->get_parameter("calib_result_path").as_string();
         reprojection_threshold_ = this->get_parameter("reprojection_threshold").as_double();
+        reprojection_max_threshold_ =
+            this->get_parameter("reprojection_max_threshold").as_double();
         auto_calibrate_ = this->get_parameter("auto_calibrate").as_bool();
         auto_calibrate_delay_sec_ = this->get_parameter("auto_calibrate_delay_sec").as_int();
 
@@ -48,7 +52,15 @@ public:
 
         RCLCPP_INFO(this->get_logger(), "CalibrateNode 初始化完成。提供服务: /calibration/start");
         RCLCPP_INFO(this->get_logger(), "图像话题: %s", image_topic_.c_str());
-        RCLCPP_INFO(this->get_logger(), "重投影误差阈值: %.2f px", reprojection_threshold_);
+        if (reprojection_max_threshold_ > 0.0) {
+            RCLCPP_INFO(this->get_logger(),
+                "重投影误差阈值: mean<=%.2f px max<=%.2f px",
+                reprojection_threshold_, reprojection_max_threshold_);
+        } else {
+            RCLCPP_INFO(this->get_logger(),
+                "重投影误差阈值: mean<=%.2f px，最大误差仅记录不拦截",
+                reprojection_threshold_);
+        }
 
         // 检查标定文件有效性，若无效且开启自动标定，则延迟后自动进入标定
         if (auto_calibrate_ && !isCalibFileValid()) {
@@ -222,6 +234,7 @@ private:
         std::vector<cv::Point2f> image_points;
         cv::Mat R, T;
         double mean_error = 0.0;
+        double maximum_error = 0.0;
         bool success = false;
 
         while (rclcpp::ok()) {
@@ -248,17 +261,33 @@ private:
                               camera_matrix_, dist_coeffs_, projected);
 
             double total_err = 0.0;
+            maximum_error = 0.0;
             for (size_t i = 0; i < image_points.size(); ++i) {
                 double dx = image_points[i].x - projected[i].x;
                 double dy = image_points[i].y - projected[i].y;
-                total_err += std::sqrt(dx * dx + dy * dy);
+                const double error = std::sqrt(dx * dx + dy * dy);
+                total_err += error;
+                maximum_error = std::max(maximum_error, error);
             }
             mean_error = total_err / image_points.size();
 
-            RCLCPP_INFO(this->get_logger(),
-                "重投影误差: %.3f px (阈值: %.2f px)", mean_error, reprojection_threshold_);
+            if (reprojection_max_threshold_ > 0.0) {
+                RCLCPP_INFO(this->get_logger(),
+                    "重投影误差: mean=%.3f px max=%.3f px "
+                    "(阈值: mean<=%.2f px max<=%.2f px)",
+                    mean_error, maximum_error,
+                    reprojection_threshold_, reprojection_max_threshold_);
+            } else {
+                RCLCPP_INFO(this->get_logger(),
+                    "重投影误差: mean=%.3f px max=%.3f px "
+                    "(验收仅要求 mean<=%.2f px)",
+                    mean_error, maximum_error,
+                    reprojection_threshold_);
+            }
 
-            if (mean_error <= reprojection_threshold_) {
+            if (mean_error <= reprojection_threshold_ &&
+                (reprojection_max_threshold_ <= 0.0 ||
+                 maximum_error <= reprojection_max_threshold_)) {
                 cv::Mat R_mat;
                 cv::Rodrigues(rvec, R_mat);
                 R = R_mat.t();
@@ -289,7 +318,9 @@ private:
         RCLCPP_INFO(this->get_logger(), "等待 map pipeline 稳定...");
         std::this_thread::sleep_for(std::chrono::seconds(2));
 
-        return {true, "标定成功，重投影误差: " + std::to_string(mean_error) + " px"};
+        return {true,
+            "标定成功，重投影误差 mean=" + std::to_string(mean_error) +
+            " px max=" + std::to_string(maximum_error) + " px"};
     }
 
     bool saveCalibResult(const std::vector<cv::Point2f>& imagePoints,
@@ -404,7 +435,8 @@ private:
     std::string config_dir_;
     std::string image_topic_;
     std::string calib_result_path_;
-    double reprojection_threshold_ = 5.0;
+    double reprojection_threshold_ = 10.0;
+    double reprojection_max_threshold_ = 0.0;
     bool auto_calibrate_ = true;
     int auto_calibrate_delay_sec_ = 2;
 

@@ -43,5 +43,9 @@ float32 reachable_probability_mass
 uint8 fallback_level
 uint32 sample_count
 bool motion_gated
+bool mesh_used
+bool blind_zone_biased
+float32 blind_zone_probability_mass
+float32 stay_anchor_probability_mass
 
 PriorCandidate[] candidates

@@ -7,7 +7,7 @@
 # ─────────────────────────────────────────────
 video_node:
   ros__parameters:
-    video_path: "/home/delphine/rm/car_project/test/06.mp4"
+    video_path: "/home/delphine/rm/car_project/test/07.mp4"
     topic_name: "/image_raw"
     fps: 20
 
@@ -50,6 +50,17 @@ pose_node:
     config_dir: "/home/delphine/rm/tensorrt10_detect/configs"
     input_topic: "/armor_detections"
     output_topic: "/world_targets"
+
+    # 根据 pixel->world 局部雅可比，把检测框像素误差传播成方向相关的世界
+    # 坐标协方差。远场视线方向会自动获得更大方差，不再被 Kalman 当成高速。
+    projection_pixel_sigma_px: 4.0
+    projection_finite_difference_px: 2.0
+    projection_min_world_std_m: 0.03
+    projection_max_world_std_m: 1.50
+
+    # 中心差分射线的 PLY 命中高度差超过该值，视为沟底/坡面/高台首交点
+    # 切换，并额外放大测量协方差。
+    projection_surface_discontinuity_m: 0.12
 
     # ══════════════════════════════════════════════════════════════
     # Tracker 参数（由 config_dir/tracker.yaml 加载，此处仅为文档说明）
@@ -103,7 +114,10 @@ calibrate_node:
     config_dir: "/home/delphine/rm/tensorrt10_detect/configs"
     image_topic: "/image_raw"
     calib_result_path: "/home/delphine/rm/tensorrt10_detect/configs/calib_result.yaml"
+    # 恢复修改前的标定标准：仅要求平均重投影误差 <= 10 px。
+    # 0 表示最大单点误差只记录，不作为保存硬门限。
     reprojection_threshold: 10.0
+    reprojection_max_threshold: 0.0
     auto_calibrate: true
     auto_calibrate_delay_sec: 2
 

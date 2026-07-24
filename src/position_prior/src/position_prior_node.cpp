@@ -1,4 +1,6 @@
 #include "position_prior/coordinate_transform.hpp"
+#include "position_prior/blind_zone_prior.hpp"
+#include "position_prior/navigation_mesh.hpp"
 #include "position_prior/observation_confirmation.hpp"
 #include "position_prior/position_prior_model.hpp"
 #include "position_prior/prior_gate.hpp"
@@ -79,6 +81,19 @@ public:
         declare_parameter<double>("reachability_margin_m", 0.5);
         declare_parameter<double>("max_guess_distance_m", 6.0);
         declare_parameter<double>("distance_preference_sigma_m", 3.0);
+        declare_parameter<std::string>("navgrid_path", "");
+        declare_parameter<double>("mesh_snap_distance_m", 0.6);
+        declare_parameter<double>("mesh_prediction_snap_distance_m", 1.0);
+        declare_parameter<double>("stay_anchor_probability_scale", 0.8);
+        declare_parameter<double>("blind_zone_minimum_stay_anchor_mass", 0.70);
+        declare_parameter<double>("motion_velocity_decay_time_s", 3.0);
+        declare_parameter<std::vector<std::string>>(
+            "common_blind_zone_paths", std::vector<std::string>{});
+        declare_parameter<std::string>("engineer_blind_zone_path", "");
+        declare_parameter<double>("blind_zone_trigger_distance_m", 1.2);
+        declare_parameter<double>("blind_zone_probability_mass", 0.65);
+        declare_parameter<int>("blind_zone_candidates_per_zone", 4);
+        declare_parameter<double>("blind_zone_candidate_separation_m", 0.6);
         declare_parameter<double>("minimum_confidence", 0.05);
         declare_parameter<bool>("initial_flip_team", false);
         declare_parameter<std::vector<double>>(
@@ -140,6 +155,19 @@ public:
             std::max(0.0, get_parameter("max_guess_distance_m").as_double());
         gate_config.distance_preference_sigma_m =
             std::max(0.0, get_parameter("distance_preference_sigma_m").as_double());
+        gate_config.mesh_snap_distance_m =
+            std::max(0.0, get_parameter("mesh_snap_distance_m").as_double());
+        gate_config.mesh_prediction_snap_distance_m =
+            std::max(0.0,
+                get_parameter("mesh_prediction_snap_distance_m").as_double());
+        gate_config.stay_anchor_probability_scale = std::clamp(
+            get_parameter("stay_anchor_probability_scale").as_double(),
+            0.0, 0.95);
+        gate_config.blind_zone_minimum_stay_anchor_mass = std::clamp(
+            get_parameter("blind_zone_minimum_stay_anchor_mass").as_double(),
+            0.0, 0.95);
+        gate_config.motion_velocity_decay_time_s = std::max(
+            0.1, get_parameter("motion_velocity_decay_time_s").as_double());
         gate_config.minimum_confidence =
             std::clamp(get_parameter("minimum_confidence").as_double(), 0.0, 1.0);
         gate_config.output_top_k = static_cast<std::size_t>(
@@ -157,6 +185,50 @@ public:
             gate_config.blocked_regions_canonical.push_back(region);
         }
         gate_ = PriorGate(gate_config);
+
+        const std::string navgrid_path =
+            get_parameter("navgrid_path").as_string();
+        if (!navgrid_path.empty()) {
+            try {
+                navigation_mesh_.load(navgrid_path);
+                gate_.set_navigation_mesh(&navigation_mesh_);
+                RCLCPP_INFO(get_logger(),
+                    "兵种 navgrid 加载完成: %s (%dx%d, %.2f m)",
+                    navgrid_path.c_str(), navigation_mesh_.columns(),
+                    navigation_mesh_.rows(), navigation_mesh_.resolution());
+            } catch (const std::exception& error) {
+                RCLCPP_ERROR(get_logger(),
+                    "navgrid 加载失败，将退回欧氏距离门控: %s", error.what());
+            }
+        }
+
+        if (navigation_mesh_.loaded()) {
+            BlindZoneBiasConfig blind_config;
+            blind_config.trigger_distance_m = std::max(
+                0.0, get_parameter("blind_zone_trigger_distance_m").as_double());
+            blind_config.maximum_probability_mass = std::clamp(
+                get_parameter("blind_zone_probability_mass").as_double(),
+                0.0, 0.95);
+            blind_config.candidates_per_zone = static_cast<std::size_t>(
+                std::max(1, static_cast<int>(
+                    get_parameter("blind_zone_candidates_per_zone").as_int())));
+            blind_config.minimum_candidate_separation_m = std::max(
+                0.0,
+                get_parameter("blind_zone_candidate_separation_m").as_double());
+            blind_zone_prior_ = BlindZonePrior(blind_config);
+            try {
+                blind_zone_prior_.load(
+                    get_parameter("common_blind_zone_paths").as_string_array(),
+                    get_parameter("engineer_blind_zone_path").as_string());
+                gate_.set_blind_zone_prior(&blind_zone_prior_);
+                RCLCPP_INFO(get_logger(),
+                    "盲区先验加载完成: %zu 个区域（工程兵含专用区域）",
+                    blind_zone_prior_.zone_count());
+            } catch (const std::exception& error) {
+                RCLCPP_ERROR(get_logger(),
+                    "盲区先验加载失败，将仅使用模型与 navgrid: %s", error.what());
+            }
+        }
 
         const std::string model_path = get_parameter("model_path").as_string();
         const std::string expected_hash = get_parameter("model_sha256").as_string();
@@ -215,6 +287,7 @@ private:
         Point2d tracker_world;
         double last_tracking_confidence = 0.0;
         double last_position_covariance_trace = 0.0;
+        double last_velocity_covariance_trace = 0.0;
         bool had_prediction = false;
         Point2d last_prediction_field;
         Point2d last_prediction_world;
@@ -222,6 +295,8 @@ private:
         int last_fallback_level = 0;
         double last_prediction_lost_s = 0.0;
         std::int64_t last_log_ns = 0;
+        bool navigation_routes_computed = false;
+        NavigationRouteMap navigation_routes;
     };
 
     void open_log(const std::string& path) {
@@ -320,6 +395,8 @@ private:
         if (target.covariance_valid) {
             cache.last_position_covariance_trace = std::max(
                 0.0, target.state_covariance[0] + target.state_covariance[5]);
+            cache.last_velocity_covariance_trace = std::max(
+                0.0, target.state_covariance[10] + target.state_covariance[15]);
         }
     }
 
@@ -379,17 +456,35 @@ private:
 
         const double covariance_reliability =
             1.0 / std::sqrt(1.0 + cache.last_position_covariance_trace);
+        const double velocity_reliability =
+            1.0 / std::sqrt(1.0 + cache.last_velocity_covariance_trace);
         const double base_confidence =
             cache.last_tracking_confidence * covariance_reliability;
+        if (navigation_mesh_.loaded() &&
+            !cache.navigation_routes_computed) {
+            cache.navigation_routes = navigation_mesh_.route_map(
+                role, cache.last_canonical,
+                gate_.config().mesh_snap_distance_m);
+            cache.navigation_routes_computed = true;
+        }
+        const NavigationRouteMap* prepared_routes =
+            cache.navigation_routes_computed
+                ? &cache.navigation_routes : nullptr;
         const auto gated = gate_.apply(
             distribution, cache.last_canonical, cache.canonical_velocity,
-            lost_duration_s, base_confidence);
+            lost_duration_s, base_confidence, role, prepared_routes,
+            velocity_reliability);
 
-        message.normalized_entropy = distribution.normalized_entropy;
+        message.normalized_entropy = gated.normalized_entropy;
         message.reachable_probability_mass = gated.reachable_probability_mass;
         message.fallback_level = static_cast<std::uint8_t>(distribution.fallback_level);
         message.sample_count = distribution.sample_count;
         message.motion_gated = gated.motion_gated;
+        message.mesh_used = gated.mesh_used;
+        message.blind_zone_biased = gated.blind_zone_biased;
+        message.blind_zone_probability_mass = gated.blind_zone_probability_mass;
+        message.stay_anchor_probability_mass =
+            gated.stay_anchor_probability_mass;
         message.prior_confidence = gated.confidence;
 
         for (const auto& candidate : gated.candidates) {
@@ -402,6 +497,10 @@ private:
             output.reachable = candidate.reachable;
             output.blocked = candidate.blocked;
             output.distance_from_last_m = candidate.distance_from_last_m;
+            output.straight_distance_from_last_m =
+                candidate.straight_distance_from_last_m;
+            output.from_blind_zone = candidate.prior.from_blind_zone;
+            output.stay_anchor = candidate.prior.stay_anchor;
             const auto field = transform_.canonical_to_field(
                 cache.team_id, candidate.prior.canonical);
             const auto world = transform_.canonical_to_world(
@@ -587,6 +686,8 @@ private:
 
     CoordinateTransform transform_;
     PositionPriorModel model_;
+    NavigationMesh navigation_mesh_;
+    BlindZonePrior blind_zone_prior_;
     PriorGate gate_;
     ObservationConfirmationConfig observation_confirmation_config_;
     std::unordered_map<int, TargetCache> caches_;

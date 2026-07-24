@@ -32,6 +32,8 @@ struct PriorCandidate {
     int grid_index = -1;
     Point2d canonical;
     double probability = 0.0;
+    bool from_blind_zone = false;
+    bool stay_anchor = false;
 };
 
 struct PriorDistribution {
@@ -56,6 +58,7 @@ struct GatedCandidate {
     bool reachable = false;
     bool blocked = false;
     double distance_from_last_m = 0.0;
+    double straight_distance_from_last_m = 0.0;
 };
 
 struct GateResult {
@@ -65,7 +68,12 @@ struct GateResult {
     Point2d motion_prediction_canonical;
     double confidence = 0.0;
     double reachable_probability_mass = 0.0;
+    double normalized_entropy = 1.0;
     bool motion_gated = false;
+    bool mesh_used = false;
+    bool blind_zone_biased = false;
+    double blind_zone_probability_mass = 0.0;
+    double stay_anchor_probability_mass = 0.0;
     std::vector<GatedCandidate> candidates;
 };
 

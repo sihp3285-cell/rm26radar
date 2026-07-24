@@ -37,13 +37,14 @@ position_prior_node:
     # 通过可达性和运动门控后，写入 PriorPrediction 消息并显示的最大候选数。
     output_top_k: 5
 
-    # 当前实测视频中工程先验相对保持最后位置平均误差改善约 37.8%，而英雄、
-    # 步兵和哨兵尚未表现出稳定收益，因此 shadow mode 默认只启用工程。
+    # 当前开启全部兵种以收集 shadow 数据；各兵种是否获得稳定收益应继续按
+    # REACQUIRED 误差分组评估，不能只凭模型峰值或单帧截图判断。
     # 可选值：hero、engineer、infantry3、infantry4、sentry；设为空列表表示全部启用。
-    enabled_roles: ["engineer", "sentry"]
+    enabled_roles: ["hero", "engineer", "infantry3", "infantry4", "sentry"]
 
     # 在线运动可达性使用的最大机器人速度，单位 m/s。
-    # 候选最大直线距离约为 max_speed_mps * lost_duration_s + margin。
+    # 启用 navgrid 后候选最大 mesh 路径距离约为
+    # max_speed_mps * lost_duration_s + margin。
     max_speed_mps: 3.0
 
     # 可达距离额外余量，单位 m，用于容纳定位误差、网格离散误差和速度估计误差。
@@ -58,6 +59,35 @@ position_prior_node:
     # 它不会替代兵种先验和速度方向，只用于抑制“虽未越界但明显偏远”的候选。
     # 设置为 0 可关闭软偏好，但 max_guess_distance_m 硬阈值仍然生效。
     distance_preference_sigma_m: 3.0
+
+    # generated 中由 RB2026_rmuc.ply 离线生成的逐兵种可通行网格。在线使用
+    # Dijkstra 八邻域最短路径，并检查台阶高度与对角穿角，不再把隔墙直线距离
+    # 当作可达距离。
+    navgrid_path: "/home/delphine/rm/tensorrt10_detect/generated/RB2026_navgrid_v1.json"
+    mesh_snap_distance_m: 0.6
+    mesh_prediction_snap_distance_m: 1.0
+
+    # 模型的 stay_probability 会在最后可靠观测点注入驻留锚点。进入盲区时
+    # 锚点至少保留 70% 先验质量；若速度方向清晰，后续运动似然仍可使沿 mesh
+    # 通道的候选胜出。这样低速或速度噪声目标不会被远端统计热区拉到中心岛。
+    stay_anchor_probability_scale: 0.8
+    blind_zone_minimum_stay_anchor_mass: 0.70
+
+    # 最后一帧速度只作为短期方向信息，按 3 s 时间常数指数衰减。物理可达
+    # 距离仍按真实失联时长计算，不会因速度衰减误删可能位置。
+    motion_velocity_decay_time_s: 3.0
+
+    # home 和 gully 是所有兵种的常见盲区；engineer 是工程兵专用盲区。
+    # 坐标均采用红方 canonical。最后可靠观测位于或靠近这些多边形时，
+    # 系统只从对应兵种可通行且最短路径可达的盲区网格中注入候选。
+    common_blind_zone_paths:
+      - "/home/delphine/rm/tensorrt10_detect/generated/home.yaml"
+      - "/home/delphine/rm/tensorrt10_detect/generated/gully.yaml"
+    engineer_blind_zone_path: "/home/delphine/rm/tensorrt10_detect/generated/engineer.yaml"
+    blind_zone_trigger_distance_m: 1.2
+    blind_zone_probability_mass: 0.65
+    blind_zone_candidates_per_zone: 4
+    blind_zone_candidate_separation_m: 0.6
 
     # 最低综合置信度，范围 [0,1]。低于该值时允许拒绝猜点。
     # 综合置信度包含最后跟踪置信度、协方差、样本量、熵和可达概率质量；

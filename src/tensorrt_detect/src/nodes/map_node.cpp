@@ -170,7 +170,7 @@ private:
                     !std::isfinite(candidate.world_z)) {
                     continue;
                 }
-                const cv::Point2f raw = radar_map_->worldtomap(
+                const cv::Point2f raw = radar_map_->worldtomapDisplay(
                     cv::Point2f(candidate.world_x, candidate.world_z));
                 const cv::Point point(
                     static_cast<int>(std::lround(raw.x)),
@@ -186,7 +186,7 @@ private:
                 cv::circle(frame, point, radius, candidate_color, 1, cv::LINE_AA);
             }
 
-            const cv::Point2f raw = radar_map_->worldtomap(
+            const cv::Point2f raw = radar_map_->worldtomapDisplay(
                 cv::Point2f(prediction.prior_world_x, prediction.prior_world_z));
             const cv::Point center(
                 static_cast<int>(std::lround(raw.x)),

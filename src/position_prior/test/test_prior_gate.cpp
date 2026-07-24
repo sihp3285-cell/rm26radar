@@ -139,6 +139,20 @@ TEST(PriorGateTest, VelocityGateBiasesReachableCandidates) {
     EXPECT_EQ(result.candidates[0].prior.grid_index, 1);
 }
 
+TEST(PriorGateTest, UncertainVelocityCannotCreateDirectionalBias) {
+    PriorGateConfig config;
+    config.minimum_confidence = 0.0;
+    config.motion_gate_mps[2] = 0.1;
+    PriorGate gate(config);
+    const auto result = gate.apply(
+        distribution({{1, {2.0, 0.0}, 0.5}, {2, {0.0, 2.0}, 0.5}}),
+        {0.0, 0.0}, {2.0, 0.0}, 2.0, 1.0, "", nullptr, 0.01);
+    ASSERT_TRUE(result.valid);
+    EXPECT_FALSE(result.motion_gated);
+    EXPECT_NEAR(result.predicted_canonical.x, 0.0, 1e-9);
+    EXPECT_NEAR(result.predicted_canonical.y, 0.0, 1e-9);
+}
+
 TEST(PriorGateTest, ConfidenceCanRejectUncertainPrior) {
     PriorGateConfig config;
     config.minimum_confidence = 0.2;

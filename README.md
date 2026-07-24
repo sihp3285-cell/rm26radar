@@ -115,3 +115,11 @@ make -j8
 [原因，解决方案](https://blog.csdn.net/ogebgvictor/article/details/145858668)
 
 另外，如果手动使用`trtexec`转化`onnx`文件，路径请不要使用`~`符号，会出现无法识别而生成`engine`文件失败的。
+
+## 世界坐标方向性误差
+
+`pose_node` 会在每个检测框底边中心周围批量发射 5 条射线，以局部
+`pixel -> world(x,z)` 雅可比传播像素误差，得到每帧方向相关的二维测量协方差。
+远场视线方向会自动获得更低的 Kalman 增益；相邻射线命中沟底和高台等不同
+PLY 高度面时会进一步放大该帧不确定性。相关参数位于
+`src/tensorrt_detect/config/ros2_params.yaml` 的 `pose_node` 段。

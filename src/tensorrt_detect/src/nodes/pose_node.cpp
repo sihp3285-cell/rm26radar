@@ -33,14 +33,44 @@ public:
             "/home/delphine/rm/tensorrt10_detect/configs");
         this->declare_parameter<std::string>("input_topic", "/armor_detections");
         this->declare_parameter<std::string>("output_topic", "/world_targets");
+        this->declare_parameter<double>("projection_pixel_sigma_px", 4.0);
+        this->declare_parameter<double>("projection_finite_difference_px", 2.0);
+        this->declare_parameter<double>("projection_min_world_std_m", 0.03);
+        this->declare_parameter<double>("projection_max_world_std_m", 1.50);
+        this->declare_parameter<double>(
+            "projection_surface_discontinuity_m", 0.12);
 
         config_dir_ = this->get_parameter("config_dir").as_string();
         input_topic_ = this->get_parameter("input_topic").as_string();
         output_topic_ = this->get_parameter("output_topic").as_string();
+        projection_config_.pixel_sigma_px = static_cast<float>(std::max(
+            0.1, this->get_parameter("projection_pixel_sigma_px").as_double()));
+        projection_config_.finite_difference_px = static_cast<float>(std::max(
+            0.5,
+            this->get_parameter("projection_finite_difference_px").as_double()));
+        projection_config_.minimum_world_std_m = static_cast<float>(std::max(
+            0.001,
+            this->get_parameter("projection_min_world_std_m").as_double()));
+        projection_config_.maximum_world_std_m = static_cast<float>(std::max(
+            static_cast<double>(projection_config_.minimum_world_std_m),
+            this->get_parameter("projection_max_world_std_m").as_double()));
+        projection_config_.surface_discontinuity_m =
+            static_cast<float>(std::max(
+                0.0,
+                this->get_parameter(
+                    "projection_surface_discontinuity_m").as_double()));
 
         RCLCPP_INFO(this->get_logger(), "配置目录: %s", config_dir_.c_str());
         RCLCPP_INFO(this->get_logger(), "订阅话题: %s", input_topic_.c_str());
         RCLCPP_INFO(this->get_logger(), "发布话题: %s", output_topic_.c_str());
+        RCLCPP_INFO(this->get_logger(),
+            "反投影协方差: pixel_sigma=%.2f px diff=%.2f px "
+            "world_std=[%.3f, %.3f] m surface_jump=%.3f m",
+            projection_config_.pixel_sigma_px,
+            projection_config_.finite_difference_px,
+            projection_config_.minimum_world_std_m,
+            projection_config_.maximum_world_std_m,
+            projection_config_.surface_discontinuity_m);
 
         cfg_ = std::make_unique<Config>(config_dir_);
         pose_solver_ = std::make_unique<PoseSolver>(cfg_->camera.cameraMatrix, cfg_->camera.distCoeffs);
@@ -286,9 +316,11 @@ private:
                     boxes_for_raycast.push_back(armor_box);
                 }
             }
-            std::vector<cv::Point2f> world_positions;
+            std::vector<WorldProjection> world_projections;
             if (!boxes_for_raycast.empty()) {
-                world_positions = pose_solver_->middletoworldBatch(boxes_for_raycast);
+                world_projections =
+                    pose_solver_->middletoworldBatchWithUncertainty(
+                        boxes_for_raycast, projection_config_);
             }
 
             // ---- 1. 解算所有检测的世界坐标，构建观测输入 ----
@@ -300,10 +332,21 @@ private:
             std::vector<tensorrt_detect_msgs::msg::WorldTarget> dead_targets;
             tensorrt_detect_msgs::msg::WorldTarget outpost_target;
             bool has_outpost = false;
+            std::size_t surface_discontinuity_count = 0;
+            float maximum_projection_condition = 1.0f;
 
             for (size_t i = 0; i < msg->detections.size(); ++i) {
                 const auto& det = msg->detections[i];
-                cv::Point2f world_pos = world_positions[i];
+                const auto& projection = world_projections[i];
+                const cv::Point2f world_pos = projection.world;
+                if (projection.surface_discontinuity) {
+                    ++surface_discontinuity_count;
+                }
+                if (std::isfinite(projection.jacobian_condition_number)) {
+                    maximum_projection_condition = std::max(
+                        maximum_projection_condition,
+                        projection.jacobian_condition_number);
+                }
 
                 // Outpost 直接透传，不进入 Tracker
                 if (det.idx == robot_id::OUTPOST) {
@@ -366,6 +409,9 @@ private:
                     negative.is_negative = true;
                     negative.box = cv::Rect(det.x, det.y, det.width, det.height);
                     negative.world = world_pos;
+                    negative.world_covariance = projection.covariance;
+                    negative.world_covariance_valid =
+                        projection.covariance_valid;
                     meas.push_back(negative);
                     continue;
                 }
@@ -379,7 +425,18 @@ private:
                 m.is_dead  = det.is_dead;
                 m.box      = cv::Rect(det.x, det.y, det.width, det.height);
                 m.world    = world_pos;  // x=world_x, y=world_z
+                m.world_covariance = projection.covariance;
+                m.world_covariance_valid = projection.covariance_valid;
                 meas.push_back(m);
+            }
+
+            if (surface_discontinuity_count > 0) {
+                RCLCPP_WARN_THROTTLE(
+                    this->get_logger(), *this->get_clock(), 2000,
+                    "检测到 %zu 个 PLY 跨高度面反投影，已增大测量协方差；"
+                    "本帧最大雅可比条件数 %.2f",
+                    surface_discontinuity_count,
+                    maximum_projection_condition);
             }
 
             // 死亡装甲板不进入 Tracker；短暂漏检时保留最近结果，避免地图单帧闪烁。
@@ -457,6 +514,7 @@ private:
     std::vector<tensorrt_detect_msgs::msg::WorldTarget> cached_dead_targets_;
     int64_t last_dead_target_observed_ns_ = 0;
     float dead_target_hold_time_s_ = 0.10f;
+    ProjectionUncertaintyConfig projection_config_;
 
     std::string config_dir_;
     std::string input_topic_;

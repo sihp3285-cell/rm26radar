@@ -1,5 +1,6 @@
 #pragma once
 #include <Eigen/Dense>
+#include <array>
 #include <vector>
 
 // ==========================================
@@ -93,19 +94,24 @@ public:
     std::vector<float> update(
         const std::vector<float>& pos,
         float gate_threshold = -1.0f,
-        bool* accepted = nullptr);
+        bool* accepted = nullptr,
+        const std::array<float, 4>* measurement_covariance = nullptr);
 
     /**
      * 计算测量创新的 NIS（平方马氏距离）。
      * 可直接用于卡方门控；无效测量返回 infinity。
      */
-    float innovationSquared(const std::vector<float>& pos) const;
+    float innovationSquared(
+        const std::vector<float>& pos,
+        const std::array<float, 4>* measurement_covariance = nullptr) const;
     
     /**
      * 重置滤波器
      * @param initial_pos 初始位置 [x, y]，空则使用默认值
      */
-    void reset(const std::vector<float>& initial_pos = {});
+    void reset(
+        const std::vector<float>& initial_pos = {},
+        const std::array<float, 4>* measurement_covariance = nullptr);
     
     /**
      * 获取当前位置估计

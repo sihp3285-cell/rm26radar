@@ -34,6 +34,7 @@ docs/
 
 # IDE 和编辑器配置
 .idea/
+.marscode/
 .vscode/*
 !.vscode/settings.json
 !.vscode/c_cpp_properties.json
@@ -44,3 +45,8 @@ docs/
 .DS_Store
 .docs/
 position_prior_toolkit/
+tmp/
+
+# 离线网格生成过程中的诊断产物（运行时数据保留）
+generated/mesh_debug/
+generated/*_report.json

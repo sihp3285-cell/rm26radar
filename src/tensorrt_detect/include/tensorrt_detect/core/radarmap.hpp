@@ -31,6 +31,9 @@ class RadarMap
     RadarMap(const std::string& mapPath,const bool isflip);
     void calibrate2(float race_length, float race_width, int map_width, int map_height);
     cv::Point2f worldtomap(const cv::Point2f& worldPoint)const;
+    // 用于在 drawMap() 返回的最终视角图像上继续叠加元素。flip_team_ 为真时，
+    // drawMap() 已将底图旋转 180°，后绘制元素必须同步做中心对称。
+    cv::Point2f worldtomapDisplay(const cv::Point2f& worldPoint)const;
     cv::Mat drawMap(const std::vector<Mappoint>& mappoints,const std::vector<std::string>& classNames)const;
     void setFlipTeam(bool flip) { flip_team_ = flip; }
     bool getFlipTeam() const { return flip_team_; }

@@ -137,6 +137,28 @@ std::vector<float> KalmanFilterBox::get_state() const {
 // ==========================================
 // KalmanFilter2d (对应物理坐标) - 4维固定大小矩阵
 // ==========================================
+namespace {
+
+Eigen::Matrix<float, 2, 2> measurement_noise_2d(
+    const Eigen::Matrix<float, 2, 2>& fallback,
+    const std::array<float, 4>* covariance) {
+    if (covariance == nullptr) {
+        return fallback;
+    }
+    const float cross = 0.5f * ((*covariance)[1] + (*covariance)[2]);
+    Eigen::Matrix<float, 2, 2> candidate;
+    candidate << (*covariance)[0], cross,
+                 cross, (*covariance)[3];
+    if (!candidate.allFinite() ||
+        candidate(0, 0) <= 0.0f || candidate(1, 1) <= 0.0f ||
+        candidate.determinant() <= 1e-12f) {
+        return fallback;
+    }
+    return candidate;
+}
+
+}  // namespace
+
 KalmanFilter2d::KalmanFilter2d(float q_std, float r_std, float dt) 
     : dt_(dt), q_std_(q_std), r_std_(r_std) 
 {
@@ -174,7 +196,9 @@ std::vector<float> KalmanFilter2d::predict(float dt) {
     return {x(0), x(1)};
 }
 
-float KalmanFilter2d::innovationSquared(const std::vector<float>& pos) const {
+float KalmanFilter2d::innovationSquared(
+    const std::vector<float>& pos,
+    const std::array<float, 4>* measurement_covariance) const {
     if (pos.size() < 2) {
         return std::numeric_limits<float>::infinity();
     }
@@ -186,7 +210,10 @@ float KalmanFilter2d::innovationSquared(const std::vector<float>& pos) const {
     }
 
     const Eigen::Matrix<float, 2, 1> innovation = z - H * x;
-    const Eigen::Matrix<float, 2, 2> S = H * P * H.transpose() + R;
+    const Eigen::Matrix<float, 2, 2> measurement_R =
+        measurement_noise_2d(R, measurement_covariance);
+    const Eigen::Matrix<float, 2, 2> S =
+        H * P * H.transpose() + measurement_R;
     const Eigen::LDLT<Eigen::Matrix<float, 2, 2>> ldlt(S);
     if (ldlt.info() != Eigen::Success) {
         return std::numeric_limits<float>::infinity();
@@ -200,8 +227,11 @@ float KalmanFilter2d::innovationSquared(const std::vector<float>& pos) const {
 }
 
 std::vector<float> KalmanFilter2d::update(
-    const std::vector<float>& pos, float gate_threshold, bool* accepted) {
-    const float nis = innovationSquared(pos);
+    const std::vector<float>& pos,
+    float gate_threshold,
+    bool* accepted,
+    const std::array<float, 4>* measurement_covariance) {
+    const float nis = innovationSquared(pos, measurement_covariance);
     const bool measurement_accepted = std::isfinite(nis) &&
         (gate_threshold <= 0.0f || nis <= gate_threshold);
     if (accepted != nullptr) {
@@ -214,7 +244,10 @@ std::vector<float> KalmanFilter2d::update(
     Eigen::Matrix<float, 2, 1> z;
     z << pos[0], pos[1];
 
-    Eigen::Matrix<float, 2, 2> S = H * P * H.transpose() + R;
+    const Eigen::Matrix<float, 2, 2> measurement_R =
+        measurement_noise_2d(R, measurement_covariance);
+    Eigen::Matrix<float, 2, 2> S =
+        H * P * H.transpose() + measurement_R;
     Eigen::LDLT<Eigen::Matrix<float, 2, 2>> ldlt(S);
     const Eigen::Matrix<float, 4, 2> K =
         ldlt.solve((H * P).eval()).transpose();
@@ -222,12 +255,15 @@ std::vector<float> KalmanFilter2d::update(
     x += K * (z - H * x);
     const Eigen::Matrix<float, 4, 4> I_KH =
         Eigen::Matrix<float, 4, 4>::Identity() - K * H;
-    P = I_KH * P * I_KH.transpose() + K * R * K.transpose();
+    P = I_KH * P * I_KH.transpose() +
+        K * measurement_R * K.transpose();
     P = 0.5f * (P + P.transpose()).eval();
     return {x(0), x(1)};
 }
 
-void KalmanFilter2d::reset(const std::vector<float>& initial_pos) {
+void KalmanFilter2d::reset(
+    const std::vector<float>& initial_pos,
+    const std::array<float, 4>* measurement_covariance) {
     x.setZero();
     if (!initial_pos.empty() && initial_pos.size() >= 2) {
         x(0) = initial_pos[0];
@@ -235,6 +271,9 @@ void KalmanFilter2d::reset(const std::vector<float>& initial_pos) {
     }
 
     P = Eigen::Matrix<float, 4, 4>::Identity() * 100.0f;
+    const Eigen::Matrix<float, 2, 2> initial_R =
+        measurement_noise_2d(R, measurement_covariance);
+    P.block<2, 2>(0, 0) = initial_R;
 }
 
 std::vector<float> KalmanFilter2d::get_position() const {

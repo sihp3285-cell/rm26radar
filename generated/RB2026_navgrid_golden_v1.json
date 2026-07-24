@@ -1,0 +1,121 @@
+{
+  "asset": "RB2026_navgrid_v1.json",
+  "asset_sha256": "40b7ef18a5348907befb9e10a9a9636a84e3f262625bc18ac0d548d0936c3cbd",
+  "profile": "hero",
+  "distance_tolerance_m": 1e-06,
+  "cases": [
+    {
+      "name": "long_route_around_field_geometry",
+      "start": [
+        2.0,
+        2.0
+      ],
+      "goal": [
+        26.0,
+        13.0
+      ],
+      "maximum_snap_distance_m": 0.6,
+      "expected": {
+        "reachable": true,
+        "path_distance_m": 38.681832585697954,
+        "straight_distance_m": 26.40075756488817,
+        "start_cell": [
+          9,
+          9
+        ],
+        "goal_cell": [
+          64,
+          129
+        ],
+        "start_snap_distance_m": 0.1414213562373093,
+        "goal_snap_distance_m": 0.14142135623730775,
+        "component_id": 1,
+        "reason": "ok"
+      }
+    },
+    {
+      "name": "centerline_detour",
+      "start": [
+        1.0,
+        7.5
+      ],
+      "goal": [
+        27.0,
+        7.5
+      ],
+      "maximum_snap_distance_m": 0.6,
+      "expected": {
+        "reachable": true,
+        "path_distance_m": 41.40731598529184,
+        "straight_distance_m": 26.0,
+        "start_cell": [
+          37,
+          4
+        ],
+        "goal_cell": [
+          37,
+          134
+        ],
+        "start_snap_distance_m": 0.09999999999999998,
+        "goal_snap_distance_m": 0.09999999999999787,
+        "component_id": 1,
+        "reason": "ok"
+      }
+    },
+    {
+      "name": "raised_platform_is_disconnected",
+      "start": [
+        2.0,
+        2.0
+      ],
+      "goal": [
+        26.3,
+        1.9
+      ],
+      "maximum_snap_distance_m": 0.2,
+      "expected": {
+        "reachable": false,
+        "path_distance_m": null,
+        "straight_distance_m": 24.300205760445735,
+        "start_cell": [
+          9,
+          9
+        ],
+        "goal_cell": [
+          9,
+          131
+        ],
+        "start_snap_distance_m": 0.1414213562373093,
+        "goal_snap_distance_m": 2.220446049250313e-16,
+        "component_id": null,
+        "reason": "different_components"
+      }
+    },
+    {
+      "name": "blocked_corner_exceeds_snap_radius",
+      "start": [
+        2.0,
+        2.0
+      ],
+      "goal": [
+        27.0,
+        14.0
+      ],
+      "maximum_snap_distance_m": 0.6,
+      "expected": {
+        "reachable": false,
+        "path_distance_m": null,
+        "straight_distance_m": 27.730849247724095,
+        "start_cell": [
+          9,
+          9
+        ],
+        "goal_cell": null,
+        "start_snap_distance_m": 0.1414213562373093,
+        "goal_snap_distance_m": null,
+        "component_id": null,
+        "reason": "goal_not_walkable"
+      }
+    }
+  ]
+}
