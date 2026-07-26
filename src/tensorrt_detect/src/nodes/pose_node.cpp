@@ -39,6 +39,11 @@ public:
         this->declare_parameter<double>("projection_max_world_std_m", 1.50);
         this->declare_parameter<double>(
             "projection_surface_discontinuity_m", 0.12);
+        this->declare_parameter<std::string>(
+            "gully_region_path",
+            "/home/delphine/rm/tensorrt10_detect/generated/gully.yaml");
+        this->declare_parameter<double>("gully_transition_width_m", 1.5);
+        this->declare_parameter<bool>("gully_field_x_flip", false);
 
         config_dir_ = this->get_parameter("config_dir").as_string();
         input_topic_ = this->get_parameter("input_topic").as_string();
@@ -59,6 +64,14 @@ public:
                 0.0,
                 this->get_parameter(
                     "projection_surface_discontinuity_m").as_double()));
+        gully_region_path_ =
+            this->get_parameter("gully_region_path").as_string();
+        gully_transition_width_m_ = static_cast<float>(std::max(
+            0.0,
+            this->get_parameter("gully_transition_width_m").as_double()));
+        gully_field_x_flip_ =
+            this->get_parameter("gully_field_x_flip").as_bool();
+        loadGullyRegions();
 
         RCLCPP_INFO(this->get_logger(), "配置目录: %s", config_dir_.c_str());
         RCLCPP_INFO(this->get_logger(), "订阅话题: %s", input_topic_.c_str());
@@ -71,6 +84,10 @@ public:
             projection_config_.minimum_world_std_m,
             projection_config_.maximum_world_std_m,
             projection_config_.surface_discontinuity_m);
+        RCLCPP_INFO(this->get_logger(),
+            "沟区射线切换: polygons=%zu transition=%.2f m field_x_flip=%s",
+            gully_polygons_.size(), gully_transition_width_m_,
+            gully_field_x_flip_ ? "true" : "false");
 
         cfg_ = std::make_unique<Config>(config_dir_);
         pose_solver_ = std::make_unique<PoseSolver>(cfg_->camera.cameraMatrix, cfg_->camera.distCoeffs);
@@ -159,6 +176,132 @@ public:
     }
 
 private:
+    void loadGullyRegions()
+    {
+        gully_polygons_.clear();
+        try {
+            const YAML::Node root = YAML::LoadFile(gully_region_path_);
+            const YAML::Node zones = root["blind_zones"];
+            if (!zones || !zones.IsSequence()) {
+                throw std::runtime_error("缺少 blind_zones 序列");
+            }
+
+            for (const auto& zone : zones) {
+                const YAML::Node polygon_node = zone["polygon"];
+                if (!polygon_node || !polygon_node.IsSequence() ||
+                    polygon_node.size() < 3) {
+                    continue;
+                }
+
+                std::vector<cv::Point2f> polygon;
+                polygon.reserve(polygon_node.size());
+                for (const auto& vertex : polygon_node) {
+                    if (!vertex.IsSequence() || vertex.size() != 2) {
+                        throw std::runtime_error("polygon 顶点格式无效");
+                    }
+                    polygon.emplace_back(
+                        vertex[0].as<float>(), vertex[1].as<float>());
+                }
+                gully_polygons_.push_back(polygon);
+
+                if (zone["mirror_centrally"] &&
+                    zone["mirror_centrally"].as<bool>()) {
+                    std::vector<cv::Point2f> mirrored;
+                    mirrored.reserve(polygon.size());
+                    for (const auto& point : polygon) {
+                        mirrored.emplace_back(
+                            28.0f - point.x, 15.0f - point.y);
+                    }
+                    gully_polygons_.push_back(std::move(mirrored));
+                }
+            }
+            if (gully_polygons_.empty()) {
+                throw std::runtime_error("没有有效 polygon");
+            }
+        } catch (const std::exception& e) {
+            gully_polygons_.clear();
+            RCLCPP_WARN(this->get_logger(),
+                "加载沟区范围失败: %s (%s)，射线将始终使用车辆框",
+                gully_region_path_.c_str(), e.what());
+        }
+    }
+
+    float armorRayWeight(const cv::Point2f& world) const
+    {
+        if (gully_polygons_.empty() ||
+            !std::isfinite(world.x) || !std::isfinite(world.y)) {
+            return 0.0f;
+        }
+
+        const cv::Point2f field(
+            gully_field_x_flip_ ? world.y + 14.0f : 14.0f - world.y,
+            world.x + 7.5f);
+        double signed_distance = -std::numeric_limits<double>::infinity();
+        for (const auto& polygon : gully_polygons_) {
+            signed_distance = std::max(
+                signed_distance,
+                cv::pointPolygonTest(polygon, field, true));
+        }
+
+        if (signed_distance >= 0.0) {
+            return 1.0f;
+        }
+        if (gully_transition_width_m_ <= 0.0f) {
+            return 0.0f;
+        }
+
+        const float t = std::clamp(
+            1.0f + static_cast<float>(signed_distance) /
+                gully_transition_width_m_,
+            0.0f, 1.0f);
+        return t * t * (3.0f - 2.0f * t);
+    }
+
+    static WorldProjection blendProjection(
+        const WorldProjection& car,
+        const WorldProjection& armor,
+        float armor_weight)
+    {
+        if (armor_weight <= 0.0f) {
+            return car;
+        }
+        if (armor_weight >= 1.0f) {
+            return armor;
+        }
+
+        WorldProjection result;
+        const float car_weight = 1.0f - armor_weight;
+        result.world = car.world * car_weight + armor.world * armor_weight;
+        result.surface_discontinuity =
+            car.surface_discontinuity || armor.surface_discontinuity;
+        result.jacobian_condition_number = std::max(
+            car.jacobian_condition_number,
+            armor.jacobian_condition_number);
+
+        if (car.covariance_valid && armor.covariance_valid) {
+            // 协方差与位置使用相同权重平滑过渡。不要把两候选的位置差
+            // 再作为混合方差加入，否则 Kalman 会忽略整段过渡，直到进入
+            // 沟区、权重变为 1 后才一次性跟上，看起来仍像硬切换。
+            result.covariance = {
+                car_weight * car.covariance[0] +
+                    armor_weight * armor.covariance[0],
+                car_weight * car.covariance[1] +
+                    armor_weight * armor.covariance[1],
+                car_weight * car.covariance[2] +
+                    armor_weight * armor.covariance[2],
+                car_weight * car.covariance[3] +
+                    armor_weight * armor.covariance[3]};
+            result.covariance_valid = true;
+        } else if (car.covariance_valid) {
+            result.covariance = car.covariance;
+            result.covariance_valid = true;
+        } else if (armor.covariance_valid) {
+            result.covariance = armor.covariance;
+            result.covariance_valid = true;
+        }
+        return result;
+    }
+
     void loadCalibrationAtStartup()
     {
         if (cfg_->calib.valid) {
@@ -305,22 +448,58 @@ private:
             last_detection_stamp_ns_ = stamp_ns;
 
             // ---- 0. 批量预计算所有检测的世界坐标 ----
+            const std::size_t detection_count = msg->detections.size();
             std::vector<cv::Rect> boxes_for_raycast;
-            boxes_for_raycast.reserve(msg->detections.size());
+            boxes_for_raycast.reserve(detection_count * 2);
+
+            // 前半段为车辆框，后半段为装甲板框；无效框使用另一个框回退，
+            // 仍保持一次批量 CastRays。
             for (const auto& det : msg->detections) {
-                cv::Rect car_box(det.car_x, det.car_y, det.car_width, det.car_height);
-                if (car_box.width > 0 && car_box.height > 0) {
-                    boxes_for_raycast.push_back(car_box);
-                } else {
-                    cv::Rect armor_box(det.x, det.y, det.width, det.height);
-                    boxes_for_raycast.push_back(armor_box);
-                }
+                const cv::Rect car_box(
+                    det.car_x, det.car_y, det.car_width, det.car_height);
+                cv::Rect armor_box(det.x, det.y, det.width, det.height);
+                boxes_for_raycast.push_back(
+                    car_box.width > 0 && car_box.height > 0
+                        ? car_box : armor_box);
             }
+            for (const auto& det : msg->detections) {
+                const cv::Rect car_box(
+                    det.car_x, det.car_y, det.car_width, det.car_height);
+                const cv::Rect armor_box(
+                    det.x, det.y, det.width, det.height);
+                boxes_for_raycast.push_back(
+                    armor_box.width > 0 && armor_box.height > 0
+                        ? armor_box : car_box);
+            }
+
             std::vector<WorldProjection> world_projections;
             if (!boxes_for_raycast.empty()) {
-                world_projections =
+                const auto candidate_projections =
                     pose_solver_->middletoworldBatchWithUncertainty(
                         boxes_for_raycast, projection_config_);
+                if (candidate_projections.size() == detection_count * 2) {
+                    world_projections.reserve(detection_count);
+                    for (std::size_t i = 0; i < detection_count; ++i) {
+                        const auto& det = msg->detections[i];
+                        const bool car_valid =
+                            det.car_width > 0 && det.car_height > 0;
+                        const bool armor_valid =
+                            det.width > 0 && det.height > 0;
+                        const auto& car_projection = candidate_projections[i];
+                        const auto& armor_projection =
+                            candidate_projections[detection_count + i];
+
+                        if (!car_valid) {
+                            world_projections.push_back(armor_projection);
+                        } else if (!armor_valid) {
+                            world_projections.push_back(car_projection);
+                        } else {
+                            world_projections.push_back(blendProjection(
+                                car_projection, armor_projection,
+                                armorRayWeight(car_projection.world)));
+                        }
+                    }
+                }
             }
 
             // ---- 1. 解算所有检测的世界坐标，构建观测输入 ----
@@ -515,6 +694,10 @@ private:
     int64_t last_dead_target_observed_ns_ = 0;
     float dead_target_hold_time_s_ = 0.10f;
     ProjectionUncertaintyConfig projection_config_;
+    std::vector<std::vector<cv::Point2f>> gully_polygons_;
+    std::string gully_region_path_;
+    float gully_transition_width_m_ = 1.5f;
+    bool gully_field_x_flip_ = false;
 
     std::string config_dir_;
     std::string input_topic_;

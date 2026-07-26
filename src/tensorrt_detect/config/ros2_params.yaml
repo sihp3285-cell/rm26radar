@@ -62,6 +62,14 @@ pose_node:
     # 切换，并额外放大测量协方差。
     projection_surface_discontinuity_m: 0.12
 
+    # 沟区内使用装甲板框底边中点，沟区外使用车辆框底边中点。进入多边形
+    # 前先在外侧过渡带平滑混合两次求交结果，避免边界处硬切换跳变。
+    gully_region_path: "/home/delphine/rm/tensorrt10_detect/generated/gully.yaml"
+    # 1.5 m 在约 3 m/s 车速下可提供约 0.5 s 的可见过渡。
+    gully_transition_width_m: 1.5
+    # 与 map_node.field_x_flip 保持一致。
+    gully_field_x_flip: false
+
     # ══════════════════════════════════════════════════════════════
     # Tracker 参数（由 config_dir/tracker.yaml 加载，此处仅为文档说明）
     # 实际修改请编辑 configs/tracker.yaml，重启 pose_node 生效
