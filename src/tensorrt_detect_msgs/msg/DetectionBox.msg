@@ -1,7 +1,5 @@
 int32 idx
 float32 confidence
-float32 class_conf
-float32 class_margin
 int32 x
 int32 y
 int32 width
@@ -15,3 +13,5 @@ int32 car_height
 float32 world_x
 float32 world_y
 float32 fps
+float32 class_conf
+float32 class_margin

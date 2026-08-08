@@ -244,11 +244,17 @@ void DetectPipeline::runClassify(const cv::Mat& frame, std::vector<Result>& dete
             continue;
         }
 
-        const auto prediction = classifyModel_.predictClass(armorROI);
+        float class_conf = -1.0f;
+        float class_margin = -1.0f;
 
-        const int raw_id = prediction.classId;
-        armor.classConfidence = prediction.confidence;
-        armor.classMargin = prediction.margin;
+        const int raw_id = classifyModel_.predictClass(
+            armorROI,
+            &class_conf,
+            &class_margin
+        );
+
+        armor.class_conf = class_conf;
+        armor.class_margin = class_margin;
 
         if (raw_id == 4) {
             armor.idx = 6;

@@ -513,6 +513,7 @@ private:
             bool has_outpost = false;
             std::size_t surface_discontinuity_count = 0;
             float maximum_projection_condition = 1.0f;
+            constexpr bool ENABLE_CLASS_MARGIN = true;
 
             for (size_t i = 0; i < msg->detections.size(); ++i) {
                 const auto& det = msg->detections[i];
@@ -583,7 +584,9 @@ private:
                     negative.team_id = robot_id::UNKNOWN;
                     negative.score = det.confidence;
                     negative.class_conf = det.class_conf;
-                    negative.class_margin = det.class_margin;
+                    negative.class_margin = ENABLE_CLASS_MARGIN
+                        ? det.class_margin
+                        : 0.0f;
                     negative.is_dead = true;
                     negative.is_negative = true;
                     negative.box = cv::Rect(det.x, det.y, det.width, det.height);
@@ -600,7 +603,9 @@ private:
                 m.team_id  = det.armor_color;
                 m.score    = det.confidence;
                 m.class_conf = det.class_conf;
-                m.class_margin = det.class_margin;
+                m.class_margin = ENABLE_CLASS_MARGIN
+                    ? det.class_margin
+                    : 0.0f;
                 m.is_dead  = det.is_dead;
                 m.box      = cv::Rect(det.x, det.y, det.width, det.height);
                 m.world    = world_pos;  // x=world_x, y=world_z

@@ -125,8 +125,8 @@ private:
                 tensorrt_detect_msgs::msg::DetectionBox box;
                 box.idx         = res.idx;
                 box.confidence  = res.confidence;
-                box.class_conf  = res.classConfidence;
-                box.class_margin = res.classMargin;
+                box.class_conf  = res.class_conf;
+                box.class_margin = res.class_margin;
                 box.x           = res.box.x;
                 box.y           = res.box.y;
                 box.width       = res.box.width;

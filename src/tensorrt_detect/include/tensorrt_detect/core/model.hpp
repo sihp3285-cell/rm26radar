@@ -28,15 +28,8 @@ struct Result
     cv::Point2f worldPoint{};
     float fps = 0.0f;
     bool isDead = false;
-    float classConfidence = -1.0f;
-    float classMargin = -1.0f;
-};
-
-struct ClassPrediction
-{
-    int classId = -1;
-    float confidence = 0.0f;
-    float margin = 0.0f;
+    float class_conf = -1.0f;
+    float class_margin = -1.0f;
 };
 
 
@@ -106,7 +99,11 @@ public:
     ModelType modelType;
     Model(const std::string modelPath, const int &inputSize, const float &scoreThreshold, const float &nmsThreshold, const bool isNMS = true, const ModelType modelType = ModelType::DETECT);
     ~Model();
-    ClassPrediction predictClass(const cv::Mat &roi);
+    int predictClass(
+        const cv::Mat& roi,
+        float* top1_conf = nullptr,
+        float* class_margin = nullptr
+    );
     cv::Rect roi;
 
     bool Detect(const cv::Mat &frame);

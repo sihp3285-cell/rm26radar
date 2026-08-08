@@ -482,7 +482,11 @@ bool Model::Detect(const cv::Mat &frame)
         return false;
     }
 }
-ClassPrediction Model::predictClass(const cv::Mat &roi) {
+int Model::predictClass(
+    const cv::Mat& roi,
+    float* top1_conf,
+    float* class_margin)
+{
     preprocessing(roi);
 
     if (!context->enqueueV3(this->stream)) {
@@ -493,45 +497,36 @@ ClassPrediction Model::predictClass(const cv::Mat &roi) {
     cudaEventRecord(readyEvent_, this->stream);
     cudaEventSynchronize(readyEvent_);
 
-    const float* data = this->prob_;
-    if (probSize_ == 0) {
-        return {};
-    }
+    float* data = this->prob_;
 
-    std::vector<float> probabilities(probSize_);
-    float sum = 0.0f;
-    bool already_probabilities = true;
+    int top1_id = -1;
+    float top1 = -1.0f;
+    float top2 = -1.0f;
+
     for (size_t i = 0; i < probSize_; ++i) {
-        already_probabilities = already_probabilities && data[i] >= 0.0f && data[i] <= 1.0f;
-        sum += data[i];
-    }
+        const float p = data[i];
 
-    if (already_probabilities && std::abs(sum - 1.0f) < 1e-3f) {
-        std::copy(data, data + probSize_, probabilities.begin());
-    } else {
-        const float max_logit = *std::max_element(data, data + probSize_);
-        sum = 0.0f;
-        for (size_t i = 0; i < probSize_; ++i) {
-            probabilities[i] = std::exp(data[i] - max_logit);
-            sum += probabilities[i];
-        }
-        for (float& probability : probabilities) {
-            probability /= std::max(sum, 1e-12f);
+        if (p > top1) {
+            top2 = top1;
+            top1 = p;
+            top1_id = static_cast<int>(i);
+        } else if (p > top2) {
+            top2 = p;
         }
     }
 
-    auto top1 = std::max_element(probabilities.begin(), probabilities.end());
-    const int class_id = static_cast<int>(top1 - probabilities.begin());
-    const float confidence = *top1;
-    float top2 = 0.0f;
-    for (size_t i = 0; i < probabilities.size(); ++i) {
-        if (static_cast<int>(i) != class_id) {
-            top2 = std::max(top2, probabilities[i]);
-        }
+    if (top1_conf) {
+        *top1_conf = top1;
     }
-    return {class_id, confidence, confidence - top2};
+
+    if (class_margin) {
+        *class_margin = (top2 >= 0.0f)
+            ? (top1 - top2)
+            : 0.0f;
+    }
+
+    return top1_id;
 }
-
 
 
 
