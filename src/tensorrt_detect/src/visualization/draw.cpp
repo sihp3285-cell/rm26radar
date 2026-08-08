@@ -31,7 +31,7 @@ void drawDetect(cv::Mat &frame, const std::vector<Result> &results, const std::v
         std::stringstream ss;
         ss << std::fixed << std::setprecision(2) << result.confidence;
         if(result.idx == 1 || result.idx == 7){
-            break;
+            continue;
         }
         cv::putText(frame, ss.str(), cv::Point(scaled_box.x + scaled_box.width / 2 + 4, scaled_box.y - 5),
                     cv::FONT_HERSHEY_SIMPLEX, font_scale, color, thickness);
