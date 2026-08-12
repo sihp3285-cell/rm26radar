@@ -122,6 +122,19 @@ void BlindZonePrior::load_file(
     }
 }
 
+std::vector<Point2d> BlindZonePrior::effective_polygon(
+    const Zone& zone) const {
+    if (!flipped_view_) {
+        return zone.polygon;
+    }
+    std::vector<Point2d> flipped;
+    flipped.reserve(zone.polygon.size());
+    for (const auto& point : zone.polygon) {
+        flipped.push_back(Point2d{28.0 - point.x, point.y});
+    }
+    return flipped;
+}
+
 bool BlindZonePrior::point_in_polygon(
     const Point2d& point,
     const std::vector<Point2d>& polygon) {
@@ -208,7 +221,7 @@ BlindZoneBiasResult BlindZonePrior::apply(
     }
 
     struct ActiveZone {
-        const Zone* zone = nullptr;
+        std::vector<Point2d> polygon; // 当前视角生效的多边形（翻转视角已做 x 轴翻转）。
         double proximity_strength = 0.0;
         double maximum_allowed_height_m =
             std::numeric_limits<double>::infinity();
@@ -223,9 +236,13 @@ BlindZoneBiasResult BlindZonePrior::apply(
         if (zone.engineer_only && role != "engineer") {
             continue;
         }
-        const bool inside = point_in_polygon(last_canonical, zone.polygon);
+        const auto polygon = effective_polygon(zone);
+        const Point2d centroid = flipped_view_
+            ? Point2d{28.0 - zone.centroid.x, zone.centroid.y}
+            : zone.centroid;
+        const bool inside = point_in_polygon(last_canonical, polygon);
         const double distance = distance_to_polygon(
-            last_canonical, zone.polygon);
+            last_canonical, polygon);
         if (!inside &&
             (config_.trigger_distance_m <= 0.0 ||
              distance > config_.trigger_distance_m)) {
@@ -233,7 +250,7 @@ BlindZoneBiasResult BlindZonePrior::apply(
         }
 
         ActiveZone candidate_zone;
-        candidate_zone.zone = &zone;
+        candidate_zone.polygon = polygon;
         const double linear_strength = inside ? 1.0 :
             std::clamp(
                 1.0 - distance / config_.trigger_distance_m, 0.0, 1.0);
@@ -244,7 +261,7 @@ BlindZoneBiasResult BlindZonePrior::apply(
         // 2. 候选只能来自起点同一 component 的兵种可通行 cell，并按 zone 配置
         // 过滤高度层，避免把沟底目标注入到被多边形包围的高台表面。
         auto cells = navigation_mesh.walkable_cells_in_polygon(
-            role, zone.polygon, routes.component_id);
+            role, polygon, routes.component_id);
         if (zone.same_elevation_as_last && !cells.empty()) {
             const double last_height =
                 navigation_mesh.cell_height_m(routes.start_cell);
@@ -301,8 +318,8 @@ BlindZoneBiasResult BlindZonePrior::apply(
                         point.x - motion_prediction_canonical.x,
                         point.y - motion_prediction_canonical.y);
                     const double center_distance = std::hypot(
-                        point.x - zone.centroid.x,
-                        point.y - zone.centroid.y);
+                        point.x - centroid.x,
+                        point.y - centroid.y);
                     return 0.45 * motion_distance + 0.55 * center_distance;
                 };
                 const double lhs_score = score(lhs);
@@ -355,7 +372,7 @@ BlindZoneBiasResult BlindZonePrior::apply(
     for (auto& candidate : distribution.candidates) {
         for (const auto& zone : active) {
             if (!std::isfinite(zone.maximum_allowed_height_m) ||
-                !point_in_polygon(candidate.canonical, zone.zone->polygon)) {
+                !point_in_polygon(candidate.canonical, zone.polygon)) {
                 continue;
             }
             const auto snap = navigation_mesh.snap_to_walkable(

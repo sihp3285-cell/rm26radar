@@ -29,6 +29,10 @@ def launch_setup(context, *args, **kwargs):
     加载 CameraNode 或 VideoNode 作为图像源。
     """
     mode = LaunchConfiguration('mode').perform(context)
+    rviz_debug_enabled = LaunchConfiguration(
+        'rviz_debug_enabled').perform(context).lower() in ('1', 'true', 'yes', 'on')
+    enable_rviz = LaunchConfiguration(
+        'enable_rviz').perform(context).lower() in ('1', 'true', 'yes', 'on')
 
     # FindPackageShare 从安装空间定位 package share 目录；因此正常使用前需要先
     # colcon build/source install/setup.bash。PathJoinSubstitution 延迟到 launch
@@ -42,6 +46,11 @@ def launch_setup(context, *args, **kwargs):
         FindPackageShare('position_prior'),
         'config',
         'position_prior.yaml',
+    ])
+    rviz_config_file = PathJoinSubstitution([
+        FindPackageShare('tensorrt_detect'),
+        'config',
+        'radar_debug.rviz',
     ])
 
     # ── 根据 mode 选择唯一图像源节点 ──
@@ -67,40 +76,54 @@ def launch_setup(context, *args, **kwargs):
     # component_container 动态加载 CMake 注册的 plugin 共享库。这里启用
     # use_intra_process_comms 只是允许进程内优化；cv_bridge::toImageMsg 等显式
     # 图像转换仍会发生真实拷贝，不能把整个链路理解为“绝对零拷贝”。
+    pipeline_components = [
+        source_composable,
+        ComposableNode(
+            package='tensorrt_detect',
+            plugin='DetectNode',
+            name='detect_node',
+            parameters=[params_file],
+            extra_arguments=[{'use_intra_process_comms': True}],
+        ),
+        ComposableNode(
+            package='tensorrt_detect',
+            plugin='PoseNode',
+            name='pose_node',
+            parameters=[params_file, {
+                'rviz_debug_enabled': rviz_debug_enabled,
+            }],
+            extra_arguments=[{'use_intra_process_comms': True}],
+        ),
+        ComposableNode(
+            package='tensorrt_detect',
+            plugin='MapNode',
+            name='map_node',
+            parameters=[params_file],
+            extra_arguments=[{'use_intra_process_comms': True}],
+        ),
+    ]
+    if rviz_debug_enabled:
+        pipeline_components.append(ComposableNode(
+            package='tensorrt_detect',
+            plugin='RvizDebugNode',
+            name='rviz_debug_node',
+            parameters=[params_file, {
+                'rviz_debug_enabled': True,
+            }],
+            extra_arguments=[{'use_intra_process_comms': True}],
+        ))
+
     pipeline_container = ComposableNodeContainer(
         name='detect_pipeline_container',
         namespace='',
         package='rclcpp_components',
         executable='component_container',
-        composable_node_descriptions=[
-            source_composable,
-            ComposableNode(
-                package='tensorrt_detect',
-                plugin='DetectNode',
-                name='detect_node',
-                parameters=[params_file],
-                extra_arguments=[{'use_intra_process_comms': True}],
-            ),
-            ComposableNode(
-                package='tensorrt_detect',
-                plugin='PoseNode',
-                name='pose_node',
-                parameters=[params_file],
-                extra_arguments=[{'use_intra_process_comms': True}],
-            ),
-            ComposableNode(
-                package='tensorrt_detect',
-                plugin='MapNode',
-                name='map_node',
-                parameters=[params_file],
-                extra_arguments=[{'use_intra_process_comms': True}],
-            ),
-        ],
+        composable_node_descriptions=pipeline_components,
         output='screen',
         emulate_tty=True,
     )
 
-    return [
+    actions = [
         pipeline_container,
 
         # 独立 shadow 节点：只发布先验消息与日志，不回灌 tracker。这样统计先验
@@ -150,6 +173,15 @@ def launch_setup(context, *args, **kwargs):
             parameters=[params_file],
         ),
     ]
+    if enable_rviz:
+        actions.append(Node(
+            package='rviz2',
+            executable='rviz2',
+            name='rviz2',
+            output='screen',
+            arguments=['-d', rviz_config_file],
+        ))
+    return actions
 
 
 def generate_launch_description():
@@ -158,5 +190,13 @@ def generate_launch_description():
             'mode',
             default_value='video',
             description="图像源模式: 'video' (视频文件) 或 'camera' (工业相机)"),
+        DeclareLaunchArgument(
+            'rviz_debug_enabled',
+            default_value='false',
+            description='是否加载 RViz 旁路发布器与 Pose debug hook'),
+        DeclareLaunchArgument(
+            'enable_rviz',
+            default_value='false',
+            description='是否自动启动 rviz2 并加载 radar_debug.rviz'),
         OpaqueFunction(function=launch_setup),
     ])

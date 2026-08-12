@@ -25,11 +25,17 @@ struct ProjectionUncertaintyConfig {
     float maximum_world_std_m = 1.50f;
     // 相邻射线命中高度差超过该值时，标记为跨地形表面。
     float surface_discontinuity_m = 0.12f;
+    // 仅在 RViz 动态 topic 有订阅者时保存中心射线的完整三维终点。
+    bool capture_debug_ray_endpoint = false;
 };
 
 /** 一个落地点及其测量质量；world 只承载世界平面 (x,z)。 */
 struct WorldProjection {
     cv::Point2f world;
+    // 可选保存中心射线已经得到的完整三维有效落点，仅供旁路调试复用；Tracker 仍只读取
+    // 上面的 world(x,z)，因此该字段不会改变任何投影或滤波语义。
+    cv::Point3f ray_endpoint;
+    bool ray_endpoint_valid = false;
     // world(x,z) 测量协方差，行主序 [xx, xz, zx, zz]。
     std::array<float, 4> covariance{{1.0f, 0.0f, 0.0f, 1.0f}};
     bool covariance_valid = false;

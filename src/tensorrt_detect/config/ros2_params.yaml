@@ -84,6 +84,22 @@ pose_node:
     # 与 map_node.field_x_flip 保持一致。
     gully_field_x_flip: false
 
+    # RViz2 纯旁路调试。launch 参数 rviz_debug_enabled 会覆盖总开关；false 时
+    # PoseNode 不创建 Marker/TF publisher，也不复制本帧投影结果。
+    rviz_debug_enabled: false
+    rviz_debug_camera: true
+    rviz_debug_fov: true
+    rviz_debug_rays: true
+    rviz_debug_ray_hits: true
+    rviz_debug_measurements: true
+    rviz_debug_world_frame: "world"
+    rviz_debug_camera_frame: "camera_link"
+    rviz_debug_static_topic: "/radar/rviz/static"
+    rviz_debug_pose_topic: "/radar/rviz/pose"
+    # 当前工业相机标定图像分辨率，仅用于绘制 FOV，不参与检测/投影。
+    rviz_debug_image_width: 5472
+    rviz_debug_image_height: 3648
+
     # ══════════════════════════════════════════════════════════════
     # Tracker 参数（由 config_dir/tracker.yaml 加载，此处仅为文档说明）
     # 实际修改请编辑 configs/tracker.yaml，重启 pose_node 生效
@@ -125,6 +141,39 @@ map_node:
     output_map_topic: "/radar_map"
     prior_topic: "/prior_predictions"
     prior_display_timeout_s: 1.0
+
+# 只读观察 /world_targets 和 /prior_predictions 的 RViz component。正常比赛
+# launch 在 rviz_debug_enabled=false 时根本不会加载该 component。
+rviz_debug_node:
+  ros__parameters:
+    rviz_debug_enabled: true
+    world_targets_topic: "/world_targets"
+    prior_predictions_topic: "/prior_predictions"
+    world_frame: "world"
+    static_topic: "/radar/rviz/static"
+    tracker_topic: "/radar/rviz/tracker"
+    guesser_topic: "/radar/rviz/guesser"
+
+    mesh_path: "/home/delphine/rm/tensorrt10_detect/configs/RB2026_rmuc.ply"
+    navgrid_path: "/home/delphine/rm/tensorrt10_detect/generated/RB2026_navgrid_v1.json"
+    navgrid_role: "hero"
+    blind_zone_paths:
+      - "/home/delphine/rm/tensorrt10_detect/generated/home.yaml"
+      - "/home/delphine/rm/tensorrt10_detect/generated/gully.yaml"
+      - "/home/delphine/rm/tensorrt10_detect/generated/engineer.yaml"
+    # 与 PositionPriorNode/MapNode 的启动视角一致；运行中订阅 /flip_team 更新。
+    initial_flip_team: false
+
+    mesh: true
+    tracks: true
+    trajectories: true
+    velocity: true
+    covariance: true
+    guess_candidates: true
+    blind_zones: true
+    nav_grid: true
+    trajectory_length: 50
+    velocity_scale_seconds: 1.0
 
 qt_display_node:
   ros__parameters:

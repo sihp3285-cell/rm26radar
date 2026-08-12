@@ -47,6 +47,16 @@ public:
     /** 返回当前只读偏置配置引用。 */
     const BlindZoneBiasConfig& config() const { return config_; }
 
+    /**
+     * 设置视角翻转。flip_team=false（敌方为红）时盲区直接按红方 canonical
+     * 多边形比较；flip_team=true（敌方为蓝）时蓝方目标先经中心对称进入
+     * canonical，物理盲区也随相机换到对面半场，因此 polygon 需按 x=14 轴
+     * 左右翻转 (28-x, y) 后才与 canonical 位置匹配。
+     */
+    void set_flipped_view(bool flipped) { flipped_view_ = flipped; }
+    /** 返回当前是否处于敌方为蓝的翻转视角。 */
+    bool flipped_view() const { return flipped_view_; }
+
     /** 对靠近活动盲区的分布原地注入候选/驻留质量，并返回注入诊断统计。 */
     BlindZoneBiasResult apply(
         const std::string& role,
@@ -72,6 +82,8 @@ private:
 
     /** 解析单个区域 YAML，并按文件/调用参数标记工程专用属性和镜像副本。 */
     void load_file(const std::string& path, bool engineer_only);
+    /** 返回当前视角下生效的多边形（flip 视角按 x=14 轴左右翻转）。 */
+    std::vector<Point2d> effective_polygon(const Zone& zone) const;
     /** 用奇偶射线法判断 canonical 点是否位于多边形内部。 */
     static bool point_in_polygon(
         const Point2d& point,
@@ -86,6 +98,7 @@ private:
 
     BlindZoneBiasConfig config_;
     bool loaded_ = false;
+    bool flipped_view_ = false;
     std::vector<Zone> zones_;
 };
 

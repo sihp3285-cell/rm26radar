@@ -35,6 +35,10 @@ find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
 find_package(tensorrt_detect_msgs REQUIRED)
 
 # --- 修正 Open3D 查找方式 ---
@@ -110,6 +114,28 @@ target_link_libraries(tensorrt_detect_core
 # 静态库被链接进共享库（component），需要 -fPIC
 set_target_properties(tensorrt_detect_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# ========== RViz2 纯旁路可视化库 ==========
+# Marker/TF 构造集中在该库；只有显式启用 debug 的节点才实例化 publisher。
+add_library(tensorrt_detect_rviz STATIC
+    src/debug/rviz_visualizer.cpp
+)
+target_include_directories(tensorrt_detect_rviz PUBLIC ${COMMON_INCLUDE_DIRS})
+ament_target_dependencies(tensorrt_detect_rviz
+    rclcpp
+    std_msgs
+    geometry_msgs
+    visualization_msgs
+    tf2
+    tf2_ros
+    tensorrt_detect_msgs
+)
+target_link_libraries(tensorrt_detect_rviz
+    ${OpenCV_LIBS}
+    yaml-cpp::yaml-cpp
+    Open3D::Open3D
+)
+set_target_properties(tensorrt_detect_rviz PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 # ========== 原程序（独立运行） ==========
 add_executable(standard apps/standalone_main.cpp)
 
@@ -148,7 +174,15 @@ rclcpp_components_register_nodes(detect_node_component "DetectNode")
 add_library(pose_node_component SHARED src/nodes/pose_node.cpp)
 ament_target_dependencies(pose_node_component rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs std_srvs tensorrt_detect_msgs)
 target_link_libraries(pose_node_component tensorrt_detect_core)
+target_link_libraries(pose_node_component tensorrt_detect_rviz)
 rclcpp_components_register_nodes(pose_node_component "PoseNode")
+
+# rviz_debug_node component（只读订阅既有输出，不进入主链）
+add_library(rviz_debug_node_component SHARED src/nodes/rviz_debug_node.cpp)
+ament_target_dependencies(rviz_debug_node_component
+    rclcpp rclcpp_components std_msgs tensorrt_detect_msgs)
+target_link_libraries(rviz_debug_node_component tensorrt_detect_rviz)
+rclcpp_components_register_nodes(rviz_debug_node_component "RvizDebugNode")
 
 # map_node component
 add_library(map_node_component SHARED src/nodes/map_node.cpp)
@@ -179,6 +213,12 @@ target_link_libraries(detect_node tensorrt_detect_core)
 add_executable(pose_node src/nodes/pose_node.cpp)
 ament_target_dependencies(pose_node rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs std_srvs tensorrt_detect_msgs)
 target_link_libraries(pose_node tensorrt_detect_core)
+target_link_libraries(pose_node tensorrt_detect_rviz)
+
+add_executable(rviz_debug_node src/nodes/rviz_debug_node.cpp)
+ament_target_dependencies(rviz_debug_node
+    rclcpp rclcpp_components std_msgs tensorrt_detect_msgs)
+target_link_libraries(rviz_debug_node tensorrt_detect_rviz)
 
 add_executable(map_node src/nodes/map_node.cpp)
 ament_target_dependencies(map_node rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs tensorrt_detect_msgs)
@@ -208,6 +248,7 @@ install(TARGETS
     detect_node
     video_node
     pose_node
+    rviz_debug_node
     map_node
     calibrate_node
     roi_set_node
@@ -248,6 +289,7 @@ install(TARGETS
     detect_node_component
     pose_node_component
     map_node_component
+    rviz_debug_node_component
     DESTINATION lib
 )
 
@@ -263,6 +305,10 @@ install(DIRECTORY launch
 # ========== 安装参数配置文件 ==========
 install(DIRECTORY config
     DESTINATION share/${PROJECT_NAME}
+)
+
+install(FILES RVIZ_DEBUG.md
+    DESTINATION share/${PROJECT_NAME}/docs
 )
 
 ament_package()

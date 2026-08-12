@@ -234,6 +234,7 @@ public:
                 blind_zone_prior_.load(
                     get_parameter("common_blind_zone_paths").as_string_array(),
                     get_parameter("engineer_blind_zone_path").as_string());
+                blind_zone_prior_.set_flipped_view(flip_team_);
                 gate_.set_blind_zone_prior(&blind_zone_prior_);
                 RCLCPP_INFO(get_logger(),
                     "盲区先验加载完成: %zu 个区域",
@@ -280,6 +281,7 @@ public:
                 if (flip_team_ != message->data) {
                     flip_team_ = message->data;
                     transform_.set_world_z_toward_blue(!flip_team_);
+                    blind_zone_prior_.set_flipped_view(flip_team_);
                     caches_.clear();
                     observation_confirmations_.clear();
                     RCLCPP_WARN(get_logger(),

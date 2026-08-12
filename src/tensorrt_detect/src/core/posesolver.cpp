@@ -143,6 +143,10 @@ std::vector<WorldProjection> PoseSolver::middletoworldBatchWithUncertainty(
             results.push_back(result);
             continue;
         }
+        if (config.capture_debug_ray_endpoint) {
+            result.ray_endpoint = center;
+            result.ray_endpoint_valid = true;
+        }
         result.world = cv::Point2f(center.x, center.z);
 
         if (!finite_point(u_minus) || !finite_point(u_plus) ||

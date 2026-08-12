@@ -29,6 +29,7 @@
 #include "robot_id.hpp"
 #include "tracker.hpp"
 #include "tracker_message.hpp"
+#include "tensorrt_detect/debug/rviz_visualizer.hpp"
 #include <cuda_runtime_api.h>
 
 enum class ProjectionMode {
@@ -96,6 +97,21 @@ public:
             "gully_region_path",
             "/home/delphine/rm/tensorrt10_detect/generated/gully.yaml");
         this->declare_parameter<bool>("gully_field_x_flip", false);
+        // RViz 是纯旁路；总开关关闭时不创建任何 Marker/TF publisher，也不复制帧数据。
+        this->declare_parameter<bool>("rviz_debug_enabled", false);
+        this->declare_parameter<bool>("rviz_debug_camera", true);
+        this->declare_parameter<bool>("rviz_debug_fov", true);
+        this->declare_parameter<bool>("rviz_debug_rays", true);
+        this->declare_parameter<bool>("rviz_debug_ray_hits", true);
+        this->declare_parameter<bool>("rviz_debug_measurements", true);
+        this->declare_parameter<std::string>("rviz_debug_world_frame", "world");
+        this->declare_parameter<std::string>("rviz_debug_camera_frame", "camera_link");
+        this->declare_parameter<std::string>(
+            "rviz_debug_static_topic", "/radar/rviz/static");
+        this->declare_parameter<std::string>(
+            "rviz_debug_pose_topic", "/radar/rviz/pose");
+        this->declare_parameter<int>("rviz_debug_image_width", 5472);
+        this->declare_parameter<int>("rviz_debug_image_height", 3648);
 
         config_dir_ = this->get_parameter("config_dir").as_string();
         input_topic_ = this->get_parameter("input_topic").as_string();
@@ -231,7 +247,38 @@ public:
             tp.botIdentity.maxHistory, tp.botIdentity.purgeAfterLostTimeS,
             tp.botIdentity.minHistoryForStable, tp.botIdentity.decay, tp.botIdentity.numClasses);
 
+        if (this->get_parameter("rviz_debug_enabled").as_bool()) {
+            tensorrt_detect::debug::RvizVisualizerOptions rviz_options;
+            rviz_options.pose_layer = true;
+            rviz_options.camera =
+                this->get_parameter("rviz_debug_camera").as_bool();
+            rviz_options.fov = this->get_parameter("rviz_debug_fov").as_bool();
+            rviz_options.rays = this->get_parameter("rviz_debug_rays").as_bool();
+            rviz_options.ray_hits =
+                this->get_parameter("rviz_debug_ray_hits").as_bool();
+            rviz_options.measurements =
+                this->get_parameter("rviz_debug_measurements").as_bool();
+            rviz_options.world_frame =
+                this->get_parameter("rviz_debug_world_frame").as_string();
+            rviz_options.camera_frame =
+                this->get_parameter("rviz_debug_camera_frame").as_string();
+            rviz_options.static_topic =
+                this->get_parameter("rviz_debug_static_topic").as_string();
+            rviz_options.pose_topic =
+                this->get_parameter("rviz_debug_pose_topic").as_string();
+            rviz_image_width_ = std::max(
+                1, static_cast<int>(this->get_parameter(
+                    "rviz_debug_image_width").as_int()));
+            rviz_image_height_ = std::max(
+                1, static_cast<int>(this->get_parameter(
+                    "rviz_debug_image_height").as_int()));
+            rviz_visualizer_ =
+                std::make_unique<tensorrt_detect::debug::RvizVisualizer>(
+                    *this, std::move(rviz_options));
+        }
+
         loadCalibrationAtStartup();
+        updateRvizCameraCalibration();
 
         if (!cfg_->camera.meshPath.empty()) {
             bool mesh_ok = pose_solver_->getRaycaster().loadingMesh(cfg_->camera.meshPath);
@@ -613,6 +660,7 @@ private:
 
             pose_solver_->setExtrinsic(R, T);
             is_calibrated_ = true;
+            updateRvizCameraCalibration();
             response->success = true;
             response->message = "Calibration reloaded successfully";
             RCLCPP_INFO(this->get_logger(), "pose_node 已重载校准结果，标定就绪");
@@ -621,6 +669,18 @@ private:
             response->message = std::string("Failed to reload: ") + e.what();
             RCLCPP_ERROR(this->get_logger(), "重载校准失败: %s", e.what());
         }
+    }
+
+    /** 把 PoseSolver 当前同一份 R/T/K 暴露为 debug TF/Marker，不求解第二套外参。 */
+    void updateRvizCameraCalibration()
+    {
+        if (!rviz_visualizer_ || !is_calibrated_) return;
+        cv::Mat rotation;
+        cv::Mat translation;
+        pose_solver_->getExtrinsic(rotation, translation);
+        rviz_visualizer_->setCameraCalibration(
+            rotation, translation, cfg_->camera.cameraMatrix,
+            rviz_image_width_, rviz_image_height_);
     }
 
     /** 检测回调：批量射线投影、构造测量/负观测、更新 Tracker 并发布 WorldTargetArray。 */
@@ -698,9 +758,12 @@ private:
             // 异常、bbox 缺失或 detection 为空时都不会越界或 crash。
             std::vector<WorldProjection> world_projections(detection_count);
             if (!boxes_for_raycast.empty()) {
+                auto frame_projection_config = projection_config_;
+                frame_projection_config.capture_debug_ray_endpoint =
+                    rviz_visualizer_ && rviz_visualizer_->wantsPoseFrame();
                 const auto candidate_projections =
                     pose_solver_->middletoworldBatchWithUncertainty(
-                        boxes_for_raycast, projection_config_);
+                        boxes_for_raycast, frame_projection_config);
                 if (candidate_projections.size() == detection_count * 2) {
                     for (std::size_t i = 0; i < detection_count; ++i) {
                         const auto& det = msg->detections[i];
@@ -858,6 +921,34 @@ private:
                     maximum_projection_condition);
             }
 
+            // 仅当 RViz 真有订阅者时，才复制本帧已经选定的投影结果；不触发额外
+            // RayCast，也不访问/修改 Tracker 内部状态。
+            if (rviz_visualizer_ && rviz_visualizer_->wantsPoseFrame()) {
+                std::vector<tensorrt_detect::debug::PoseDebugSample> debug_samples;
+                debug_samples.reserve(msg->detections.size());
+                for (std::size_t i = 0; i < msg->detections.size(); ++i) {
+                    const auto& projection = world_projections[i];
+                    if (!projection.ray_endpoint_valid) continue;
+                    const auto& detection = msg->detections[i];
+                    tensorrt_detect::debug::PoseDebugSample sample;
+                    sample.marker_key = static_cast<int>(i);
+                    sample.class_id = detection.idx;
+                    sample.team_id = detection.armor_color;
+                    sample.confidence = detection.confidence;
+                    sample.is_dead = detection.is_dead;
+                    sample.negative_measurement =
+                        detection.idx == robot_id::ARMOR && detection.is_dead;
+                    sample.tracker_measurement =
+                        detection.idx != robot_id::OUTPOST &&
+                        !sample.negative_measurement;
+                    sample.ray_endpoint = projection.ray_endpoint;
+                    sample.measurement = cv::Point3f(
+                        projection.world.x, 0.0f, projection.world.y);
+                    debug_samples.push_back(sample);
+                }
+                rviz_visualizer_->publishPoseFrame(msg->header, debug_samples);
+            }
+
             // 死亡装甲板不进入 Tracker；短暂漏检时保留最近结果，避免地图单帧闪烁。
             if (!dead_targets.empty()) {
                 cached_dead_targets_ = dead_targets;
@@ -944,6 +1035,10 @@ private:
     std::string config_dir_;
     std::string input_topic_;
     std::string output_topic_;
+
+    std::unique_ptr<tensorrt_detect::debug::RvizVisualizer> rviz_visualizer_;
+    int rviz_image_width_ = 5472;
+    int rviz_image_height_ = 3648;
 
     rclcpp::Subscription<tensorrt_detect_msgs::msg::DetectionArray>::SharedPtr armor_sub_;
     rclcpp::Publisher<tensorrt_detect_msgs::msg::WorldTargetArray>::SharedPtr world_pub_;

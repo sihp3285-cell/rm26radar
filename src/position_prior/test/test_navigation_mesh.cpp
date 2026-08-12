@@ -88,8 +88,8 @@ TEST_F(NavigationMeshTest, CommonAndEngineerOnlyBlindZonesAreRoleAware) {
     base.local_weight = 1.0;
     base.candidates = {{1, {14.0, 6.5}, 1.0}};
 
-    // 工程专用盲区中心附近：英雄不注入，工程会注入。
-    const Point2d last{15.2, 6.8};
+    // 工程专用盲区中心附近（中心翻转后的敌侧多边形）：英雄不注入，工程会注入。
+    const Point2d last{12.8, 8.2};
     const auto hero_routes = mesh.route_map("hero", last, 0.6);
     auto hero_distribution = base;
     const auto hero_bias = blind.apply(
@@ -106,6 +106,49 @@ TEST_F(NavigationMeshTest, CommonAndEngineerOnlyBlindZonesAreRoleAware) {
     ASSERT_TRUE(engineer_bias.applied);
     EXPECT_GT(engineer_bias.injected_candidate_count, 0u);
     EXPECT_GT(engineer_bias.injected_probability_mass, 0.0);
+    EXPECT_TRUE(std::any_of(
+        engineer_distribution.candidates.begin(),
+        engineer_distribution.candidates.end(),
+        [](const PriorCandidate& candidate) {
+            return candidate.from_blind_zone;
+        }));
+}
+
+TEST_F(NavigationMeshTest, FlippedViewUsesXMirroredBlindZones) {
+    BlindZoneBiasConfig blind_config;
+    blind_config.trigger_distance_m = 1.2;
+    blind_config.maximum_probability_mass = 0.65;
+    BlindZonePrior blind(blind_config);
+    blind.load(
+        {generated_path("home.yaml"), generated_path("gully.yaml")},
+        generated_path("engineer.yaml"));
+    blind.set_flipped_view(true);
+
+    PriorDistribution base;
+    base.valid = true;
+    base.role = "hero";
+    base.horizon_seconds = 2;
+    base.local_weight = 1.0;
+    base.candidates = {{1, {14.0, 6.5}, 1.0}};
+
+    // 翻转视角下工程盲区按 x=14 轴左右翻转，锚点取翻转后多边形中心附近；
+    // 英雄仍不注入（非工程区域），工程会注入。
+    const Point2d last{15.0, 8.1};
+    const auto hero_routes = mesh.route_map("hero", last, 0.6);
+    auto hero_distribution = base;
+    const auto hero_bias = blind.apply(
+        "hero", last, last, 4.0, mesh, hero_routes, hero_distribution);
+    EXPECT_FALSE(hero_bias.applied);
+
+    const auto engineer_routes = mesh.route_map("engineer", last, 0.6);
+    ASSERT_TRUE(engineer_routes.valid);
+    auto engineer_distribution = base;
+    engineer_distribution.role = "engineer";
+    const auto engineer_bias = blind.apply(
+        "engineer", last, last, 4.0,
+        mesh, engineer_routes, engineer_distribution);
+    ASSERT_TRUE(engineer_bias.applied);
+    EXPECT_GT(engineer_bias.injected_candidate_count, 0u);
     EXPECT_TRUE(std::any_of(
         engineer_distribution.candidates.begin(),
         engineer_distribution.candidates.end(),
@@ -134,10 +177,10 @@ TEST_F(NavigationMeshTest, GateUsesPathDistanceAndBlindZoneCandidates) {
     input.horizon_seconds = 2;
     input.fallback_level = FallbackLevel::LOCAL_ZONE;
     input.local_weight = 1.0;
-    input.candidates = {{1, {15.2, 6.8}, 1.0}};
+    input.candidates = {{1, {12.8, 8.2}, 1.0}};
 
     const auto result = gate.apply(
-        input, {15.2, 6.8}, {0.0, 0.0}, 2.0, 1.0, "engineer");
+        input, {12.8, 8.2}, {0.0, 0.0}, 2.0, 1.0, "engineer");
     ASSERT_TRUE(result.valid) << result.rejection_reason;
     EXPECT_TRUE(result.mesh_used);
     EXPECT_TRUE(result.blind_zone_biased);
