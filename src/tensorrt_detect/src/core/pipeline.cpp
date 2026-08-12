@@ -1,3 +1,9 @@
+/**
+ * @file pipeline.cpp
+ * @brief 多个 Model 的雷达站检测语义编排与跨帧特殊目标状态实现。
+ * 车辆框限定装甲板搜索区域，分类结果回填兵种；前哨站使用固定 ROI/超时状态；
+ * 无人机可选分支在后台仅处理最新 clone 帧，主线程复用最近结果。
+ */
 #include "pipeline.hpp"
 #include "ConfigManager.hpp"
 #include "model.hpp"
@@ -72,6 +78,8 @@ std::vector<Result> DetectPipeline::runArmorDetect(const cv::Mat& frame,
     std::vector<Result> armorResults;
     const cv::Rect imgBound(0, 0, frame.cols, frame.rows);
 
+    // 多车模式把若干车辆 ROI 拼成单张固定输入 canvas，只执行一次 armor engine；
+    // PackedRoi 记录源图与 canvas 的仿射关系，用于把最佳装甲框映射回原图像素。
     struct PackedRoi {
         const Result* car;
         cv::Rect source;
@@ -120,6 +128,8 @@ std::vector<Result> DetectPipeline::runArmorDetect(const cv::Mat& frame,
         if (!armorDetector_.Detect(canvas))
             continue;
 
+        // 每个 tile 只保留最高置信装甲板；指针借用 armorDetector_.detectResults，
+        // 仅在下一次 Detect 改写该 vector 前使用，不跨函数保存。
         std::vector<const Result*> best(count, nullptr);
         for (const auto& candidate : armorDetector_.detectResults) {
             const cv::Point center(candidate.box.x + candidate.box.width / 2,
@@ -238,6 +248,8 @@ void DetectPipeline::runClassify(const cv::Mat& frame, std::vector<Result>& dete
             continue;
         }
 
+        // ROI 原本是共享父图像步长的浅视图；clone 既变成连续内存，也使分类 Model
+        // 的输入生命周期不受父 frame 影响。
         cv::Mat armorROI = frame(safeBox).clone();
 
         if (armorROI.empty()) {
@@ -288,7 +300,8 @@ std::vector<Result> DetectPipeline::process(const cv::Mat& frame, float elapsed_
     }
     lastProcessTime_ = t0;
 
-    // 更新共享图像缓存并通知后台线程（只存右半，带宽减半）
+    // Stage 0: 更新异步无人机缓存并通知后台线程（只存右半）。clone 是必要的深拷贝：
+    // process 返回后源 frame 可能随 ROS 消息释放，而后台线程仍会在稍后推理。
     if (airplaneModel_) {
         std::lock_guard<std::mutex> lock(frameMutex_);
         airplaneRoiX_ = frame.cols / 2;
@@ -298,6 +311,7 @@ std::vector<Result> DetectPipeline::process(const cv::Mat& frame, float elapsed_
     }
     airplaneCv_.notify_one();
 
+    // Stage 1: 全图车辆检测。
     auto t1 = std::chrono::steady_clock::now();
     auto cars = runDetect(frame);
     auto t2 = std::chrono::steady_clock::now();
@@ -311,6 +325,8 @@ std::vector<Result> DetectPipeline::process(const cv::Mat& frame, float elapsed_
     runClassify(frame, armors);
     auto t4 = std::chrono::steady_clock::now();
 
+    // Stage 4: 合并业务结果。move_iterator 转移 Result/cv::Rect 等值对象，避免保留
+    // 分支 vector 的第二份元素；合并后各来源仍以 idx/car_box 等字段区分。
     std::vector<Result> all;
     all.reserve(cars.size() + armors.size() + outposts.size());
     all.insert(all.end(), std::make_move_iterator(cars.begin()), std::make_move_iterator(cars.end()));

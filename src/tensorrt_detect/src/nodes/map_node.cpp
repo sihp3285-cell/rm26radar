@@ -1,3 +1,12 @@
+/**
+ * @file map_node.cpp
+ * @brief 世界目标的地图投影、战术摘要与 Position Prior 可视化汇合节点。
+ *
+ * /world_targets 是事实/Tracker 主输入：一支生成 /radar_map 与 /map_tactics，另一支
+ * 绘制 /map_image。/prior_predictions 仅以带超时的 UI overlay 叠加，不写回
+ * RadarMap、MapAnalyzer 或 Tracker。/flip_team 同时切换敌我筛选与显示方向；
+ * world(x,z)、field、canonical 与 map pixel 在这里不能混用。
+ */
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <cv_bridge/cv_bridge.hpp>
@@ -25,6 +34,7 @@
 class MapNode : public rclcpp::Node
 {
 public:
+    /** 加载地图配置，创建投影器/分析器、订阅和结构化/图像输出 publisher。 */
     explicit MapNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions())
         : Node("map_node", options)
     {
@@ -76,12 +86,16 @@ public:
         analyzer_->setFieldXFlip(!flip_team_);
         RCLCPP_INFO(this->get_logger(), "初始阵营: %s", flip_team_ ? "红方" : "蓝方");
 
+        // 地图图像是最新帧语义，depth=1；结构化地图/战术保留 10 个样本，便于短暂
+        // 调度抖动时下游继续收到状态。高频 world/prior 输入采用 BestEffort，避免
+        // 可视化消费者反过来让感知主链堆积。
         image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(output_image_topic_, rclcpp::QoS(1));
         radar_map_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::RadarMap>(output_map_topic_, 10);
         tactics_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::MapTactics>(output_tactics_topic_, 10);
 
         flip_team_sub_ = this->create_subscription<std_msgs::msg::Bool>(
             "/flip_team", rclcpp::QoS(1),
+            // 控制回调同时更新渲染方向与战术分析敌我定义，保证同一帧使用一致视角。
             [this](const std_msgs::msg::Bool::ConstSharedPtr msg) {
                 flip_team_ = msg->data;
                 if (radar_map_) {
@@ -100,8 +114,11 @@ public:
         prior_sub_ = this->create_subscription<
             tensorrt_detect_msgs::msg::PriorPredictionArray>(
                 prior_topic_, rclcpp::QoS(10).best_effort(),
+                // 只替换最新消息所有权；真正的候选遍历延迟到 WorldTarget 绘图回调。
                 [this](const tensorrt_detect_msgs::msg::PriorPredictionArray::ConstSharedPtr msg) {
                     std::lock_guard<std::mutex> lock(prior_mutex_);
+                    // 保存 ConstSharedPtr 不复制候选数组；shared_ptr 延长整条消息的
+                    // 生命周期。绘图回调先在锁内复制指针，随后在锁外遍历重数据。
                     latest_prior_ = msg;
                 });
 
@@ -109,6 +126,7 @@ public:
     }
 
 private:
+    /** 将仍在显示超时内的 PriorPrediction 候选与主猜点叠加到最终视角地图。 */
     void draw_prior_overlay(
         cv::Mat& frame,
         const tensorrt_detect_msgs::msg::WorldTargetArray& targets)
@@ -228,6 +246,7 @@ private:
         }
     }
 
+    /** 消费一帧 WorldTarget：投影/绘图、战术分析，并发布图像、RadarMap 和 MapTactics。 */
     void target_callback(const tensorrt_detect_msgs::msg::WorldTargetArray::ConstSharedPtr msg)
     {
         try {
@@ -436,6 +455,7 @@ private:
 #include <rclcpp_components/register_node_macro.hpp>
 RCLCPP_COMPONENTS_REGISTER_NODE(MapNode)
 
+/** 非 component 调试入口；正式 launch 使用组件容器内实例。 */
 int main(int argc, char** argv)
 {
     rclcpp::init(argc, argv);

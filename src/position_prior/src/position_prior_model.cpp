@@ -1,3 +1,9 @@
+/**
+ * @file position_prior_model.cpp
+ * @brief v1 离线先验文件的 SHA-256 校验、YAML/JSON 解析和条件分布查询。
+ * query 只产生 prior probability：local zone 缺失时回退 global role，并计算样本量、
+ * stay probability、retained mass 与 entropy；在线物理可达性由 PriorGate 处理。
+ */
 #include "position_prior/position_prior_model.hpp"
 
 #include <openssl/evp.h>
@@ -17,6 +23,7 @@ namespace position_prior {
 
 namespace {
 
+/** 解析候选序列并校验坐标/概率有限且概率非负。 */
 std::vector<PriorCandidate> parse_candidates(const YAML::Node& node) {
     std::vector<PriorCandidate> result;
     if (!node || !node.IsSequence()) {
@@ -40,6 +47,7 @@ std::vector<PriorCandidate> parse_candidates(const YAML::Node& node) {
     return result;
 }
 
+/** 将一个 global/local YAML 分布节点转换成内存结构；local 决定是否读取局部字段。 */
 PositionPriorModel::DistributionData parse_distribution(
     const YAML::Node& node,
     bool local) {
@@ -55,6 +63,7 @@ PositionPriorModel::DistributionData parse_distribution(
     return data;
 }
 
+/** 将字符串按 unsigned char 安全地转成小写，供 SHA-256 大小写无关比较。 */
 std::string lowercase(std::string value) {
     std::transform(value.begin(), value.end(), value.begin(),
         [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
@@ -75,6 +84,7 @@ std::string PositionPriorModel::sha256_file(const std::string& path) {
     }
     struct ContextGuard {
         EVP_MD_CTX* value;
+        /** 作用域退出时释放 OpenSSL digest context，覆盖所有异常路径。 */
         ~ContextGuard() { EVP_MD_CTX_free(value); }
     } guard{raw_context};
 
@@ -113,6 +123,8 @@ void PositionPriorModel::load(
     roles_.clear();
     horizons_seconds_.clear();
 
+    // 哈希在解析前验证：部署错版本、文件被改写或部分同步时安全禁用节点先验，
+    // 而不是让“格式仍可读但语义不同”的模型悄悄参与在线猜点。
     model_path_ = model_path;
     model_sha256_ = sha256_file(model_path);
     if (!expected_sha256.empty() &&
@@ -302,6 +314,8 @@ PriorDistribution PositionPriorModel::query(
         return result;
     }
 
+    // 优先选择“当前 2m×1.5m zone + horizon”的局部分布；该条件没有候选时才
+    // 回退同兵种 global 分布。fallback_level 会进入置信度与 UI 标记。
     const DistributionData* selected = nullptr;
     const auto zone_it = context_it->second.zones.find(result.zone_index);
     if (zone_it != context_it->second.zones.end()) {
@@ -325,6 +339,8 @@ PriorDistribution PositionPriorModel::query(
     result.stay_probability = selected->stay_probability;
     result.retained_probability_mass = selected->retained_probability_mass;
     result.candidates = selected->candidates;
+    // 离线候选已按 probability 排序，故 resize 实现 query_top_k。BlindZone 后续
+    // 仍可注入额外候选，最终消息容量由 PriorGate::output_top_k 再限制。
     if (top_k > 0 && result.candidates.size() > top_k) {
         result.candidates.resize(top_k);
     }

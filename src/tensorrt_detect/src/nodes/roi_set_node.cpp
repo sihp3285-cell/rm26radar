@@ -1,3 +1,11 @@
+/**
+ * @file roi_set_node.cpp
+ * @brief 前哨站检测 ROI 的交互式配置旁路节点。
+ *
+ * 节点由 service 或一次性 wall timer 触发，临时订阅 /image_raw 取得静态帧，使用
+ * MouseBack 选取矩形并写入 outpost_roi.yaml，随后调用 DetectNode reload service。
+ * 它不发布主链数据；独立进程避免 OpenCV 窗口事件循环阻塞 component container。
+ */
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <std_srvs/srv/trigger.hpp>
@@ -16,6 +24,7 @@
 class ROISetNode : public rclcpp::Node
 {
 public:
+    /** 声明参数并创建手动 Trigger service/可选自动 ROI 设置定时器。 */
     ROISetNode() : Node("roi_set_node")
     {
         this->declare_parameter<std::string>("config_dir",
@@ -47,6 +56,7 @@ public:
                 auto_set_delay_sec_);
             auto_set_timer_ = this->create_wall_timer(
                 std::chrono::seconds(auto_set_delay_sec_),
+                // 单次自动回调：取消定时器后复用手动 Trigger 的 ROI 流程。
                 [this]() {
                     auto_set_timer_->cancel();
                     if (!isROIValid() && !is_setting_.load()) {
@@ -63,6 +73,7 @@ public:
     }
 
 private:
+    /** 检查 outpost_roi.yaml 中 x/y/width/height 是否存在且矩形尺寸为正。 */
     bool isROIValid()
     {
         if (!std::filesystem::exists(outpost_roi_path_)) {
@@ -80,6 +91,7 @@ private:
         }
     }
 
+    /** 检查标定 YAML 是否已具备完整 R/T；ROI 自动流程据此决定是否先标定。 */
     bool isCalibValid()
     {
         std::filesystem::path dir(config_dir_);
@@ -100,6 +112,7 @@ private:
         }
     }
 
+    /** ROS Trigger 回调：防止并发交互，执行完整设置流程并填充响应。 */
     void startROISet(const std_srvs::srv::Trigger::Request::SharedPtr /*request*/,
                      std_srvs::srv::Trigger::Response::SharedPtr response)
     {
@@ -109,11 +122,13 @@ private:
         response->message = msg;
     }
 
+    /** 确保标定、暂停视频、等待一帧、交互选框、落盘并通知 DetectNode 重载。 */
     std::pair<bool, std::string> doROISet()
     {
         if (is_setting_.exchange(true)) {
             return {false, "ROI 框定正在进行中，请勿重复触发"};
         }
+        // shared_ptr deleter 作为作用域守卫，确保流程退出后恢复下一次 ROI 请求。
         auto guard = [this](bool*) { is_setting_ = false; };
         std::unique_ptr<bool, decltype(guard)> scope_guard(nullptr, guard);
 
@@ -145,6 +160,7 @@ private:
 
         auto image_sub = temp_node->create_subscription<sensor_msgs::msg::Image>(
             image_topic_, rclcpp::QoS(1),
+            // 临时订阅只取第一帧并深拷贝，确保交互不借用 ROS 消息缓冲区。
             [&](const sensor_msgs::msg::Image::SharedPtr msg) {
                 try {
                     auto cv_ptr = cv_bridge::toCvCopy(msg, "bgr8");
@@ -183,6 +199,7 @@ private:
         struct VideoPauseGuard {
             ROISetNode* node;
             bool active;
+            /** 离开作用域时尽力恢复视频，保证错误/取消路径不会遗留暂停状态。 */
             ~VideoPauseGuard() {
                 if (active && node) {
                     node->callVideoPause(false);
@@ -237,6 +254,7 @@ private:
                            std::to_string(roi.height) + "]"};
     }
 
+    /** 在超时内轮询标定文件有效性，成功立即返回，避免固定长时间阻塞。 */
     bool waitForCalibValid(std::chrono::seconds timeout)
     {
         auto start = std::chrono::steady_clock::now();
@@ -249,6 +267,7 @@ private:
         return isCalibValid();
     }
 
+    /** 调用 CalibrateNode Trigger 服务并返回 transport/业务两层结果说明。 */
     std::pair<bool, std::string> callCalibrationStart()
     {
         static int temp_counter = 0;
@@ -275,6 +294,7 @@ private:
         return {result->success, result->message};
     }
 
+    /** 调用 VideoNode 暂停服务，供交互期间冻结输入帧。 */
     bool callVideoPause(bool pause)
     {
         static int temp_counter = 0;
@@ -311,6 +331,7 @@ private:
         }
     }
 
+    /** 触发 DetectNode 从磁盘重载固定前哨站 ROI。 */
     bool callDetectNodeReload()
     {
         static int temp_counter = 0;
@@ -347,6 +368,7 @@ private:
         }
     }
 
+    /** 将像素矩形覆盖写入 outpost_roi.yaml；成功写盘返回 true。 */
     bool saveROIResult(const cv::Rect& roi)
     {
         try {
@@ -394,6 +416,7 @@ private:
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr start_service_;
 };
 
+/** 独立进程入口：多线程执行器允许回调同步等待标定/重载服务。 */
 int main(int argc, char** argv)
 {
     rclcpp::init(argc, argv);

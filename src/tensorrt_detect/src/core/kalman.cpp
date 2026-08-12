@@ -1,3 +1,9 @@
+/**
+ * @file kalman.cpp
+ * @brief 像素框 8 状态与世界平面 4 状态 Kalman Filter 的数值实现。
+ * Innovation y=z-Hx，S=HPH'+R，NIS=y'S^-1y 用于门控；通过后 K=PH'S^-1
+ * 修正 x/P。world update 可用每次投影得到的测量协方差替代固定 R。
+ */
 #include "kalman.hpp"
 #include <cmath>
 #include <limits>
@@ -139,6 +145,7 @@ std::vector<float> KalmanFilterBox::get_state() const {
 // ==========================================
 namespace {
 
+/** 选择调用方传播的 2x2 测量协方差；无效输入回退为滤波器固定 R。 */
 Eigen::Matrix<float, 2, 2> measurement_noise_2d(
     const Eigen::Matrix<float, 2, 2>& fallback,
     const std::array<float, 4>* covariance) {

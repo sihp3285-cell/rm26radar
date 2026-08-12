@@ -1,3 +1,6 @@
+# DetectPipeline 的四个 TensorRT engine 与业务编排参数。
+# 运行顺序是全图车辆(model1) -> 车辆 ROI 装甲板(model2) -> 兵种分类(model3)；
+# airplane(model4) 可在后台线程处理右半图。所有 imgSize 都是 engine 输入边长。
 modelPath: "/home/delphine/rm/tensorrt10_detect/models/robot_only.engine"
 imgSize1: 1280
 iouThreshold1: 0.3
@@ -27,12 +30,14 @@ isNMS4: false
 modelType4: "DETECT"
 airplane_interval_ms: 200
 
+# 前哨站复用 armor engine，但只在固定像素 ROI 内推理；连续 miss 超时才判死亡。
 outpost_enabled: true
 outpost_roi: [1807, 1451, 173, 65]
 outpost_score_threshold: 0.4
 outpost_miss_timeout_s: 1.0
 #此处为默认值
 
+# 数值必须与 robot_id.hpp、分类 raw_id 映射和 ROS 消息保持一致。
 classNames:
   0: "car"
   1: "armor"
@@ -47,6 +52,7 @@ classNames:
 minRoiSize: 30
 padRatio: 0.25
 classIdxBase: 2
+# true 时把最多 max_armor_rois 个车辆 ROI 拼进同一 armor canvas，共用一次推理。
 multi_car_recognition: false
 armor_canvas_padding: 2
 max_armor_rois: 4

@@ -1,3 +1,5 @@
+# RadarMap 的米制场地到 map.png 像素标定。输入 world 使用 (world_x,world_z)，
+# race_size 顺序为场地长 Z、宽 X；isflip 控制底图轴向，/flip_team 再控制当前视角。
 mapPath: "/home/delphine/rm/tensorrt10_detect/configs/map.png"
 race_size: [28, 15]  # 真实场地物理尺寸，单位：米 (长 Z，宽 X)
 map_size: [722, 388]   # 待显示的小地图图片的像素分辨率

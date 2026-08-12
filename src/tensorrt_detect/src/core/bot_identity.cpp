@@ -1,3 +1,9 @@
+/**
+ * @file bot_identity.cpp
+ * @brief 轨迹级兵种证据的指数衰减统计、稳定性与近期置信度计算。
+ * 长历史服务 committed identity，recent history 服务同一 slot 的 owner/challenger
+ * 仲裁；丢失到配置时限后清空，避免复用旧轨迹身份污染新实体。
+ */
 #include "bot_identity.hpp"
 
 #include <algorithm>

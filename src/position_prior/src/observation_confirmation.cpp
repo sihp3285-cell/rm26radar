@@ -1,3 +1,8 @@
+/**
+ * @file observation_confirmation.cpp
+ * @brief 对重新出现的真实观测做时间连续与空间聚类确认。
+ * 已确认连续流可逐帧更新锚点；时间断裂或空间跳变会重新累计 required_count。
+ */
 #include "position_prior/observation_confirmation.hpp"
 
 #include <algorithm>
@@ -8,10 +13,12 @@ namespace {
 
 constexpr double NS_TO_SECONDS = 1e-9;
 
+/** 计算两个 world(x,z) 点的米制欧氏距离。 */
 double distance(const Point2d& lhs, const Point2d& rhs) {
     return std::hypot(lhs.x - rhs.x, lhs.y - rhs.y);
 }
 
+/** 判断 Point2d 两个分量是否均为有限值。 */
 bool finite(const Point2d& point) {
     return std::isfinite(point.x) && std::isfinite(point.y);
 }

@@ -1,3 +1,12 @@
+/**
+ * @file video_node.cpp
+ * @brief 文件视频输入 component，作为工业相机的可替换数据源发布 /image_raw。
+ *
+ * VideoCapture 在专用线程中循环读帧，按参数/文件 FPS 节流，再把 BGR cv::Mat
+ * 转成 sensor_msgs/Image。cv_bridge::toImageMsg 会把像素写入 ROS 消息，因此
+ * 发布的消息不依赖循环内局部 cv::Mat 的后续生命周期。Node 析构时先停止并 join
+ * 线程，再释放文件句柄，避免 component 被卸载后线程继续访问 this。
+ */
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <cv_bridge/cv_bridge.hpp>
@@ -21,6 +30,7 @@ private:
     double fps_;
     int frame_delay_ms_;
 
+    /** 独立线程按目标 FPS 解码视频、处理 EOF 循环并发布带当前 ROS 时间的 Image。 */
     void captureLoop()
     {   
         // 只要 ROS 正常运行且标志位为 true，就持续读取
@@ -37,7 +47,8 @@ private:
                 continue;
             }
 
-            // 【零拷贝构造】
+            // unique_ptr 让 rclcpp 在启用 intra-process 时可以转移消息所有权；
+            // 但下一步 cv_bridge 把 cv::Mat 像素填入 Image，那里仍是一次深拷贝。
             auto msg = std::make_unique<sensor_msgs::msg::Image>();
             msg->header.stamp = this->now();
             
@@ -64,6 +75,7 @@ private:
     }
 
 public:
+    /** 打开视频文件、确定播放 FPS、创建 publisher 并启动解码线程。 */
     explicit VideoNode(const rclcpp::NodeOptions & options)
     : Node("video_node", options), is_running_(false)
     {
@@ -100,7 +112,8 @@ public:
                     fps_,
                     topic_name.c_str());
 
-        // 4. 创建发布者 (与项目其他节点 QoS 保持一致：Keep Last 1)
+        // 图像是高频实时流，depth=1 只保留最新待处理帧，防止检测速度不足时
+        // 历史帧排队并累积端到端延迟。这里未显式 best_effort，使用默认 Reliable。
         pub_ = this->create_publisher<sensor_msgs::msg::Image>(topic_name, rclcpp::QoS(1));
 
         // 5. 启动读取线程
@@ -108,6 +121,7 @@ public:
         capture_thread_ = std::thread(&VideoNode::captureLoop, this);
     }
 
+    /** 请求解码线程停止并 join，保证 VideoCapture 不在析构后继续访问。 */
     ~VideoNode() 
     {
         is_running_ = false;
@@ -122,6 +136,7 @@ public:
 #include "rclcpp_components/register_node_macro.hpp"
 RCLCPP_COMPONENTS_REGISTER_NODE(VideoNode)
 
+/** 非 component 调试入口；正式 launch 与 Detect/Pose/Map 一同装入组件容器。 */
 int main(int argc, char** argv)
 {
     rclcpp::init(argc, argv);

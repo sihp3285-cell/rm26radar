@@ -1,3 +1,6 @@
+# Position Prior 包把无 ROS 依赖的模型/Gate/NavGrid 算法放在 core 库中，把 Topic、
+# 参数、缓存生命周期和消息转换留给 position_prior_node。这样单元测试可直接验证
+# 算法层，同时运行节点只需链接同一实现。
 cmake_minimum_required(VERSION 3.22)
 project(position_prior)
 

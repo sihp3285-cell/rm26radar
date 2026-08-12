@@ -1,3 +1,8 @@
+/**
+ * @file ConfigManager.cpp
+ * @brief YAML 文件定位、解析、默认值兼容与启动期约束校验实现。
+ * 配置在 Node 构造期加载；校验异常会阻止下游用无效尺寸、阈值或矩阵运行。
+ */
 #include "ConfigManager.hpp"
 
 #include <yaml-cpp/yaml.h>
@@ -9,6 +14,7 @@ namespace fs = std::filesystem;
 
 namespace {
 
+// 将两种 YAML 表达统一成按 class_id 索引的 vector；非法节点抛异常。
 // 兼容 classNames:
 // 1) sequence: ["car", "armor", ...]
 // 2) map: {0: "car", 1: "armor", ...}

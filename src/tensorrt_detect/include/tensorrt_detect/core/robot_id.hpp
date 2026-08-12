@@ -1,3 +1,8 @@
+/**
+ * @file robot_id.hpp
+ * @brief 检测、跟踪、地图和消息层共享的类别/队伍整数编码。
+ * 这些是 class/team ID；不要与 track_id、slot_idx 或 prior grid_index 混用。
+ */
 #pragma once
 
 #include <opencv2/opencv.hpp>
@@ -25,7 +30,7 @@ enum ClassId {
     AIRPLANE = 8, // 无人机
 };
 
-// 队伍名称
+/** 将 team_id 转成调试标签用英文队伍名，未知值返回问号。 */
 inline std::string getTeamName(int team_id) {
     switch (team_id) {
         case RED:  return "red";
@@ -34,7 +39,7 @@ inline std::string getTeamName(int team_id) {
     }
 }
 
-// 机器人编号字符
+/** 将兵种 class_id 转成官方编号字符；非 R1-R4/S 返回空串。 */
 inline std::string getRobotNumber(int class_id) {
     switch (class_id) {
         case R1: return "1";
@@ -46,7 +51,7 @@ inline std::string getRobotNumber(int class_id) {
     }
 }
 
-// 完整标签：红3、蓝S、?
+/** 组合队伍与编号生成完整调试标签；任一 ID 无效返回问号。 */
 inline std::string getRobotLabel(int team_id, int class_id) {
     if (team_id == UNKNOWN) {
         return "?";
@@ -58,7 +63,7 @@ inline std::string getRobotLabel(int team_id, int class_id) {
     return getTeamName(team_id) + num;
 }
 
-// 队伍绘制颜色（BGR）
+/** 返回 OpenCV BGR 绘制颜色；未知队伍使用黄色以突出数据异常。 */
 inline cv::Scalar getTeamColor(int team_id) {
     switch (team_id) {
         case RED:  return cv::Scalar(0, 0, 255);    // 红色

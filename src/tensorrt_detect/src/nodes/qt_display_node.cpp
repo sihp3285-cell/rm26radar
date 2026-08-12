@@ -1,3 +1,12 @@
+/**
+ * @file qt_display_node.cpp
+ * @brief 雷达站最终桌面 UI：汇集检测图、地图图、战术状态与推理耗时。
+ *
+ * ROS2 spin 运行在辅助线程，Qt GUI/绘制只在主事件线程执行；订阅回调把最新消息
+ * 转成受 mutex 保护的缓存，QTimer 周期性拉取，避免从 executor 线程直接操作 Qt
+ * widget。阵营按钮通过 Reliable /flip_team 发布，MapNode 与 PositionPriorNode 据此
+ * 同步敌我视角。UI 不参与感知、跟踪或先验决策，只消费结果和发布操作意图。
+ */
 #include <QApplication>
 #include <QMainWindow>
 #include <QWidget>
@@ -46,6 +55,7 @@ class QtDisplayNode;
 class GLVideoWidget : public QOpenGLWidget, protected QOpenGLFunctions
 {
 public:
+    /** 创建 OpenGL 视频控件；纹理和 shader 延迟到 Qt 拥有有效 GL context 后初始化。 */
     explicit GLVideoWidget(QWidget *parent = nullptr)
         : QOpenGLWidget(parent)
     {
@@ -63,6 +73,7 @@ public:
     }
 
     /// 主线程调用，拷入最新帧并触发 GPU 渲染
+    /** 在线程安全锁内复制最新 BGR/灰度帧，并请求 GUI 线程重绘。 */
     void setFrame(const cv::Mat &frame)
     {
         if (frame.empty()) return;
@@ -83,6 +94,7 @@ public:
     }
 
 protected:
+    /** 创建纹理、编译 shader 并设置全屏四边形；仅由 Qt GL 线程调用。 */
     void initializeGL() override
     {
         initializeOpenGLFunctions();
@@ -131,6 +143,7 @@ protected:
         glClearColor(0.102f, 0.102f, 0.102f, 1.0f);  // #1a1a1a — 与旧 QSS 背景一致
     }
 
+    /** 上传有更新的 CPU 帧并按控件宽高比绘制，避免图像拉伸。 */
     void paintGL() override
     {
         glClear(GL_COLOR_BUFFER_BIT);
@@ -208,6 +221,7 @@ private:
 class DisplayWindow : public QMainWindow
 {
 public:
+    /** 构建视频/地图/状态布局及标定、ROI、队伍和暂停交互控件。 */
     explicit DisplayWindow(QWidget *parent = nullptr)
         : QMainWindow(parent)
     {
@@ -286,6 +300,7 @@ public:
             "}"
             "QPushButton:hover { background-color: #d35400; }"
             "QPushButton:disabled { background-color: #666666; color: #999999; }");
+        // 点击回调先禁用两个交互按钮，再把实际 ROS 请求委托给外部注册函数。
         connect(calibrate_button_, &QPushButton::clicked, this, [this]() {
             if (calibrate_cb_) {
                 setCalibrateButtonsEnabled(false);
@@ -311,6 +326,7 @@ public:
             "}"
             "QPushButton:hover { background-color: #732d91; }"
             "QPushButton:disabled { background-color: #666666; color: #999999; }");
+        // ROI 点击回调与标定共享防重复 UI 状态，但调用独立的 ROI service 包装。
         connect(roi_button_, &QPushButton::clicked, this, [this]() {
             if (roi_cb_) {
                 setCalibrateButtonsEnabled(false);
@@ -340,6 +356,7 @@ public:
             "  background-color: #cc0000;"
             "}"
             "QPushButton:checked:hover { background-color: #0055aa; }");
+        // toggle 回调同步按钮文案并把新视角发布职责交给 QtDisplayNode。
         connect(team_button_, &QPushButton::toggled, this, [this](bool checked) {
             team_button_->setText(checked ? "红方视角" : "蓝方视角");
             if (team_flip_cb_) team_flip_cb_(checked);
@@ -361,8 +378,10 @@ public:
         resize(1280, 720);
     }
 
+    /** 注入非拥有的 ROS 节点指针，供定时 refresh 拉取线程安全快照。 */
     void setNode(QtDisplayNode *node) { node_ = node; }
 
+    /** 由 QTimer 周期调用，从 QtDisplayNode 获取快照并刷新所有控件。 */
     void refresh()
     {
         if (!node_) return;
@@ -370,12 +389,14 @@ public:
         updateFromNode();
     }
 
+    /** 把最新检测调试帧交给 OpenGL 控件；空帧保持上一画面。 */
     void updateVideo(const cv::Mat &cv_img)
     {
         // GPU 路径：单次 memcpy + DMA 纹理上传，shader 里完成 BGR→RGB + 缩放
         video_label_->setFrame(cv_img);
     }
 
+    /** 将地图 BGR Mat 转为 QImage/QPixmap 并按标签尺寸等比例显示。 */
     void updateMap(const cv::Mat &cv_img)
     {
         if (cv_img.empty()) return;
@@ -384,6 +405,7 @@ public:
             map_label_->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
     }
 
+    /** 格式化推理耗时、显示延迟、前哨站与四项战术状态到状态栏。 */
     void updateStatus(const tensorrt_detect_msgs::msg::PipelineTiming& timing, bool outpost_alive,
                        bool engineer_on_island, bool opponent_attack, bool our_attack, bool opponent_near_fortress,
                        double display_latency_ms)
@@ -452,6 +474,7 @@ public:
     /**
      * @brief 设置操作结果提示（线程安全，可通过 invokeMethod 跨线程调用）
      */
+    /** 在 GUI 线程显示短时操作结果，并用颜色区分成功/失败。 */
     void showOperationStatus(const QString &text, bool success)
     {
         QString style = success
@@ -465,6 +488,7 @@ public:
         op_status_label_->setStyleSheet(style);
     }
 
+    /** 同步启用/禁用标定和 ROI 按钮，防止异步服务调用期间重复操作。 */
     void setCalibrateButtonsEnabled(bool enabled)
     {
         calibrate_button_->setEnabled(enabled);
@@ -472,12 +496,14 @@ public:
     }
 
 protected:
+    /** 窗口关闭事件：先通知 ROS shutdown 回调，再接受 Qt 关闭。 */
     void closeEvent(QCloseEvent *event) override
     {
         if (close_cb_) close_cb_();
         QMainWindow::closeEvent(event);
     }
 
+    /** 处理空格暂停快捷键，其余按键交回 QWidget 默认处理。 */
     void keyPressEvent(QKeyEvent *event) override
     {
         if (event->key() == Qt::Key_Space) {
@@ -495,13 +521,19 @@ protected:
     }
 
 public:
+    /** 注册窗口关闭时调用的 ROS 清理函数。 */
     void setCloseCallback(std::function<void()> cb) { close_cb_ = std::move(cb); }
+    /** 注册队伍切换函数，参数为按钮当前 checked 状态。 */
     void setTeamFlipCallback(std::function<void(bool)> cb) { team_flip_cb_ = std::move(cb); }
+    /** 注册手动标定触发函数。 */
     void setCalibrateCallback(std::function<void()> cb) { calibrate_cb_ = std::move(cb); }
+    /** 注册手动 ROI 设置触发函数。 */
     void setROICallback(std::function<void()> cb) { roi_cb_ = std::move(cb); }
+    /** 注册视频暂停/恢复函数。 */
     void setPauseCallback(std::function<void(bool)> cb) { pause_cb_ = std::move(cb); }
 
 private:
+    /** 从 ROS 节点拉取最新一致快照并分派到视频、地图和状态刷新函数。 */
     void updateFromNode();  // 实现在 QtDisplayNode 定义之后
 
     GLVideoWidget *video_label_{nullptr};
@@ -530,6 +562,8 @@ private:
             cv::cvtColor(cv_img, rgb, cv::COLOR_BGRA2RGB);
         else
             rgb = cv_img;
+        // 这个 QImage 构造函数只借用 rgb.data；img.copy() 在局部 cv::Mat 析构前
+        // 深拷贝到 Qt 管理的存储，返回的 QPixmap 才不会悬挂。
         QImage img(rgb.data, rgb.cols, rgb.rows, static_cast<int>(rgb.step), QImage::Format_RGB888);
         return QPixmap::fromImage(img.copy());
     }
@@ -541,6 +575,7 @@ private:
 class QtDisplayNode : public rclcpp::Node
 {
 public:
+    /** 创建全部 ROS 订阅、控制 publisher 与 service client，并把回调接到窗口。 */
     explicit QtDisplayNode(DisplayWindow *window)
         : Node("qt_display_node"), window_(window)
     {
@@ -556,9 +591,13 @@ public:
         RCLCPP_INFO(this->get_logger(), "地图图像话题: %s", map_image_topic_.c_str());
         RCLCPP_INFO(this->get_logger(), "检测话题: %s", armor_topic_.c_str());
 
+        // 图像/耗时是“只显示最新状态”，QoS depth=1 防止 GUI 刷新速度较慢时积压。
+        // toCvCopy 已产生独立 cv::Mat，随后 clone 再把缓存所有权与 cv_bridge 对象
+        // 分离；代价是两次深拷贝，但可安全跨 ROS 回调/Qt timer 生命周期。
         // 订阅检测图像
         video_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
             video_topic_, rclcpp::QoS(1),
+            // 视频回调独立拥有像素数据，并记录 ROS header 到当前时刻的显示前延迟。
             [this](const sensor_msgs::msg::Image::SharedPtr msg) {
                 try {
                     auto cv_ptr = cv_bridge::toCvCopy(msg, "bgr8");
@@ -573,6 +612,7 @@ public:
         // 订阅地图图像消息（直接显示，与 standalone 模式一致）
         map_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
             map_image_topic_, rclcpp::QoS(1),
+            // 地图回调深拷贝最终 BGR 图，避免 Qt timer 与 ROS 消息释放产生悬空引用。
             [this](const sensor_msgs::msg::Image::SharedPtr msg) {
                 try {
                     auto cv_ptr = cv_bridge::toCvCopy(msg, "bgr8");
@@ -586,6 +626,7 @@ public:
         // 订阅检测结果，提取前哨站状态
         armor_sub_ = this->create_subscription<tensorrt_detect_msgs::msg::DetectionArray>(
             armor_topic_, rclcpp::QoS(10).best_effort(),
+            // 检测回调只提取前哨站生死状态，图像绘制由 DetectNode 已完成。
             [this](const tensorrt_detect_msgs::msg::DetectionArray::SharedPtr msg) {
                 bool alive = false;
                 bool found = false;
@@ -604,6 +645,7 @@ public:
         // 订阅战术分析消息
         tactics_sub_ = this->create_subscription<tensorrt_detect_msgs::msg::MapTactics>(
             "/map_tactics", rclcpp::QoS(10),
+            // 战术回调在同一互斥锁下更新四个布尔量，供下一次 GUI 刷新成组读取。
             [this](const tensorrt_detect_msgs::msg::MapTactics::SharedPtr msg) {
                 QMutexLocker lock(&mutex_);
                 latest_engineer_on_island_ = msg->engineer_on_island;
@@ -615,15 +657,17 @@ public:
         // 订阅 pipeline 耗时统计
         timing_sub_ = this->create_subscription<tensorrt_detect_msgs::msg::PipelineTiming>(
             "/pipeline_timing", rclcpp::QoS(1),
+            // 耗时回调只替换 POD 快照，不在 ROS 线程执行字符串格式化或 UI 操作。
             [this](const tensorrt_detect_msgs::msg::PipelineTiming::SharedPtr msg) {
                 QMutexLocker lock(&mutex_);
                 latest_timing_ = *msg;
             });
 
-        // 发布阵营翻转话题
+        // 阵营翻转是低频控制状态而非可丢帧数据，使用 Reliable depth=1。
         team_flip_pub_ = this->create_publisher<std_msgs::msg::Bool>("/flip_team", rclcpp::QoS(1).reliable());
     }
 
+    /** 发布可靠的 /flip_team 控制消息，使地图和位置先验同步切换视角。 */
     void publishTeamFlip(bool is_blue_team)
     {
         std_msgs::msg::Bool msg;
@@ -635,8 +679,10 @@ public:
     /**
      * @brief 异步调用 /video_node/set_pause 服务，在后台线程执行
      */
+    /** 在后台线程调用 VideoNode SetBool 暂停服务，并将结果异步送回 GUI。 */
     void setVideoPauseAsync(bool pause)
     {
+        // 后台函数负责可能阻塞的服务发现/等待，禁止占用 Qt GUI 事件循环。
         std::thread([this, pause]() {
             auto client = this->create_client<std_srvs::srv::SetBool>("/video_node/set_pause");
             if (!client->wait_for_service(std::chrono::seconds(2))) {
@@ -662,6 +708,7 @@ public:
      * @param service_name 服务名称
      * @param operation_name 操作名称（用于日志和 UI 提示）
      */
+    /** 通用 Trigger 异步包装：防重入、等待服务、发送请求并在 GUI 线程展示结果。 */
     void callServiceAsync(const std::string &service_name, const std::string &operation_name)
     {
         if (is_operation_running_.exchange(true)) {
@@ -670,6 +717,7 @@ public:
         }
 
         // 在后台线程执行 service 调用
+        // 通用后台函数串行完成服务发现、异步请求等待和结果封装。
         std::thread([this, service_name, operation_name]() {
             RCLCPP_INFO(this->get_logger(), "发起 %s 请求...", operation_name.c_str());
 
@@ -678,6 +726,7 @@ public:
             // 等待服务上线（最多 5 秒）
             if (!client->wait_for_service(std::chrono::seconds(5))) {
                 RCLCPP_ERROR(this->get_logger(), "%s 服务未上线: %s", operation_name.c_str(), service_name.c_str());
+                // 投递回 GUI 线程：恢复按钮并展示“服务不可用”。
                 QMetaObject::invokeMethod(window_, [this, operation_name]() {
                     window_->showOperationStatus(
                         QString::fromStdString(operation_name + " 失败: 服务未上线"), false);
@@ -695,6 +744,7 @@ public:
 
             if (status == std::future_status::timeout) {
                 RCLCPP_ERROR(this->get_logger(), "%s 调用超时", operation_name.c_str());
+                // 投递回 GUI 线程：恢复按钮并展示请求超时。
                 QMetaObject::invokeMethod(window_, [this, operation_name]() {
                     window_->showOperationStatus(
                         QString::fromStdString(operation_name + " 超时"), false);
@@ -712,6 +762,7 @@ public:
                         operation_name.c_str(), success ? "成功" : "失败", msg.c_str());
 
             // 回到 Qt 主线程更新 UI
+            // 投递最终业务结果；所有 QWidget 修改都严格留在 GUI 线程。
             QMetaObject::invokeMethod(window_, [this, operation_name, success, msg]() {
                 QString status_text = success
                     ? QString::fromStdString(operation_name + " 成功: " + msg)
@@ -724,7 +775,9 @@ public:
         }).detach();
     }
 
-    // 供 DisplayWindow 在主线程调用，安全取出最新数据
+    // 供 DisplayWindow 在主线程调用。再次 clone 让 GUI 绘制期间不持有共享缓存，
+    // mutex 可尽快释放给 ROS 回调；代价是每次刷新复制两张图。
+    /** 在单锁下深拷贝图像并复制状态快照，保证 GUI 看到同一读取时刻的数据。 */
     void fetchData(cv::Mat &frame, cv::Mat &map,
                    tensorrt_detect_msgs::msg::PipelineTiming &timing,
                    bool &outpost_alive,
@@ -772,6 +825,7 @@ private:
 };
 
 // DisplayWindow 的刷新实现：从节点取数据并更新 UI
+/** DisplayWindow 的延迟定义：从已注入节点拉取快照并调用三个局部刷新函数。 */
 void DisplayWindow::updateFromNode()
 {
     if (!node_) return;
@@ -789,6 +843,7 @@ void DisplayWindow::updateFromNode()
                  display_latency_ms);
 }
 
+/** Qt/ROS 双事件循环入口：GUI 留在主线程，ROS executor 在可 join 后台线程运行。 */
 int main(int argc, char *argv[])
 {
     rclcpp::init(argc, argv);
@@ -814,9 +869,11 @@ int main(int argc, char *argv[])
 
     auto node = std::make_shared<QtDisplayNode>(&window);
     window.setNode(node.get());
+    // 关闭回调结束 ROS executor，使后台 spin 能退出并在 main 末尾 join。
     window.setCloseCallback([]() {
         if (rclcpp::ok()) rclcpp::shutdown();
     });
+    // 视角回调只转发按钮状态，实际 QoS/publish 由节点方法统一处理。
     window.setTeamFlipCallback([node](bool is_blue_team) {
         node->publishTeamFlip(is_blue_team);
     });
@@ -841,6 +898,7 @@ int main(int argc, char *argv[])
     QObject::connect(&timer, &QTimer::timeout, &window, &DisplayWindow::refresh);
     timer.start(33);  // 33 ms ≈ 30 FPS
 
+    // ROS 线程运行订阅/服务事件循环；spin 结束时请求 Qt 主循环一同退出。
     std::thread ros_thread([node]() {
         rclcpp::spin(node);
         QApplication::quit();

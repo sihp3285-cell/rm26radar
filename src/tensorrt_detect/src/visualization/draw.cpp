@@ -1,3 +1,7 @@
+/**
+ * @file draw.cpp
+ * @brief DetectNode 调试图的目标框、类别和置信度叠加；不影响检测结果消息。
+ */
 #include "draw.hpp"
 
 void drawDetect(cv::Mat &frame, const std::vector<Result> &results, const std::vector<std::string> &classNames)

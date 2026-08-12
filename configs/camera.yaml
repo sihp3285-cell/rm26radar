@@ -1,3 +1,6 @@
+# PoseNode/CalibrateNode 共用的几何配置。cameraMatrix、distCoeffs 是像素去畸变内参；
+# worldPoints 是交互标定点击顺序对应的三维场地点，单位米；meshPath 是运行期
+# Raycaster 使用的场地 PLY，不是 Position Prior 在线 NavGrid。
 cameraMatrix: [ 5052.392146 , 0.000000 ,2687.096231 ,0.000000 ,5052.510484, 1880.078059 ,0.000000 ,0.000000 ,1.000000]
 distCoeffs: [-0.049351 ,0.088643 ,0.001975 ,-0.007727 ,0.000000]
 
@@ -20,4 +23,5 @@ worldPoints:
 
 
 
+# PLY 只供 PoseNode pixel->world 首交点查询；Position Prior 读取 generated navgrid。
 meshPath: "/home/delphine/rm/tensorrt10_detect/configs/RB2026_rmuc.ply"

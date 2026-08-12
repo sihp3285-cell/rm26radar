@@ -1,3 +1,9 @@
+/**
+ * @file blind_zone_prior.cpp
+ * @brief 遮挡多边形加载、触发判断及盲区/驻留概率质量注入。
+ * 候选来自 NavGrid 中相同兵种和连通分量的可通行 cell；输出仍是 PriorDistribution，
+ * 随后必须经过 PriorGate 的速度、距离与可达性安全门。
+ */
 #include "position_prior/blind_zone_prior.hpp"
 
 #include <yaml-cpp/yaml.h>
@@ -210,6 +216,8 @@ BlindZoneBiasResult BlindZonePrior::apply(
             -std::numeric_limits<double>::infinity();
         std::vector<int> selected_cells;
     };
+    // 1. 选择锚点位于内部或 trigger_distance 内的适用 zone；工程专用区域只对
+    // engineer 开放。proximity_strength 让边界附近的注入质量连续变化。
     std::vector<ActiveZone> active;
     for (const auto& zone : zones_) {
         if (zone.engineer_only && role != "engineer") {
@@ -233,6 +241,8 @@ BlindZoneBiasResult BlindZonePrior::apply(
         candidate_zone.proximity_strength =
             inside ? 1.0 : 0.35 + 0.65 * linear_strength;
 
+        // 2. 候选只能来自起点同一 component 的兵种可通行 cell，并按 zone 配置
+        // 过滤高度层，避免把沟底目标注入到被多边形包围的高台表面。
         auto cells = navigation_mesh.walkable_cells_in_polygon(
             role, zone.polygon, routes.component_id);
         if (zone.same_elevation_as_last && !cells.empty()) {
@@ -280,8 +290,11 @@ BlindZoneBiasResult BlindZonePrior::apply(
                     routes.distances_m[cell] >
                         maximum_path_distance_m + 1e-9;
             }), cells.end());
+        // 3. 以运动预测和 zone 中心的组合距离排序，再用最小间隔做空间去簇，
+        // 避免若干候选都落在同一个 0.2m 局部邻域。
         std::sort(cells.begin(), cells.end(),
             [&](int lhs, int rhs) {
+                // 对盲区内 cell 排序：按区域规则组合目标高度、运动预测距离与区域中心距离。
                 const auto score = [&](int cell) {
                     const Point2d point = navigation_mesh.cell_center(cell);
                     const double motion_distance = std::hypot(
@@ -333,6 +346,8 @@ BlindZoneBiasResult BlindZonePrior::apply(
         return result;
     }
 
+    // 4. 从原模型分布整体腾出 injected_mass，再按 active zone 强度和其候选数
+    // 分配；因此注入后总 prior probability 仍保持归一化质量语义。
     const double injected_mass =
         config_.maximum_probability_mass * maximum_strength;
     // 同一盲区内若原模型候选落在被排除的高层（例如 gully 中心岛），也将其

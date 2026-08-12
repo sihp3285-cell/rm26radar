@@ -1,3 +1,13 @@
+/**
+ * @file position_prior_node.cpp
+ * @brief /world_targets 到 /prior_predictions 的 ROS2 编排、缓存与消息转换节点。
+ *
+ * 对每个敌方 official slot，本节点只用连续确认的真实 observation 更新可靠锚点；
+ * 失联达到 guess_after_s 后，把最后 world(x,z)/velocity 转成红方 canonical，查询
+ * 最近 horizon 的离线模型，再依次应用 BlindZone、NavGrid route map 与 PriorGate。
+ * 输出是 shadow side-channel：不覆盖 Tracker/Kalman，也不回灌 /world_targets。
+ * /flip_team 改变敌我方和 canonical 方向时会清空旧视角缓存，防止跨阵营复用状态。
+ */
 #include "position_prior/coordinate_transform.hpp"
 #include "position_prior/blind_zone_prior.hpp"
 #include "position_prior/navigation_mesh.hpp"
@@ -34,10 +44,12 @@ namespace {
 
 constexpr std::int64_t NS_PER_SECOND = 1000000000LL;
 
+/** 将 ROS builtin time 无损折算为有符号纳秒，便于统一做间隔/回退判断。 */
 std::int64_t time_to_ns(const builtin_interfaces::msg::Time& time) {
     return static_cast<std::int64_t>(time.sec) * NS_PER_SECOND + time.nanosec;
 }
 
+/** 将正纳秒时间戳拆回 ROS builtin time；非正输入返回零时间。 */
 builtin_interfaces::msg::Time ns_to_time(std::int64_t timestamp_ns) {
     builtin_interfaces::msg::Time result;
     if (timestamp_ns <= 0) {
@@ -48,6 +60,7 @@ builtin_interfaces::msg::Time ns_to_time(std::int64_t timestamp_ns) {
     return result;
 }
 
+/** 把稳定 class_id 映射为离线模型/NavGrid 的 role key；不支持类别返回空串。 */
 std::string role_for_class(int class_id) {
     switch (class_id) {
         case 2: return "hero";
@@ -63,6 +76,7 @@ std::string role_for_class(int class_id) {
 
 class PositionPriorNode : public rclcpp::Node {
 public:
+    /** 声明/读取参数，加载模型/NavGrid/盲区，构造 Gate、日志和 ROS 接口。 */
     PositionPriorNode() : Node("position_prior_node") {
         declare_parameter<std::string>("input_topic", "/world_targets");
         declare_parameter<std::string>("output_topic", "/prior_predictions");
@@ -222,7 +236,7 @@ public:
                     get_parameter("engineer_blind_zone_path").as_string());
                 gate_.set_blind_zone_prior(&blind_zone_prior_);
                 RCLCPP_INFO(get_logger(),
-                    "盲区先验加载完成: %zu 个区域（工程兵含专用区域）",
+                    "盲区先验加载完成: %zu 个区域",
                     blind_zone_prior_.zone_count());
             } catch (const std::exception& error) {
                 RCLCPP_ERROR(get_logger(),
@@ -250,6 +264,9 @@ public:
 
         open_log(get_parameter("shadow_log_path").as_string());
 
+        // WorldTarget/Prior 都是高频最新状态，depth=10 + BestEffort 允许慢消费者丢
+        // 样本而不积压旧猜点；阵营切换属于低频控制事件，Reliable depth=1 确保
+        // Map、Prior 对同一次 UI 操作最终收敛到相同视角。
         publisher_ = create_publisher<tensorrt_detect_msgs::msg::PriorPredictionArray>(
             output_topic_, rclcpp::QoS(10).best_effort());
         target_subscription_ =
@@ -258,6 +275,7 @@ public:
                 std::bind(&PositionPriorNode::targets_callback, this, std::placeholders::_1));
         flip_subscription_ = create_subscription<std_msgs::msg::Bool>(
             "/flip_team", rclcpp::QoS(1).reliable(),
+            // 坐标朝向或敌我定义改变后清空全部旧锚点，禁止跨视角复用 canonical 状态。
             [this](const std_msgs::msg::Bool::ConstSharedPtr message) {
                 if (flip_team_ != message->data) {
                     flip_team_ = message->data;
@@ -273,19 +291,25 @@ public:
     }
 
 private:
+    /**
+     * 一个 official slot 的长期可靠锚点与 shadow 评测状态。
+     * 缓存 key 是 slot_idx，但 track_id/role/team 仍随锚点保存，用于防止把新实体与
+     * 旧预测混在日志中。Tracker 生命周期结束不会自动删除本结构。
+     */
     struct TargetCache {
-        bool has_observation = false;
-        int slot_idx = -1;
-        int track_id = -1;
-        int team_id = 0;
-        int role_class_id = -1;
-        std::int64_t last_observed_ns = 0;
-        Point2d last_world;
-        Point2d last_field;
-        Point2d last_canonical;
-        Point2d canonical_velocity;
-        Point2d tracker_world;
-        double last_tracking_confidence = 0.0;
+        bool has_observation = false; // 已通过 ObservationConfirmation 的可靠锚点。
+        int slot_idx = -1;            // /world_targets 前 10 个固定槽位索引。
+        int track_id = -1;            // 形成锚点时的 PhysicalTrack ID。
+        int team_id = 0;              // 目标所属阵营，用于 canonical 正反变换。
+        int role_class_id = -1;       // 稳定兵种 class，用于选择模型/NavGrid profile。
+        std::int64_t last_observed_ns = 0; // 最后可靠真实 observation 的消息时间。
+        Point2d last_world;            // 锚点 world=(world_x, world_z)，单位米。
+        Point2d last_field;            // 同一锚点的统一 field 表示。
+        Point2d last_canonical;        // 同一锚点的红方 canonical 表示，供模型 query。
+        Point2d canonical_velocity;    // 锚点时世界速度转换后的 canonical 向量。
+        Point2d tracker_world;         // 当前短期 Kalman 外推点，仅用于对比/消息诊断。
+        double last_tracking_confidence = 0.0; // 锚点形成时 Tracker 综合可信度。
+        // world Kalman 的位置/速度 2x2 子矩阵 trace；值越大，对应信息越不可靠。
         double last_position_covariance_trace = 0.0;
         double last_velocity_covariance_trace = 0.0;
         bool had_prediction = false;
@@ -295,10 +319,11 @@ private:
         int last_fallback_level = 0;
         double last_prediction_lost_s = 0.0;
         std::int64_t last_log_ns = 0;
-        bool navigation_routes_computed = false;
-        NavigationRouteMap navigation_routes;
+        bool navigation_routes_computed = false; // 本次失联是否已从锚点运行 Dijkstra。
+        NavigationRouteMap navigation_routes; // 跨帧/候选复用，锚点更新时整体清空。
     };
 
+    /** 创建 shadow 评测日志父目录并以追加方式打开 CSV；空路径表示禁用。 */
     void open_log(const std::string& path) {
         if (path.empty()) {
             return;
@@ -323,6 +348,7 @@ private:
         }
     }
 
+    /** 把一次预测或重捕获事件及误差诊断写入 CSV；日志关闭时为空操作。 */
     void log_prediction(
         const std::string& event,
         std::int64_t timestamp_ns,
@@ -351,10 +377,13 @@ private:
         log_stream_.flush();
     }
 
+    /** 用已确认真实观测刷新指定槽锚点、协方差与速度，并失效旧 Dijkstra/预测缓存。 */
     void handle_observation(
         int slot_idx,
         const tensorrt_detect_msgs::msg::WorldTarget& target,
         std::int64_t now_ns) {
+        // 只有 targets_callback 判定 reliable_observation 后才进入这里；因此单帧
+        // observed 跳点不会覆盖最后可靠位置。
         auto& cache = caches_[slot_idx];
         const Point2d observed_world{target.world_x, target.world_z};
         const auto observed_field = transform_.world_to_field(observed_world);
@@ -364,6 +393,8 @@ private:
             return;
         }
 
+        // 重新观测时用 field 坐标计算最终误差，形成 shadow 模式闭环评测；只写日志，
+        // 不用误差反向在线训练或修改 Tracker。
         if (cache.has_observation && cache.had_prediction) {
             const double final_error = std::hypot(
                 observed_field->x - cache.last_prediction_field.x,
@@ -400,6 +431,7 @@ private:
         }
     }
 
+    /** 对一个已失联缓存执行模型查询、盲区/NavGrid/Gate，并组装完整 PriorPrediction。 */
     tensorrt_detect_msgs::msg::PriorPrediction make_prediction(
         int slot_idx,
         const tensorrt_detect_msgs::msg::WorldTarget& current_target,
@@ -443,8 +475,12 @@ private:
         message.tracker_world_x = cache.tracker_world.x;
         message.tracker_world_z = cache.tracker_world.y;
 
+        // Step 1: 按真实失联时长选择离线模型支持的最近 horizon。horizon 是离散
+        // 条件索引；物理可达距离仍使用连续 lost_duration_s，不能用 horizon 代替。
         const int horizon = model_.nearest_horizon(lost_duration_s);
         message.horizon_seconds = horizon;
+        // Step 2: query_top_k 在模型查询后立即截取稀疏 prior 候选。此时尚未注入
+        // BlindZone/Stay Anchor，也尚未计算 distance/motion/fused_probability。
         const auto distribution = model_.query(
             role, cache.last_canonical, horizon, context_,
             static_cast<std::size_t>(query_top_k_));
@@ -454,12 +490,16 @@ private:
             return message;
         }
 
+        // Step 3: 用 Kalman covariance trace 下调不可靠锚点和速度的影响。位置可靠度
+        // 进入最终 base confidence；速度可靠度只调节 motion likelihood。
         const double covariance_reliability =
             1.0 / std::sqrt(1.0 + cache.last_position_covariance_trace);
         const double velocity_reliability =
             1.0 / std::sqrt(1.0 + cache.last_velocity_covariance_trace);
         const double base_confidence =
             cache.last_tracking_confidence * covariance_reliability;
+        // Step 4: 同一可靠锚点的 Dijkstra route map 只计算一次。失联期间每帧查询
+        // 多个候选时直接索引 distances_m，比逐候选重新寻路稳定且便宜。
         if (navigation_mesh_.loaded() &&
             !cache.navigation_routes_computed) {
             cache.navigation_routes = navigation_mesh_.route_map(
@@ -470,6 +510,8 @@ private:
         const NavigationRouteMap* prepared_routes =
             cache.navigation_routes_computed
                 ? &cache.navigation_routes : nullptr;
+        // Step 5: Gate 内依次处理 BlindZone、Stay Anchor、NavGrid/距离可达、运动权重、
+        // fused_probability、主猜点分支与 output_top_k；返回值不写回模型分布。
         const auto gated = gate_.apply(
             distribution, cache.last_canonical, cache.canonical_velocity,
             lost_duration_s, base_confidence, role, prepared_routes,
@@ -487,6 +529,8 @@ private:
             gated.stay_anchor_probability_mass;
         message.prior_confidence = gated.confidence;
 
+        // Step 6: Gate 返回的 candidates 已按 fused_probability 排序并应用
+        // output_top_k。逐项补齐 canonical/field/world 三种坐标供诊断与 Map overlay。
         for (const auto& candidate : gated.candidates) {
             tensorrt_detect_msgs::msg::PriorCandidate output;
             output.grid_index = static_cast<std::uint32_t>(candidate.prior.grid_index);
@@ -534,6 +578,8 @@ private:
             return message;
         }
 
+        // Step 7: 主猜点通过所有安全门后才置 valid；它可能是盲区 Top-1、运动加权
+        // 融合点或最后可靠位置，并已按需要 snap 到可通行网格。
         message.valid = true;
         message.rejection_code = Prediction::REJECTION_NONE;
         message.rejection_reason.clear();
@@ -560,6 +606,7 @@ private:
         return message;
     }
 
+    /** 主订阅回调：维护各槽生命周期与观测确认，对达到阈值的敌方槽发布预测数组。 */
     void targets_callback(
         const tensorrt_detect_msgs::msg::WorldTargetArray::ConstSharedPtr input) {
         auto output = std::make_unique<tensorrt_detect_msgs::msg::PriorPredictionArray>();
@@ -567,6 +614,8 @@ private:
         output->model_enabled = model_enabled_;
         output->model_status = model_status_;
 
+        // 整条缓存时间轴优先使用上游图像 header.stamp，而非回调到达墙钟。这样视频
+        // 回放、调度抖动和跨进程传输延迟不会被误计为目标真实失联时间。
         std::int64_t now_ns = time_to_ns(input->header.stamp);
         if (now_ns <= 0) now_ns = get_clock()->now().nanoseconds();
         if (last_input_time_ns_ > 0 && now_ns < last_input_time_ns_) {
@@ -703,6 +752,7 @@ private:
 
 }  // namespace position_prior
 
+/** Position Prior 独立进程入口；单线程 spin 串行保护各槽缓存。 */
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
     rclcpp::spin(std::make_shared<position_prior::PositionPriorNode>());

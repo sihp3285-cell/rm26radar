@@ -1,3 +1,5 @@
+# 雷达站跨节点数据契约。rosidl_generate_interfaces 会为下列 .msg 生成 C++ 类型；
+# 消息字段及单位的注释保留在接口定义中，并随生成类型进入 ROS2 introspection。
 cmake_minimum_required(VERSION 3.22.1)
 project(tensorrt_detect_msgs)
 

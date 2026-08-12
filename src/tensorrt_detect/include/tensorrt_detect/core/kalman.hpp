@@ -1,3 +1,12 @@
+/**
+ * @file kalman.hpp
+ * @brief Tracker 使用的像素框与世界平面常速度 Kalman Filter。
+ *
+ * 两个滤波器都维护 state x、协方差 P、状态转移 F、观测矩阵 H、测量噪声 R
+ * 与过程噪声 Q。predict() 只依据运动模型推进；update() 用真实 observation 的
+ * innovation（新息）修正状态。NIS 用于关联前硬门控，P 还随 WorldTarget 下发给
+ * Position Prior 衡量速度/位置估计可靠度。
+ */
 #pragma once
 #include <Eigen/Dense>
 #include <array>
@@ -53,15 +62,16 @@ public:
     std::vector<float> get_state() const;
 
     // 状态向量: [cx, cy, w, h, vx, vy, vw, vh]
-    Eigen::Matrix<float, 8, 1> x;
-    Eigen::Matrix<float, 8, 8> P;  // 误差协方差
-    Eigen::Matrix<float, 8, 8> F;  // 状态转移矩阵
-    Eigen::Matrix<float, 4, 8> H;  // 观测矩阵 (4维观测)
-    Eigen::Matrix<float, 4, 4> R;  // 测量噪声协方差
-    Eigen::Matrix<float, 8, 8> Q;  // 过程噪声协方差
+    Eigen::Matrix<float, 8, 1> x;  // 当前后验状态 [cx,cy,w,h,vx,vy,vw,vh]。
+    Eigen::Matrix<float, 8, 8> P;  // 状态估计误差协方差；predict 后通常增长。
+    Eigen::Matrix<float, 8, 8> F;  // 常速度状态转移，位置-速度项由实际 dt 更新。
+    Eigen::Matrix<float, 4, 8> H;  // 从状态选择可观测的 [cx,cy,w,h]。
+    Eigen::Matrix<float, 4, 4> R;  // 像素测量噪声协方差。
+    Eigen::Matrix<float, 8, 8> Q;  // 未建模加速度等过程噪声，随 dt 更新。
 
 private:
     float dt_, q_std_, r_std_;
+    /** 按实际 dt 重建常速度模型的过程噪声 Q；只改变滤波器内部矩阵。 */
     void updateQ(float dt);
 };
 
@@ -126,8 +136,8 @@ public:
     std::vector<float> get_velocity() const;
 
     // 状态向量: [x, y, vx, vy]
-    Eigen::Matrix<float, 4, 1> x;
-    Eigen::Matrix<float, 4, 4> P;
+    Eigen::Matrix<float, 4, 1> x;  // 世界地面状态 [x,z,vx,vz]。
+    Eigen::Matrix<float, 4, 4> P;  // 随 WorldTarget 以 4x4 行主序向下游发布。
     Eigen::Matrix<float, 4, 4> F;
     Eigen::Matrix<float, 2, 4> H;  // 观测矩阵 (2维观测)
     Eigen::Matrix<float, 2, 2> R;

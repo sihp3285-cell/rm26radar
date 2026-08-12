@@ -7,7 +7,7 @@
 # ─────────────────────────────────────────────
 video_node:
   ros__parameters:
-    video_path: "/home/delphine/rm/car_project/test/07.mp4"
+    video_path: "/home/delphine/rm/car_project/test/08.mp4"
     topic_name: "/image_raw"
     fps: 20
 
@@ -62,11 +62,25 @@ pose_node:
     # 切换，并额外放大测量协方差。
     projection_surface_discontinuity_m: 0.12
 
-    # 沟区内使用装甲板框底边中点，沟区外使用车辆框底边中点。进入多边形
-    # 前先在外侧过渡带平滑混合两次求交结果，避免边界处硬切换跳变。
+    # V1 默认把 car/armor 作为两个完整 measurement hypotheses 分别评分并二选一；
+    # false 时安全地优先选 car（car 缺失/失效则回退 armor），不会隐式恢复插值。
+    projection_selector_enabled: true
+    projection_uncertainty_bad_std_m: 0.50
+    projection_condition_bad: 30.0
+    # 初始值并非理论最优，需要通过真实场地数据继续标定。
+    projection_cost_uncertainty_weight: 1.2
+    projection_cost_condition_weight: 0.4
+    projection_cost_surface_weight: 1.5
+    projection_cost_region_weight: 0.5
+
+    # signed distance 位于 outer/inner 时，armor prior 分别约为 0.1/0.9。
+    projection_region_outer_m: -1.5
+    projection_region_inner_m: 0.0
+    projection_switch_margin: 0.30
+    projection_switch_confirm_frames: 3
+
+    # canonical 沟区 polygon 只生成 soft region prior，不再直接生成插值权重。
     gully_region_path: "/home/delphine/rm/tensorrt10_detect/generated/gully.yaml"
-    # 1.5 m 在约 3 m/s 车速下可提供约 0.5 s 的可见过渡。
-    gully_transition_width_m: 1.5
     # 与 map_node.field_x_flip 保持一致。
     gully_field_x_flip: false
 

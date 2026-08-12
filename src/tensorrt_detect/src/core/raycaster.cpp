@@ -1,3 +1,9 @@
+/**
+ * @file raycaster.cpp
+ * @brief Open3D 场地三角网格加载与相机射线首交点查询。
+ * Open3D CUDA 查询与 TensorRT 共用进程级 cuda_guard；批量接口减少逐框构造 Tensor
+ * 与场景调用开销。无命中以非有限/约定结果交给上层过滤，不在本层猜测地面高度。
+ */
 #include "raycaster.hpp"
 #include "model.hpp"
 
@@ -52,6 +58,7 @@ cv::Point3f Raycaster::pixelToWorld(const cv::Point2f& pixel,
             float dx = Ray_world.at<double>(0), dy = Ray_world.at<double>(1), dz = Ray_world.at<double>(2);
 
     
+            // mesh 未加载或未命中时，与 world y=0 平面求交，保持投影链可退化运行。
             auto fallback_to_flat_ground = [&]() -> cv::Point3f {
             if (std::abs(dy) < 1e-6) return cv::Point3f(0, 0, 0); 
             double t_fb = -oy / dy; 
@@ -132,6 +139,7 @@ std::vector<cv::Point3f> Raycaster::pixelToWorldBatch(
         float dy = ray_data[i * 6 + 4];
         float dz = ray_data[i * 6 + 5];
 
+        // batch 中单条射线的平地回退；只复用当前已计算的世界原点和方向。
         auto fallback_to_flat_ground = [&]() -> cv::Point3f {
             if (std::abs(dy) < 1e-6f) return cv::Point3f(0, 0, 0);
             double t_fb = -oy / dy;

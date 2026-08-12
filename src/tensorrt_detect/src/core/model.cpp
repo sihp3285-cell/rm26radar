@@ -1,4 +1,13 @@
 
+/**
+ * @file model.cpp
+ * @brief TensorRT engine 反序列化、GPU 预处理、enqueueV3 与 CPU 后处理实现。
+ *
+ * 实际时序为 cv::Mat -> pinned host staging -> async H2D -> CUDA preprocess ->
+ * TensorRT output binding -> async D2H -> event synchronize -> CPU decode/NMS。虽然拷贝
+ * 使用同一 Stream 排队，CPU 在读取输出前仍显式等待 event，因此单次调用不是与
+ * CPU 后处理完全重叠的全异步 pipeline。
+ */
 #include <fstream>
 #include <algorithm>
 #include <cmath>
@@ -11,6 +20,7 @@
 
 class Logger : public nvinfer1::ILogger
 {
+    /** TensorRT 日志回调；当前主动静默所有级别，避免实时终端被 INFO 刷屏。 */
     void log(Severity severity, const char *msg) noexcept override
     {
         (void)severity;
@@ -65,6 +75,8 @@ Model::Model(const std::string modelPath, const int &inputSize, const float &sco
         throw std::runtime_error("TensorRT execution context 创建失败");
     }
 
+    // TensorRT 10 使用命名 I/O tensor；这里从 engine 元数据识别唯一 input/output，
+    // 后续 setTensorAddress 把它们绑定到 buffers[0]/buffers[1]。
     int nbTensors = this->engine->getNbIOTensors();
     for (int i = 0; i < nbTensors; ++i) {
         const char* name = this->engine->getIOTensorName(i);
@@ -90,6 +102,8 @@ Model::Model(const std::string modelPath, const int &inputSize, const float &sco
     }
 
 
+    // batch=1 静态尺寸路径：输入为 3×H×W float，输出按 engine shape 展平。
+    // prob_ 是 pinned host 输出；真正等待 GPU 完成发生在 Detect/predictClass event。
     cudaMalloc(&(this->buffers[0]), this->input_h * this->input_w * 3 * sizeof(float));
     cudaMalloc(&(this->buffers[1]), this->output_h * this->output_w * sizeof(float));
     this->probSize_ = this->output_h * this->output_w;
@@ -223,6 +237,8 @@ void Model::preprocessing(const cv::Mat &frame)
         hInputCapacity_ = imgBytes;
     }
 
+    // 此 CPU copy 把可能借用 ROS/cv::Mat 的像素转入 Model 自有 pinned buffer；因此
+    // 后续 H2D 即使异步排队，也不会在回调结束后读到失效的消息内存。
     memcpy(hInputBuffer8U_, input.data, imgBytes);
 
     // Ensure device-side raw image buffer
@@ -464,12 +480,16 @@ bool Model::Detect(const cv::Mat &frame)
 
         preprocessing(frame);
 
+        // preprocessing 已在同一 stream 排好 H2D 与 kernel；CUDA stream 的顺序语义
+        // 保证 enqueueV3 看到完成的 input binding，无需在推理前全局 synchronize。
         if (!context->enqueueV3(this->stream)) {
             throw std::runtime_error("enqueueV3 failed in Detect");
         }
 
         cudaMemcpyAsync(this->prob_, this->buffers[1], this->probSize_ * sizeof(float), cudaMemcpyDeviceToHost, this->stream);
         cudaEventRecord(readyEvent_, this->stream);
+        // CPU postprocess 要读取 prob_，因此等待记录在 D2H 后的 event。这里只阻塞
+        // 当前调用线程，不使用 cudaDeviceSynchronize 去等待进程中所有 GPU 工作。
         cudaEventSynchronize(readyEvent_);
 
         postprocessing();
@@ -527,6 +547,3 @@ int Model::predictClass(
 
     return top1_id;
 }
-
-
-

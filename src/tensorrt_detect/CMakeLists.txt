@@ -1,3 +1,6 @@
+# 本包同时提供主链 ROS2 Components、交互式独立节点和共享算法静态库。
+# launch 实际加载 video/camera、detect、pose、map 四个 component；calibrate、
+# roi_set、qt_display 以独立 executable 启动。standard 是兼容入口，不在当前 launch。
 cmake_minimum_required(VERSION 3.22.1)
 project(tensorrt_detect LANGUAGES CXX CUDA)
 
@@ -68,7 +71,9 @@ set(COMMON_INCLUDE_DIRS
 )
 
 # ========== 内部核心库：tensorrt_detect_core ==========
-# 聚合所有公共算法、可视化、配置源码，后续节点只需链接此库即可
+# 聚合 TensorRT/CUDA 推理、pixel->world、跟踪、地图、配置和公共绘制代码。
+# 静态库本身不是 ROS Node；Node 通过链接它复用同一套实现，具体对象状态仍分别
+# 属于各 component 实例。
 add_library(tensorrt_detect_core STATIC
     src/core/model.cpp
     src/core/pipeline.cpp
@@ -113,7 +118,9 @@ target_link_libraries(standard
     tensorrt_detect_core
 )
 
-# ========== Component libraries for intra-process zero-copy ==========
+# ========== Component libraries for进程内主链 ==========
+# register_nodes 会生成 ament index plugin 元数据；launch 中 ComposableNode.plugin
+# 必须与这里的完整类名一致，否则容器能启动但无法加载该 component。
 
 # video_node component
 add_library(video_node_component SHARED src/nodes/video_node.cpp)

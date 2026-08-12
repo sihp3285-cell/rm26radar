@@ -1,7 +1,14 @@
+/**
+ * @file preprocess.cu
+ * @brief 将 8-bit 图像直接转换成 TensorRT NCHW float 输入的 CUDA kernel。
+ * 每个线程负责一个目标像素：反向映射源坐标、双线性采样、BGR/RGB 选择、
+ * 1/255 与可选 mean/std 标准化；越出 letterbox 有效区的像素填充 114。
+ */
 #include "preprocess.hpp"
 #include <cuda_runtime.h>
 
-// Original raw-pointer bilinear kernel (kept for backward compatibility)
+// 每个 CUDA thread 处理一个目标像素；从线性 BGR device buffer 手工双线性采样，
+// 再写入三个 NCHW channel。保留该入口供不使用 texture object 的兼容路径。
 __global__ void preprocess_kernel(
     const uint8_t* __restrict__ src,
     int src_w, int src_h, int src_step,
@@ -86,7 +93,8 @@ void launch_preprocess(
         swapRB);
 }
 
-// Texture-based kernel using hardware bilinear interpolation via tex2D
+// texture 版本同样每线程生成一个目标像素，但由 tex2D 硬件完成双线性插值；
+// texture 已配置 normalized-float 读取，因此采样值无需再次乘 1/255。
 __global__ void preprocess_kernel_tex(
     cudaTextureObject_t tex,
     int src_w, int src_h,

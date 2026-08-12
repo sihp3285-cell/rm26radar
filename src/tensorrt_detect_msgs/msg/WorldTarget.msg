@@ -1,3 +1,6 @@
+# PoseNode 的统一世界目标输出。前 10 项通常是 Tracker official slots，索引 10
+# 是 Outpost 直通项，之后可追加死亡装甲板；数组位置、idx、track_id 和 class_id
+# 分别表达容器位置、兼容索引、物理轨迹与语义身份，不应混用。
 int32 idx
 int32 class_id
 int32 team_id
@@ -5,6 +8,7 @@ float32 score
 bool is_dead
 bool valid
 
+# 雷达世界坐标：地面运动使用 (world_x, world_z)，world_y 当前固定为 0；单位米。
 float32 world_x
 float32 world_y
 float32 world_z

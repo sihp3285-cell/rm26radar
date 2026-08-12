@@ -1,3 +1,7 @@
+/**
+ * @file tracker_types.hpp
+ * @brief PoseNode 与 Tracker 边界上的单帧观测、状态和兼容输出数据结构。
+ */
 #pragma once
 
 #include <opencv2/opencv.hpp>
@@ -16,6 +20,7 @@ enum class TrackState {
     DEAD = 4        // 超过最大丢失时间，等待清理
 };
 
+// 区分坐标“来自哪里”，避免把真实 measurement 与 Kalman prediction 混为一谈。
 enum class PositionSource {
     INVALID = 0,
     MEASURED = 1,

@@ -1,3 +1,12 @@
+/**
+ * @file camera_node.cpp
+ * @brief 本项目工业相机适配层：封装 rb26SDK，统一发布 sensor_msgs/Image。
+ *
+ * 该文件只解释项目如何选择 Hik/Daheng 后端、配置和取得图像，不进入厂商 SDK
+ * 内部。采集线程从 SDK wrapper 得到 cv::Mat，发布 /image_raw；可选录制线程消费
+ * clone 后的有界队列，磁盘写入不会阻塞实时发布。资源释放顺序是停止线程、唤醒
+ * 录制等待、join、关闭相机，最后反初始化 SDK，保证 buffer/设备句柄仍在使用期内。
+ */
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <cv_bridge/cv_bridge.hpp>
@@ -47,6 +56,8 @@ private:
     std::atomic<bool> is_running_;
 
     // ── 内录缓冲 ──
+    // cv::Mat 默认只共享像素引用；进入异步队列的帧必须拥有独立像素，否则 SDK
+    // 复用采集 buffer 后，录制线程可能写出已被下一帧覆盖的数据。
     std::queue<cv::Mat> record_queue_;
     std::mutex queue_mutex_;
     std::condition_variable queue_cv_;
@@ -69,6 +80,7 @@ private:
     // ──────────────────────────────────────────────
     // 录制线程
     // ──────────────────────────────────────────────
+    /** 后台消费深拷贝帧队列并写入 VideoWriter；停止后排空队列并安全关闭文件。 */
     void recordLoop()
     {
         while (is_running_ || !record_queue_.empty()) {
@@ -96,6 +108,7 @@ private:
     // ──────────────────────────────────────────────
     // 统一的取帧接口（隐藏品牌差异）
     // ──────────────────────────────────────────────
+    /** 按已选厂商分派 SDK 抓帧；返回 Mat 的具体所有权由厂商包装层约定。 */
     cv::Mat grabFrame()
     {
         switch (brand_) {
@@ -112,6 +125,7 @@ private:
     // ──────────────────────────────────────────────
     // 主采集 + 发布线程
     // ──────────────────────────────────────────────
+    /** 相机采集线程：抓帧、可选排队录制、封装 ROS Image 并周期打印实际 FPS。 */
     void captureLoop()
     {
         if (!camera_opened_) {
@@ -134,7 +148,9 @@ private:
                 queue_cv_.notify_one();
             }
 
-            // 2. 发布 ROS 消息（零拷贝）
+            // 2. 发布 ROS 消息。unique_ptr 可供 rclcpp 进程内转移 ownership，但
+            // CvImage::toImageMsg 会把 frame 像素写入消息，本步骤本身并非零拷贝；
+            // 完成后消息已拥有独立 data，不依赖 SDK frame buffer 的复用时机。
             auto msg = std::make_unique<sensor_msgs::msg::Image>();
             msg->header.stamp    = this->now();
             msg->header.frame_id = frame_id_;
@@ -170,6 +186,7 @@ private:
     std::string frame_id_;
 
 public:
+    /** 加载品牌/曝光/录制参数，初始化 SDK 与设备、publisher 和工作线程。 */
     explicit CameraNode(const rclcpp::NodeOptions &options)
         : Node("camera_node", options), is_running_(false)
     {
@@ -311,6 +328,8 @@ public:
         }
 
         // ──────── 4. 创建发布者 & 启动采集线程 ────────
+        // 高频相机流只保留最新待发送帧（depth=1），避免检测端较慢时旧帧排队。
+        // 未显式调用 best_effort()，故沿用 rclcpp 默认 Reliable 可靠性。
         pub_ = this->create_publisher<sensor_msgs::msg::Image>(
             topic, rclcpp::QoS(1));
 
@@ -327,6 +346,7 @@ public:
         }
     }
 
+    /** 先停止并 join 录制/采集线程，再关闭设备和厂商 SDK，避免后台访问失效资源。 */
     ~CameraNode() override
     {
         // 1. 停止采集循环
@@ -368,6 +388,7 @@ public:
 #include "rclcpp_components/register_node_macro.hpp"
 RCLCPP_COMPONENTS_REGISTER_NODE(tensorrt_detect::CameraNode)
 
+/** 非 component 调试入口；正式 launch 通过 rclcpp_components 加载同一个类。 */
 int main(int argc, char** argv)
 {
     rclcpp::init(argc, argv);

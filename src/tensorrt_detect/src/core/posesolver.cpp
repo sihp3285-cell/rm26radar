@@ -1,3 +1,9 @@
+/**
+ * @file posesolver.cpp
+ * @brief 标定外参管理、批量射线求交及 pixel->world 协方差传播。
+ * 中心像素给出落地点；上下左右有限差分命中形成局部 Jacobian，把像素方差传播到
+ * world(x,z)。命中高度突变会标记 surface_discontinuity，供 PoseNode 放大不确定性。
+ */
 #include "posesolver.hpp"
 #include "raycaster.hpp"
 
@@ -116,6 +122,7 @@ std::vector<WorldProjection> PoseSolver::middletoworldBatchWithUncertainty(
     const float sigma_squared =
         config.pixel_sigma_px * config.pixel_sigma_px;
 
+    // 有限值检查供中心/差分射线共用，避免 NaN 进入雅可比和协方差。
     const auto finite_point = [](const cv::Point3f& point) {
         return std::isfinite(point.x) && std::isfinite(point.y) &&
             std::isfinite(point.z);
@@ -185,6 +192,7 @@ std::vector<WorldProjection> PoseSolver::middletoworldBatchWithUncertainty(
             maximum_height - minimum_height >
                 config.surface_discontinuity_m;
         if (result.surface_discontinuity) {
+            // 比较差分射线与中心命中的 x-z 平面距离，用于识别地形表面跳变。
             const auto planar_distance = [&center](const cv::Point3f& point) {
                 return std::hypot(point.x - center.x, point.z - center.z);
             };

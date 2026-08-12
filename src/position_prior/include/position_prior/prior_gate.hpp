@@ -1,3 +1,12 @@
+/**
+ * @file prior_gate.hpp
+ * @brief 把离线候选与在线可达性、距离、速度、盲区规则融合成最终猜点。
+ *
+ * apply() 位于 model query/BlindZoneBias 之后：先判场内/blocked/NavGrid 可达，再算
+ * distance_weight 与 motion_weight，得到 fused_probability 并排序/截取 output_top_k。
+ * 主猜点按真实分支可能是盲区最佳可达候选、运动 Gate 下的加权位置，或最后可靠
+ * 位置；最后再 snap 回同一可通行连通分量。
+ */
 #pragma once
 
 #include "position_prior/blind_zone_prior.hpp"
@@ -37,18 +46,24 @@ struct PriorGateConfig {
     std::vector<Rect2d> blocked_regions_canonical;
 };
 
+/** 无 ROS 状态的在线安全门；NavigationMesh/BlindZonePrior 指针均为非拥有只读引用。 */
 class PriorGate {
 public:
+    /** 保存并规整 Gate 参数；依赖的 NavGrid/BlindZone 指针稍后注入。 */
     explicit PriorGate(PriorGateConfig config = {});
 
+    /** 返回当前只读 Gate 配置引用。 */
     const PriorGateConfig& config() const { return config_; }
+    /** 注入非拥有的只读 NavGrid；调用方必须保证其生命周期覆盖 PriorGate。 */
     void set_navigation_mesh(const NavigationMesh* navigation_mesh) {
         navigation_mesh_ = navigation_mesh;
     }
+    /** 注入非拥有的盲区先验；nullptr 表示禁用盲区专用分支。 */
     void set_blind_zone_prior(const BlindZonePrior* blind_zone_prior) {
         blind_zone_prior_ = blind_zone_prior;
     }
 
+    /** 对一份模型分布执行场内、blocked、路径可达、距离和运动融合，生成最终猜点。 */
     GateResult apply(
         const PriorDistribution& distribution,
         const Point2d& last_canonical,
@@ -60,7 +75,9 @@ public:
         double velocity_reliability = 1.0) const;
 
 private:
+    /** 判断候选是否为有限值且位于配置的 canonical 场地闭区间。 */
     bool in_field(const Point2d& point) const;
+    /** 判断候选是否落入任一配置禁行矩形。 */
     bool blocked(const Point2d& point) const;
 
     PriorGateConfig config_;

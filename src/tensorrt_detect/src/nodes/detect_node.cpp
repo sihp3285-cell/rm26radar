@@ -1,3 +1,12 @@
+/**
+ * @file detect_node.cpp
+ * @brief 主感知 component：把 /image_raw 转成检测数组、调试图和阶段耗时。
+ *
+ * 数据链：sensor_msgs/Image -> cv_bridge 共享视图 -> DetectPipeline（车辆、装甲板、
+ * 兵种、前哨站/无人机）-> /armor_detections；调试分支另发布 /detected_image，
+ * /pipeline_timing 给 Qt 展示。本节点不做世界坐标或跨帧跟踪，这两项由 PoseNode
+ * 负责。/detect_node/reload_roi 只重读前哨站 ROI 配置，不重建 TensorRT engine。
+ */
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <cv_bridge/cv_bridge.hpp>
@@ -21,6 +30,7 @@
 class DetectNode : public rclcpp::Node
 {
 public:
+    /** 加载 Config/DetectPipeline，创建图像订阅、三个 publisher 和 ROI 重载服务。 */
     explicit DetectNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions())
         : Node("detect_node", options)
     {
@@ -50,6 +60,9 @@ public:
         cfg_ = std::make_unique<Config>(config_dir);
         pipeline_ = std::make_unique<DetectPipeline>(*cfg_);
 
+        // 调试图只需要最新帧，depth=1 避免 UI 慢时反压主感知。检测数组 depth=10
+        // 且 BestEffort：允许实时链在订阅方来不及处理时丢旧样本，不为逐帧可靠性
+        // 牺牲时延。PipelineTiming 同样是“最新状态”语义。
         image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(output_topic_, rclcpp::QoS(1));
         armor_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::DetectionArray>("/armor_detections", rclcpp::QoS(10).best_effort());
         timing_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::PipelineTiming>("/pipeline_timing", rclcpp::QoS(1));
@@ -68,11 +81,14 @@ public:
 
 
 private:
+    /** 图像订阅回调：共享读取输入、执行推理、转换 DetectionArray，并可选发布调试图/耗时。 */
     void image_callback(const sensor_msgs::msg::Image::ConstSharedPtr msg)
     {
         try {
             double input_delay_ms = (this->now() - msg->header.stamp).seconds() * 1000.0;
 
+            // toCvShare 在编码兼容时让 cv::Mat 指向消息像素而不复制；cv_ptr/msg
+            // 共同保证该内存在本回调内有效。任何需要跨回调保存的图像都必须 clone。
             auto cv_ptr = cv_bridge::toCvShare(msg, "bgr8");
             cv::Mat frame = cv_ptr->image;
 
@@ -155,6 +171,8 @@ private:
                 armor_msg->detections.push_back(statusBox);
             }
 
+            // publish(unique_ptr) 把消息 ownership 交给 rclcpp；启用 intra-process
+            // 时可直接转交订阅者，调用后不得再访问 armor_msg。
             armor_pub_->publish(std::move(armor_msg));
 
             {
@@ -212,6 +230,8 @@ private:
         }
     }
 
+    // Config 必须比 DetectPipeline 活得久：pipeline 内部保存 cfg_ 的引用，并据此
+    // 读取模型开关/ROI。成员按声明逆序析构，因此此处先声明 Config、后声明 pipeline。
     std::unique_ptr<Config> cfg_;
     std::unique_ptr<DetectPipeline> pipeline_;
 
@@ -220,6 +240,7 @@ private:
     bool publish_debug_image_ = true;
     int debug_output_max_width_ = 1280;
 
+    /** Trigger 回调：仅从 outpost_roi.yaml 更新 Config 中 ROI，不重建 TensorRT 模型。 */
     void reloadROI(const std_srvs::srv::Trigger::Request::SharedPtr /*request*/,
                    std_srvs::srv::Trigger::Response::SharedPtr response)
     {
@@ -273,6 +294,7 @@ private:
 #include <rclcpp_components/register_node_macro.hpp>
 RCLCPP_COMPONENTS_REGISTER_NODE(DetectNode)
 
+/** 非 component 调试入口；正式 launch 使用注册在文件末尾的组件工厂。 */
 int main(int argc, char** argv)
 {
     rclcpp::init(argc, argv);

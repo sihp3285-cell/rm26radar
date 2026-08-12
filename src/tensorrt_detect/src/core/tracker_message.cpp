@@ -1,3 +1,7 @@
+/**
+ * @file tracker_message.cpp
+ * @brief 将 Tracker 与直通测量统一编码为 WorldTarget ROS2 消息。
+ */
 #include "tracker_message.hpp"
 
 #include <algorithm>
@@ -5,6 +9,7 @@
 
 namespace {
 
+/** 把 Tracker 内部纳秒时间戳拆为 ROS builtin time；非正值表示未知时间。 */
 builtin_interfaces::msg::Time to_builtin_time(std::int64_t timestamp_ns) {
     builtin_interfaces::msg::Time result;
     if (timestamp_ns <= 0) {

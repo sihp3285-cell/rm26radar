@@ -1,3 +1,8 @@
+/**
+ * @file hungarian.cpp
+ * @brief 当前 Tracker 使用的一对一最小代价分配实现。
+ * 输入已经包含业务硬门与软代价；本文件只求分配，不知道队伍、坐标或类别语义。
+ */
 #include "hungarian.hpp"
 #include <cmath>
 
@@ -12,8 +17,9 @@ float HungarianAlgorithm::Solve(std::vector<std::vector<float>>& DistMatrix, std
     Assignment.assign(nRows, -1);
     float cost = 0;
 
-    // 经典匈牙利算法的轻量级替代：贪心匹配 (在目标数量 < 20 时，与严格匈牙利算法结果 99% 一致，且速度快 10 倍)
-    // 如果你严格需要匈牙利，可在此替换为 Kuhn-Munkres 源码。对于 RoboMaster，贪心即可完美胜任。
+    // 注意：类名沿用 HungarianAlgorithm，但当前真实实现是“反复选取全局最小未用
+    // 元素”的贪心一对一分配，不是严格 Kuhn-Munkres/Hungarian。它保证行列不重复，
+    // 却不保证总成本全局最优；Tracker 的硬 gate 与小规模目标使其成为当前实际路径。
     std::vector<bool> col_used(nCols, false);
     std::vector<bool> row_used(nRows, false);
     
@@ -33,6 +39,7 @@ float HungarianAlgorithm::Solve(std::vector<std::vector<float>>& DistMatrix, std
             }
         }
         
+        // Tracker 用 1e6 表示硬 gate；这里以 1e4 截断，不把禁配项写入 assignment。
         if (best_r == -1 || min_cost > 1e4) break; // 找不到更多有效匹配
         
         Assignment[best_r] = best_c;

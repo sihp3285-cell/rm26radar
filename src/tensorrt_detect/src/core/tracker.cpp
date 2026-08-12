@@ -1,3 +1,12 @@
+/**
+ * @file tracker.cpp
+ * @brief PhysicalTrack 预测/关联/更新、BotIdentity 提交与 SlotOwner 仲裁实现。
+ *
+ * 每帧阶段：Kalman predict -> 负观测抑制 -> 构造 track×detection cost -> Hungarian
+ * -> matched update/unmatched lifecycle -> 新建轨迹 -> 清理 -> 固定槽位输出。
+ * 关联优先物理连续性，class 只是可靠度相关软惩罚；slot ownership 在关联之后独立
+ * 处理，因此一次分类抖动不会直接把地图点换给另一台物理车。
+ */
 #include "tracker.hpp"
 #include "hungarian.hpp"
 
@@ -117,6 +126,7 @@ int Tracker::slot_for(int team, int class_id) {
 std::vector<Tracker::SlotOutput> Tracker::make_empty_outputs() const {
     std::vector<SlotOutput> results(NUM_SLOTS);
 
+    // 初始化一个固定 official slot 的名义队伍/兵种，实际 owner 仍为空。
     auto init_slot = [&results](int idx, int team, int cls) {
         results[idx].slot_idx = idx;
         results[idx].team_id  = team;
@@ -630,6 +640,7 @@ void Tracker::update(
 
     // 负观测的 box/world gate 是“启用项同时满足”。这样死亡点与相邻活车
     // 仅在单一坐标域接近时，不会轻易抑制活车身份。
+    // 判断正观测/轨迹是否落入死亡装甲板负观测邻域；启用的 gate 必须同时满足。
     const auto is_near_negative = [this](
         const cv::Rect& box,
         const cv::Point2f& world,

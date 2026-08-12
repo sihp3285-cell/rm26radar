@@ -1,3 +1,8 @@
+/**
+ * @file coordinate_transform.cpp
+ * @brief world(x,z) ↔ field ↔ canonical 的位置与速度转换公式实现。
+ * canonical 固定红方视角：蓝方目标通过场地中心对称映射到同一学习方向。
+ */
 #include "position_prior/coordinate_transform.hpp"
 
 #include <cmath>
@@ -31,6 +36,8 @@ std::optional<Point2d> CoordinateTransform::world_to_field(const Point2d& world)
     if (!std::isfinite(world.x) || !std::isfinite(world.y)) {
         return std::nullopt;
     }
+    // world 参数约定为 (world_x, world_z)。field 原点移到 28m×15m 场地矩形一角；
+    // world_z_toward_blue_ 决定 field.x 的正方向，field.y 始终由 world_x 平移得到。
     Point2d field;
     field.x = world_z_toward_blue_
         ? world.y + field_length_ / 2.0
@@ -60,6 +67,8 @@ std::optional<Point2d> CoordinateTransform::field_to_canonical(
     if (!valid_team(team_id) || !valid_field(field)) {
         return std::nullopt;
     }
+    // 离线模型固定 canonical_team=red。红方 field 保持不变，蓝方关于场地中心
+    // 对称，从而让两方相同战术方向落入同一模型坐标语义。
     if (team_id == TEAM_BLUE) {
         return Point2d{field_length_ - field.x, field_width_ - field.y};
     }

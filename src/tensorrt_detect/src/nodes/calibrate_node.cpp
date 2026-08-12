@@ -1,3 +1,12 @@
+/**
+ * @file calibrate_node.cpp
+ * @brief 运行期相机外参标定旁路节点，不参与每帧检测/跟踪主链。
+ *
+ * 节点通过 /calibrate_node/start service 或一次性 wall timer 启动交互流程，临时
+ * 订阅 /image_raw 获取一帧，使用 MouseBack 收集图像点并以配置中的三维场地点求解
+ * 外参。结果经重投影误差门限后写入 calib_result.yaml，再请求 PoseNode reload。
+ * wall timer 的回调由 ROS executor 调度；取消 timer 可保证自动标定只触发一次。
+ */
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <std_srvs/srv/trigger.hpp>
@@ -18,6 +27,7 @@
 class CalibrateNode : public rclcpp::Node
 {
 public:
+    /** 声明参数、加载相机配置并创建手动 service/可选自动标定定时器。 */
     CalibrateNode() : Node("calibrate_node")
     {
         this->declare_parameter<std::string>("config_dir",
@@ -69,6 +79,7 @@ public:
                 auto_calibrate_delay_sec_);
             auto_calibrate_timer_ = this->create_wall_timer(
                 std::chrono::seconds(auto_calibrate_delay_sec_),
+                // 单次定时回调：取消自身后复用与手动服务相同的标定流程。
                 [this]() {
                     auto_calibrate_timer_->cancel();
                     if (!isCalibFileValid() && !is_calibrating_.load()) {
@@ -85,6 +96,7 @@ public:
     }
 
 private:
+    /** 从 camera.yaml 读取 K/D、3D 世界点和点数要求；失败记录日志并返回 false。 */
     bool loadCameraConfig()
     {
         try {
@@ -131,6 +143,7 @@ private:
         }
     }
 
+    /** 只检查现有标定结果是否含可解析且维数正确的 R/T，用于避免重复自动标定。 */
     bool isCalibFileValid()
     {
         if (!std::filesystem::exists(calib_result_path_)) {
@@ -149,6 +162,7 @@ private:
         }
     }
 
+    /** ROS Trigger 回调：用原子标志防重入，执行标定并把结果写入 response。 */
     void startCalibrate(const std_srvs::srv::Trigger::Request::SharedPtr /*request*/,
                         std_srvs::srv::Trigger::Response::SharedPtr response)
     {
@@ -158,12 +172,14 @@ private:
         response->message = msg;
     }
 
+    /** 暂停视频、等待一帧、交互采点、solvePnP/误差校验、落盘并通知 PoseNode 重载。 */
     std::pair<bool, std::string> doCalibration()
     {
         if (is_calibrating_.exchange(true)) {
             return {false, "标定正在进行中，请勿重复触发"};
         }
 
+        // shared_ptr deleter 作为作用域守卫，确保所有 return/异常路径都清除防重入标志。
         auto guard = [this](bool*) { is_calibrating_ = false; };
         bool guard_token = false;
         std::unique_ptr<bool, decltype(guard)> scope_guard(&guard_token, guard);
@@ -181,6 +197,7 @@ private:
 
         auto image_sub = temp_node->create_subscription<sensor_msgs::msg::Image>(
             image_topic_, rclcpp::QoS(1),
+            // 临时节点只取第一帧并深拷贝，通过 promise 将所有权交给标定流程。
             [&](const sensor_msgs::msg::Image::SharedPtr msg) {
                 try {
                     auto cv_ptr = cv_bridge::toCvCopy(msg, "bgr8");
@@ -219,6 +236,7 @@ private:
         struct VideoPauseGuard {
             CalibrateNode* node;
             bool active;
+            /** 作用域退出时尽力恢复视频播放，覆盖所有提前 return 和异常路径。 */
             ~VideoPauseGuard() {
                 if (active && node) {
                     node->callVideoPause(false);
@@ -323,6 +341,7 @@ private:
             " px max=" + std::to_string(maximum_error) + " px"};
     }
 
+    /** 将 R/T、采集像素点和误差指标覆盖写入 calib_result.yaml。 */
     bool saveCalibResult(const std::vector<cv::Point2f>& imagePoints,
                          const cv::Mat& R, const cv::Mat& T)
     {
@@ -361,6 +380,7 @@ private:
         }
     }
 
+    /** 同步调用 VideoNode SetBool 服务；服务不存在、超时或拒绝均返回 false。 */
     bool callVideoPause(bool pause)
     {
         static int temp_counter = 0;
@@ -397,6 +417,7 @@ private:
         }
     }
 
+    /** 同步触发 PoseNode reload_calibration，使新外参无需重启即可生效。 */
     bool callPoseNodeReload()
     {
         static int temp_counter = 0;
@@ -450,6 +471,7 @@ private:
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr start_service_;
 };
 
+/** 独立进程入口：使用多线程执行器避免 service 回调内同步等待其他 service 时自锁。 */
 int main(int argc, char** argv)
 {
     rclcpp::init(argc, argv);

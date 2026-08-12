@@ -1,3 +1,7 @@
+/**
+ * @file radarmap.cpp
+ * @brief 场地世界平面到地图像素的标定、视角变换和目标图层绘制。
+ */
 #include "radarmap.hpp"
 #include "robot_id.hpp"
 

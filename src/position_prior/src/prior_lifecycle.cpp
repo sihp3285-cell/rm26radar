@@ -1,3 +1,7 @@
+/**
+ * @file prior_lifecycle.cpp
+ * @brief 将 Tracker/死亡/观测状态映射为 Position Prior 缓存动作。
+ */
 #include "position_prior/prior_lifecycle.hpp"
 
 #include <cmath>

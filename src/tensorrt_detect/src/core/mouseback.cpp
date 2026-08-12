@@ -1,3 +1,7 @@
+/**
+ * @file mouseback.cpp
+ * @brief OpenCV 窗口的同步鼠标点采集实现，仅供标定/ROI 旁路工具使用。
+ */
 #include "mouseback.hpp"
 #include <iostream>
 

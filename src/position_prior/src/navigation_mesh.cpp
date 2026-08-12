@@ -1,3 +1,9 @@
+/**
+ * @file navigation_mesh.cpp
+ * @brief 离线 NavGrid 加载、兵种 profile 吸附、8 邻域 Dijkstra 与路径距离查询。
+ * 对角边要求两条正交边也可通行，阻止 corner cutting；相邻 cell 高差不得超过该
+ * role 的 maximum_step_height。component_id 先排除拓扑不连通目标。
+ */
 #include "position_prior/navigation_mesh.hpp"
 
 #include <yaml-cpp/yaml.h>
@@ -50,6 +56,7 @@ void NavigationMesh::load(const std::string& path) {
         throw std::runtime_error("navgrid geometry 与 RMUC2026 在线约定不一致");
     }
 
+    // 在线文件直接提供逐格高度和各兵种 profile；这里不读取/重建原始 PLY。
     const auto heights = root["surface"]["height_mm"];
     if (!heights || !heights.IsSequence() || heights.size() != cell_count) {
         throw std::runtime_error("navgrid surface.height_mm 长度无效");
@@ -131,6 +138,8 @@ NavigationSnap NavigationMesh::snap_to_walkable(
     }
 
     const auto& profile = profile_it->second;
+    // 当前实现线性扫描全部可行格选择最近中心点；required_component_id 用于把
+    // 融合结果限制在起点同一拓扑连通区域，避免跨墙/跨平台吸附。
     double best_distance = std::numeric_limits<double>::infinity();
     for (std::size_t index = 0; index < profile.walkable.size(); ++index) {
         if (!profile.walkable[index] ||
@@ -169,6 +178,7 @@ bool NavigationMesh::edge_is_walkable(
     const int next = next_row * columns_ + next_column;
     const int maximum_step_mm = static_cast<int>(
         std::lround(profile.maximum_step_height_m * 1000.0));
+    // 局部边检查：两格均可通行且离线高度差不超过当前兵种阈值。
     const auto can_step = [&](int from, int to) {
         return profile.walkable[to] &&
             std::abs(height_mm_[to] - height_mm_[from]) <= maximum_step_mm;
@@ -225,6 +235,8 @@ NavigationRouteMap NavigationMesh::route_map(
         {-1, -1}, {-1, 0}, {-1, 1}, {0, -1},
         {0, 1}, {1, -1}, {1, 0}, {1, 1}}};
 
+    // Dijkstra 边权为 0.2 m 正交步长或 sqrt(2)*0.2 m 对角步长；priority_queue
+    // 每次扩展当前最短 cell，最终 distances_m 可被所有候选 O(1) 查询。
     while (!queue.empty()) {
         const auto [distance, cell] = queue.top();
         queue.pop();

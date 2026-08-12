@@ -1,3 +1,7 @@
+/**
+ * @file map_analyzer.cpp
+ * @brief 根据稳定兵种、敌我队伍与代码定义场地区域计算 MapTactics。
+ */
 #include "map_analyzer.hpp"
 
 MapAnalyzer::MapAnalyzer(int our_team_id)
