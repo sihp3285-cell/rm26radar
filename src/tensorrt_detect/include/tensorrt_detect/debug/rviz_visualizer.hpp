@@ -1,3 +1,10 @@
+/**
+ * @file rviz_visualizer.hpp
+ * @brief RViz2 调试旁路发布器的接口：把已有算法结果转成 MarkerArray 与静态 TF。
+ *
+ * 所有方法都是"读入快照 → 构造可视化消息"的单向流程，不持有或回写任何
+ * 算法状态；动态 topic 无订阅者时相关入口直接短路，不影响主流程性能。
+ */
 #pragma once
 
 #include <rclcpp/rclcpp.hpp>
@@ -23,44 +30,52 @@ namespace tensorrt_detect::debug {
 
 /** PoseNode 已经计算出的单个投影结果的只读调试快照。 */
 struct PoseDebugSample {
-    int marker_key = 0;
+    int marker_key = 0;           // 帧内唯一键（检测下标），复用为文本 Marker id
     int class_id = 0;
     int team_id = 0;
     float confidence = 0.0f;
     bool is_dead = false;
-    bool tracker_measurement = false;
-    bool negative_measurement = false;
-    cv::Point3f ray_endpoint;
-    cv::Point3f measurement;
+    bool tracker_measurement = false;    // 该落点进入 Tracker 作为测量
+    bool negative_measurement = false;   // 死亡装甲板落点 = 确认无目标的负样本
+    cv::Point3f ray_endpoint;            // 射线与场地平面/目标的交点
+    cv::Point3f measurement;             // 实际被选中进入下游的 world 坐标
 };
 
 /** 统一控制可视化子系统；所有字段只影响 debug publisher。 */
 struct RvizVisualizerOptions {
+    // 发布层开关：pose_layer 覆盖相机标定与投影调试，observer_layer 覆盖
+    // 场地静态场景与 tracker/guesser 动态图层；两者互不影响
     bool pose_layer = false;
     bool observer_layer = false;
 
-    bool mesh = true;
-    bool camera = true;
-    bool fov = true;
-    bool rays = true;
-    bool ray_hits = true;
-    bool measurements = true;
-    bool tracks = true;
-    bool trajectories = true;
-    bool velocity = true;
-    bool covariance = true;
-    bool guess_candidates = true;
-    bool blind_zones = true;
-    bool nav_grid = true;
+    // 静态要素开关
+    bool mesh = true;              // 场地三角面 Mesh
+    bool camera = true;            // 相机本体立方体 + 光轴箭头
+    bool fov = true;               // 由内参反投影出的 FOV 四棱锥线框
+    bool blind_zones = true;       // 盲区边界/面积/标签
+    bool nav_grid = true;          // NavGrid 可达/不可达/障碍薄片
 
+    // 动态要素开关（逐帧发布）
+    bool rays = true;              // 相机原点 → 全部射线终点
+    bool ray_hits = true;          // 全部射线终点散点
+    bool measurements = true;      // 本帧实际选中的落点 + 文本
+    bool tracks = true;            // Tracker 目标球体
+    bool trajectories = true;      // 目标历史轨迹折线
+    bool velocity = true;          // 速度箭头
+    bool covariance = true;        // xz 平面 2σ 不确定度椭圆
+    bool guess_candidates = true;  // prior 候选球体与主猜点
+
+    // topic 与坐标系
     std::string world_frame = "world";
     std::string camera_frame = "camera_link";
     std::string static_topic = "/radar/rviz/static";
     std::string pose_topic = "/radar/rviz/pose";
     std::string tracker_topic = "/radar/rviz/tracker";
     std::string guesser_topic = "/radar/rviz/guesser";
-    std::size_t trajectory_length = 50;
-    double velocity_scale_seconds = 1.0;
+
+    // 调参
+    std::size_t trajectory_length = 50;      // 轨迹保留点数
+    double velocity_scale_seconds = 1.0;     // 速度箭头的时间放大倍率
 };
 
 /**
@@ -107,15 +122,18 @@ public:
 private:
     rclcpp::Node& node_;
     RvizVisualizerOptions options_;
-    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr static_pub_;
-    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pose_pub_;
-    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr tracker_pub_;
-    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr guesser_pub_;
-    std::unique_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_;
+    // 四个 publisher 按 layer 开关创建，未创建的保持空指针
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr static_pub_;   // 静态场景（transient_local）
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pose_pub_;     // 投影射线/落点
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr tracker_pub_;  // /world_targets 直出
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr guesser_pub_;  // /prior_predictions 直出
+    std::unique_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_;  // 标定时广播 world->camera_link
 
+    // setCameraCalibration 时拷贝的自持标定数据，与原 PoseSolver 生命周期解耦
     cv::Mat camera_to_world_rotation_;
     cv::Point3d camera_origin_world_{0.0, 0.0, 0.0};
     bool camera_calibrated_ = false;
+    // track_id → 历史点队列；只保留当前存活目标的轨迹
     std::unordered_map<int, std::deque<cv::Point3f>> trajectories_;
 };
 

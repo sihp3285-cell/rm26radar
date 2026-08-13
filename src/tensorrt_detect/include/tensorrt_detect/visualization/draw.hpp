@@ -9,9 +9,10 @@
 
 #include "model.hpp"
 
+// 调试图两色方案：下标 0 白色给车辆框，下标 1 绿色给其余目标框
 const std::vector<cv::Scalar> COLORS = {
     cv::Scalar(255,255,255),
-    cv::Scalar(0, 255, 0) 
+    cv::Scalar(0, 255, 0)
 };
 
 /** 按原始图像尺寸绘制每个 Result 的矩形、类别和置信度。 */
