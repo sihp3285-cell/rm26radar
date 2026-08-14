@@ -171,6 +171,54 @@ bool finite_point(const cv::Point3f& value) {
     return std::isfinite(value.x) && std::isfinite(value.y) && std::isfinite(value.z);
 }
 
+/**
+ * 2×2 对称协方差 → 贴地 2σ 椭圆 LINE_STRIP Marker；负定/非有限输入直接跳过。
+ * 滤波协方差 P 与测量噪声 R 共用同一特征分解，保证两类椭圆的几何语义一致。
+ */
+void add_covariance_ellipse(
+    MarkerArray& output,
+    const std_msgs::msg::Header& header,
+    const std::string& marker_namespace,
+    int id,
+    double center_x,
+    double center_y,
+    double center_z,
+    double xx,
+    double xz,
+    double zz,
+    const std_msgs::msg::ColorRGBA& ellipse_color,
+    double line_width) {
+    // 2×2 对称矩阵特征值闭式解：λ = (xx+zz ± sqrt((xx-zz)²+4xz²)) / 2
+    const double discriminant = std::sqrt(std::max(
+        0.0, (xx - zz) * (xx - zz) + 4.0 * xz * xz));
+    const double major_variance = 0.5 * (xx + zz + discriminant);
+    const double minor_variance = 0.5 * (xx + zz - discriminant);
+    if (!(major_variance >= 0.0 && minor_variance >= 0.0) ||
+        !std::isfinite(major_variance) || !std::isfinite(minor_variance)) {
+        return;
+    }
+    const double angle = 0.5 * std::atan2(2.0 * xz, xx - zz);
+    const double major = 2.0 * std::sqrt(major_variance);   // 2σ 半轴
+    const double minor = 2.0 * std::sqrt(minor_variance);
+    auto ellipse = make_marker(
+        header, marker_namespace, id, Marker::LINE_STRIP);
+    ellipse.scale.x = line_width;
+    ellipse.color = ellipse_color;
+    constexpr int segments = 48;  // 48 段折线近似椭圆，<=segments 保证闭合
+    for (int segment = 0; segment <= segments; ++segment) {
+        const double theta = 2.0 * M_PI * segment / segments;
+        const double local_x = major * std::cos(theta);
+        const double local_z = minor * std::sin(theta);
+        ellipse.points.push_back(point(
+            center_x + local_x * std::cos(angle) -
+                local_z * std::sin(angle),
+            center_y,
+            center_z + local_x * std::sin(angle) +
+                local_z * std::cos(angle)));
+    }
+    output.markers.push_back(std::move(ellipse));
+}
+
 /** 静态场景用当前时刻的 world 系 header（transient_local 依赖 stamp 判定新旧）。 */
 std_msgs::msg::Header static_header(
     rclcpp::Node& node,
@@ -861,38 +909,44 @@ void RvizVisualizer::publishWorldTargets(
             // 协方差椭圆：kf_world 状态为 [x, z, vx, vz]，P 按 4×4 行主序平铺成
             // 16 元数组，取 [0],[1],[4],[5] 即地面 xz 平面 2×2 块，特征分解后
             // 以 2σ 半轴画 LINE_STRIP 椭圆贴地显示滤波不确定度
-            const double xx = target.state_covariance[0];
-            const double xz = 0.5 * (
-                target.state_covariance[1] + target.state_covariance[4]);
-            const double zz = target.state_covariance[5];
-            // 2×2 对称矩阵特征值闭式解：λ = (xx+zz ± sqrt((xx-zz)²+4xz²)) / 2
-            const double discriminant = std::sqrt(std::max(
-                0.0, (xx - zz) * (xx - zz) + 4.0 * xz * xz));
-            const double major_variance = 0.5 * (xx + zz + discriminant);
-            const double minor_variance = 0.5 * (xx + zz - discriminant);
-            if (major_variance >= 0.0 && minor_variance >= 0.0 &&
-                std::isfinite(major_variance) && std::isfinite(minor_variance)) {
-                const double angle = 0.5 * std::atan2(2.0 * xz, xx - zz);
-                const double major = 2.0 * std::sqrt(major_variance);   // 2σ 半轴
-                const double minor = 2.0 * std::sqrt(minor_variance);
-                auto ellipse = make_marker(
-                    header, "radar/covariance", marker_id, Marker::LINE_STRIP);
-                ellipse.scale.x = 0.025;
-                ellipse.color = color(0.95f, 0.25f, 0.95f, 0.75f);
-                constexpr int segments = 48;  // 48 段折线近似椭圆，<=segments 保证闭合
-                for (int segment = 0; segment <= segments; ++segment) {
-                    const double theta = 2.0 * M_PI * segment / segments;
-                    const double local_x = major * std::cos(theta);
-                    const double local_z = minor * std::sin(theta);
-                    ellipse.points.push_back(point(
-                        target.world_x + local_x * std::cos(angle) -
-                            local_z * std::sin(angle),
-                        target.world_y + 0.04,
-                        target.world_z + local_x * std::sin(angle) +
-                            local_z * std::cos(angle)));
-                }
-                output.markers.push_back(std::move(ellipse));
-            }
+            add_covariance_ellipse(
+                output, header, "radar/covariance", marker_id,
+                target.world_x, target.world_y + 0.04, target.world_z,
+                target.state_covariance[0],
+                0.5 * (target.state_covariance[1] + target.state_covariance[4]),
+                target.state_covariance[5],
+                color(0.95f, 0.25f, 0.95f, 0.75f), 0.025);
+        }
+
+        if (has_track && options_.measurement_covariance &&
+            target.measurement_covariance_valid &&
+            std::isfinite(target.measurement_x) &&
+            std::isfinite(target.measurement_z)) {
+            // 测量噪声 R 椭圆：以最近一次被 kf_world 实际采用的原始测量为中心，
+            // 白色显示像素误差→5 射线→J→R 传播出的、滤波真实消费的 R；与滤波
+            // 后状态处的品红 P 椭圆并排对比，可直接观察一次更新的收敛幅度。
+            // 本帧未观测时半透明，表示椭圆来自更早帧的测量。
+            const double r_alpha = target.observed ? 0.95 : 0.45;
+            add_covariance_ellipse(
+                output, header, "radar/measurement_R", marker_id,
+                target.measurement_x, target.world_y + 0.04,
+                target.measurement_z,
+                target.measurement_covariance[0],
+                0.5 * (target.measurement_covariance[1] +
+                       target.measurement_covariance[2]),
+                target.measurement_covariance[3],
+                color(1.0f, 1.0f, 1.0f, r_alpha), 0.03);
+            // 中心点：R 椭圆彼此靠近时仍能分辨各自的测量位置
+            auto center = make_marker(
+                header, "radar/measurement_R/center", marker_id,
+                Marker::POINTS);
+            center.scale.x = 0.10;
+            center.scale.y = 0.10;
+            center.points.push_back(point(
+                target.measurement_x, target.world_y + 0.04,
+                target.measurement_z));
+            center.color = color(1.0f, 1.0f, 1.0f, r_alpha);
+            output.markers.push_back(std::move(center));
         }
     }
 

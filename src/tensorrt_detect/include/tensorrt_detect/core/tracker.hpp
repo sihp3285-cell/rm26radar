@@ -144,6 +144,11 @@ public:
         cv::Point2f velocity;
         std::array<double, 16> state_covariance{};
         bool covariance_valid = false;
+        // 最近一次被 kf_world 实际采用的原始测量位置与 R（行主序 [xx,xz,zx,zz]），
+        // 仅调试/可视化使用，不影响滤波语义。
+        cv::Point2f measurement_world{0.0f, 0.0f};
+        std::array<double, 4> measurement_covariance{};
+        bool measurement_covariance_valid = false;
 
         bool is_dead = false;
         float score = 0.0f;
@@ -193,6 +198,11 @@ private:
         cv::Rect last_box;
         cv::Point2f last_world;          // Kalman 后的平滑世界坐标
         cv::Point2f detected_world;      // 本帧实际检测到的世界坐标，仅调试/对比用
+        // 最近一次被 kf_world 实际采用的原始测量位置与解析后的测量噪声 R；
+        // reset（R 用作初始 P 左上块）与接受的 update 都会记录，供调试可视化。
+        cv::Point2f last_measurement_world{0.0f, 0.0f};
+        std::array<float, 4> last_measurement_R{{1.0f, 0.0f, 0.0f, 1.0f}};
+        bool last_measurement_R_valid = false;
 
         float last_score = 0.0f;
         bool last_is_dead = false;

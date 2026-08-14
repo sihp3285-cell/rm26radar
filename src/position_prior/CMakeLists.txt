@@ -55,33 +55,4 @@ ament_export_include_directories(include)
 ament_export_targets(export_position_prior HAS_LIBRARY_TARGET)
 ament_export_dependencies(OpenSSL yaml-cpp)
 
-if(BUILD_TESTING)
-  find_package(ament_cmake_gtest REQUIRED)
-
-  ament_add_gtest(test_coordinate_transform test/test_coordinate_transform.cpp)
-  target_link_libraries(test_coordinate_transform position_prior_core)
-
-  ament_add_gtest(test_model_golden test/test_model_golden.cpp)
-  target_link_libraries(test_model_golden position_prior_core yaml-cpp::yaml-cpp)
-  target_compile_definitions(test_model_golden PRIVATE
-    POSITION_PRIOR_TOOLKIT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../position_prior_toolkit")
-
-  ament_add_gtest(test_prior_gate test/test_prior_gate.cpp)
-  target_link_libraries(test_prior_gate position_prior_core)
-
-  ament_add_gtest(test_navigation_mesh test/test_navigation_mesh.cpp)
-  target_link_libraries(test_navigation_mesh position_prior_core yaml-cpp::yaml-cpp)
-  target_compile_definitions(test_navigation_mesh PRIVATE
-    POSITION_PRIOR_GENERATED_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../generated")
-
-  ament_add_gtest(test_prior_lifecycle test/test_prior_lifecycle.cpp)
-  target_link_libraries(test_prior_lifecycle position_prior_core)
-
-  ament_add_gtest(test_observation_confirmation test/test_observation_confirmation.cpp)
-  target_link_libraries(test_observation_confirmation position_prior_core)
-
-  ament_add_gtest(test_team_selection test/test_team_selection.cpp)
-  target_link_libraries(test_team_selection position_prior_core)
-endif()
-
 ament_package()

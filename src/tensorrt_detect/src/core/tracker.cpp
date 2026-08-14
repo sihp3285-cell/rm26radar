@@ -304,6 +304,15 @@ void Tracker::fill_slot_output(
         }
     }
 
+    out.measurement_world = track.last_measurement_world;
+    out.measurement_covariance_valid = track.last_measurement_R_valid;
+    if (track.last_measurement_R_valid) {
+        for (int index = 0; index < 4; ++index) {
+            out.measurement_covariance[index] =
+                static_cast<double>(track.last_measurement_R[index]);
+        }
+    }
+
     out.is_dead = track.last_is_dead;
     out.score = track.last_score;
     out.detection_confidence = track.last_score;
@@ -811,6 +820,14 @@ void Tracker::update(
                             ? &det.world_covariance : nullptr;
                     track.kf_world.reset(
                         {det.world.x, det.world.y}, world_covariance);
+                    // reset 时 R 用作初始 P 左上块，同样属于"实际采用的 R"
+                    const Eigen::Matrix<float, 2, 2> measurement_R =
+                        track.kf_world.resolvedMeasurementNoise(world_covariance);
+                    track.last_measurement_world = det.world;
+                    track.last_measurement_R = {
+                        measurement_R(0, 0), measurement_R(0, 1),
+                        measurement_R(1, 0), measurement_R(1, 1)};
+                    track.last_measurement_R_valid = true;
 
                     track.bot_id.reset();
 
@@ -832,11 +849,25 @@ void Tracker::update(
                     const auto* world_covariance =
                         det.world_covariance_valid
                             ? &det.world_covariance : nullptr;
+                    bool world_update_accepted = false;
                     auto world_upd = track.kf_world.update(
                         {det.world.x, det.world.y},
-                        params_.kalman_gate_world, nullptr,
+                        params_.kalman_gate_world, &world_update_accepted,
                         world_covariance);
                     track.last_world = cv::Point2f(world_upd[0], world_upd[1]);
+                    if (world_update_accepted) {
+                        // 记录本帧 Kalman 实际消费的原始测量与解析后的 R；
+                        // 极端情况下 update 内部拒绝时保留上一次的值，
+                        // 因为它仍是"最近一次实际被滤波采用的 R"。
+                        const Eigen::Matrix<float, 2, 2> measurement_R =
+                            track.kf_world.resolvedMeasurementNoise(
+                                world_covariance);
+                        track.last_measurement_world = det.world;
+                        track.last_measurement_R = {
+                            measurement_R(0, 0), measurement_R(0, 1),
+                            measurement_R(1, 0), measurement_R(1, 1)};
+                        track.last_measurement_R_valid = true;
+                    }
 
                     track.detected_world = det.world;
                 }
@@ -946,6 +977,14 @@ void Tracker::update(
                 ? &det.world_covariance : nullptr;
         track.kf_world.reset(
             {det.world.x, det.world.y}, world_covariance);
+        // 新轨迹 reset 时 R 用作初始 P 左上块，同样属于"实际采用的 R"
+        const Eigen::Matrix<float, 2, 2> measurement_R =
+            track.kf_world.resolvedMeasurementNoise(world_covariance);
+        track.last_measurement_world = det.world;
+        track.last_measurement_R = {
+            measurement_R(0, 0), measurement_R(0, 1),
+            measurement_R(1, 0), measurement_R(1, 1)};
+        track.last_measurement_R_valid = true;
 
         tracks_.push_back(std::move(track));
     }

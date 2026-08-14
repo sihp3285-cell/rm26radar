@@ -114,6 +114,14 @@ public:
     float innovationSquared(
         const std::vector<float>& pos,
         const std::array<float, 4>* measurement_covariance = nullptr) const;
+
+    /**
+     * 返回 update/门控实际采用的 2x2 测量噪声 R：调用方传入的传播协方差
+     * 有效时直接采用，无效输入回退为滤波器固定 R。Tracker 用它记录
+     * "本次滤波实际消费的 R"，供调试可视化与状态诊断复用。
+     */
+    Eigen::Matrix<float, 2, 2> resolvedMeasurementNoise(
+        const std::array<float, 4>* measurement_covariance = nullptr) const;
     
     /**
      * 重置滤波器

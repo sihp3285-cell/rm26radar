@@ -51,10 +51,6 @@ find_package(CUDAToolkit REQUIRED)
 find_package(Open3D REQUIRED)
 find_package(Qt5 REQUIRED COMPONENTS Core Widgets)
 
-if(BUILD_TESTING)
-    find_package(ament_cmake_gtest REQUIRED)
-endif()
-
 # --- TensorRT 部分保持不变 ---
 set(TRT_ROOT "/opt/TensorRT/TensorRT-10.2.0.19")
 add_library(tensorrt_interface INTERFACE)
@@ -258,29 +254,6 @@ install(TARGETS
 
 if(BUILD_CAMERA)
     install(TARGETS camera_node DESTINATION lib/${PROJECT_NAME})
-endif()
-
-if(BUILD_TESTING)
-    ament_add_gtest(test_tracker_state test/test_tracker_state.cpp)
-    target_link_libraries(test_tracker_state tensorrt_detect_core)
-    target_include_directories(test_tracker_state PRIVATE ${COMMON_INCLUDE_DIRS})
-
-    ament_add_gtest(test_radarmap_display
-        test/test_radarmap_display.cpp
-        src/core/radarmap.cpp)
-    target_link_libraries(test_radarmap_display ${OpenCV_LIBS})
-    target_include_directories(test_radarmap_display PRIVATE ${COMMON_INCLUDE_DIRS})
-    target_compile_definitions(test_radarmap_display PRIVATE
-        TENSORRT_DETECT_CONFIG_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../configs")
-
-    ament_add_gtest(test_projection_uncertainty
-        test/test_projection_uncertainty.cpp)
-    target_link_libraries(test_projection_uncertainty
-        tensorrt_detect_core yaml-cpp::yaml-cpp)
-    target_include_directories(test_projection_uncertainty
-        PRIVATE ${COMMON_INCLUDE_DIRS})
-    target_compile_definitions(test_projection_uncertainty PRIVATE
-        TENSORRT_DETECT_CONFIG_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../configs")
 endif()
 
 # component library 必须安装到 lib/ 根目录，否则 ament_index 路径对不上

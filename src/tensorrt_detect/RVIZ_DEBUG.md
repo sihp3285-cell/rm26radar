@@ -29,7 +29,9 @@ transient-local 收到 Mesh、相机、FOV、BlindZone 和 NavGrid 静态场景�
 - `Static Scene`：Raycaster 使用的同一 PLY、相机/FOV、BlindZone、NavGrid。
 - `Pose Debug`：当前选中投影的射线、三维终点和 Tracker 原始 measurement。
 - `Tracker Debug`：滤波位置、ACTIVE/PREDICTED/LOST/DEAD、速度、有限轨迹、
-  2σ 协方差、stable class 和置信度。
+  2σ 协方差、stable class 和置信度。白色椭圆是最近一次被 Kalman 实际采用的
+  测量噪声 R（画在原始测量位置，本帧未观测时半透明），品红椭圆是滤波后的 P，
+  两者对比可直接观察一次测量更新的收敛幅度。
 - `Guesser Debug`：Top-K、prior probability、Pfused、可达/拒绝状态和主猜点。
 
 BlindZone 和 NavGrid 固定采用红方 canonical 数据。`RvizDebugNode` 订阅
@@ -52,8 +54,9 @@ ros2 launch tensorrt_detect detect_pipeline.launch.py \
 ```
 
 子开关位于 `config/ros2_params.yaml`：`mesh`、`tracks`、`trajectories`、
-`velocity`、`covariance`、`guess_candidates`、`blind_zones`、`nav_grid`，以及
-PoseNode 的 `rviz_debug_camera/fov/rays/ray_hits/measurements`。
+`velocity`、`covariance`、`measurement_covariance`、`guess_candidates`、
+`blind_zones`、`nav_grid`，以及 PoseNode 的
+`rviz_debug_camera/fov/rays/ray_hits/measurements`。
 
 ## 当前只读边界
 

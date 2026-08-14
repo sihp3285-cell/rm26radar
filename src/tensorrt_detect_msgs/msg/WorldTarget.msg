@@ -59,3 +59,12 @@ float32 tracking_confidence
 
 builtin_interfaces/Time last_observed_time
 float32 lost_duration_s
+
+# 最近一次进入世界 Kalman 滤波器的原始测量位置（未平滑）与当时实际使用的
+# 测量噪声 R（2x2 行主序，world xz 平面）。R 由像素误差经 5 射线反投影
+# Jacobian 传播得到；传播输入无效时回退为滤波器固定 R。槽位尚未发生任何
+# 测量更新、或为直通项（前哨站/死亡装甲板）时 valid 为 false。
+float32 measurement_x
+float32 measurement_z
+float64[4] measurement_covariance
+bool measurement_covariance_valid

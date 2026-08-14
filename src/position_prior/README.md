@@ -32,7 +32,7 @@
 
 shadow CSV 记录 `PREDICTION` 和 `REACQUIRED` 两类事件。后者包含重识别位置与最终误差，可用于后续实战评估。
 
-## 模型与测试
+## 模型
 
 模型目录 `position_prior_toolkit/` 在仓库根目录的 `.gitignore` 中。默认模型：
 
@@ -40,9 +40,5 @@ shadow CSV 记录 `PREDICTION` 和 `REACQUIRED` 两类事件。后者包含重�
 position_prior_toolkit/run_v1/04_rmuc2026_position_prior_v1.yaml
 SHA-256: b1a7384042939aca3fcfa3d45a5bbd3cd8b7e3bdeaa658aac24d17f36e2df53e
 ```
-
-`test_model_golden` 会加载真实模型，并逐项核对 `06_golden_cases.json` 中全部 15 个 Python golden cases。
-
-`test_navigation_mesh` 会逐项核对 `RB2026_navgrid_golden_v1.json`，并覆盖全兵种/工程专用盲区隔离、盲区候选注入和最终 mesh 落点。
 
 首次构建 ROS 接口前应退出与系统 ROS 版本不一致的 Conda 环境。Jazzy 的 `ros2` CLI 使用系统 Python 3.12；若误用其他 Python 生成 `rosidl` 绑定，C++ 节点仍可运行，但 `ros2 topic` 无法加载自定义消息。

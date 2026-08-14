@@ -218,7 +218,7 @@ float KalmanFilter2d::innovationSquared(
 
     const Eigen::Matrix<float, 2, 1> innovation = z - H * x;
     const Eigen::Matrix<float, 2, 2> measurement_R =
-        measurement_noise_2d(R, measurement_covariance);
+        resolvedMeasurementNoise(measurement_covariance);
     const Eigen::Matrix<float, 2, 2> S =
         H * P * H.transpose() + measurement_R;
     const Eigen::LDLT<Eigen::Matrix<float, 2, 2>> ldlt(S);
@@ -231,6 +231,11 @@ float KalmanFilter2d::innovationSquared(
         return std::numeric_limits<float>::infinity();
     }
     return std::max(0.0f, innovation.dot(normalized));
+}
+
+Eigen::Matrix<float, 2, 2> KalmanFilter2d::resolvedMeasurementNoise(
+    const std::array<float, 4>* measurement_covariance) const {
+    return measurement_noise_2d(R, measurement_covariance);
 }
 
 std::vector<float> KalmanFilter2d::update(
@@ -252,7 +257,7 @@ std::vector<float> KalmanFilter2d::update(
     z << pos[0], pos[1];
 
     const Eigen::Matrix<float, 2, 2> measurement_R =
-        measurement_noise_2d(R, measurement_covariance);
+        resolvedMeasurementNoise(measurement_covariance);
     Eigen::Matrix<float, 2, 2> S =
         H * P * H.transpose() + measurement_R;
     Eigen::LDLT<Eigen::Matrix<float, 2, 2>> ldlt(S);
@@ -279,7 +284,7 @@ void KalmanFilter2d::reset(
 
     P = Eigen::Matrix<float, 4, 4>::Identity() * 100.0f;
     const Eigen::Matrix<float, 2, 2> initial_R =
-        measurement_noise_2d(R, measurement_covariance);
+        resolvedMeasurementNoise(measurement_covariance);
     P.block<2, 2>(0, 0) = initial_R;
 }
 

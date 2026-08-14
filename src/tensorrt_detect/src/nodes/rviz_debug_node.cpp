@@ -52,6 +52,7 @@ public:
         declare_parameter<bool>("trajectories", true);
         declare_parameter<bool>("velocity", true);
         declare_parameter<bool>("covariance", true);
+        declare_parameter<bool>("measurement_covariance", true);
         declare_parameter<bool>("guess_candidates", true);
         declare_parameter<bool>("blind_zones", true);
         declare_parameter<bool>("nav_grid", true);
@@ -80,6 +81,8 @@ public:
         visualizer_options.trajectories = get_parameter("trajectories").as_bool();
         visualizer_options.velocity = get_parameter("velocity").as_bool();
         visualizer_options.covariance = get_parameter("covariance").as_bool();
+        visualizer_options.measurement_covariance =
+            get_parameter("measurement_covariance").as_bool();
         visualizer_options.guess_candidates =
             get_parameter("guess_candidates").as_bool();
         visualizer_options.blind_zones = get_parameter("blind_zones").as_bool();

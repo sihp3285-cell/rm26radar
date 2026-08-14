@@ -55,6 +55,10 @@ void fill_world_target(
     target.velocity_z = slot.velocity.y;
     target.state_covariance = slot.state_covariance;
     target.covariance_valid = slot.covariance_valid;
+    target.measurement_x = slot.measurement_world.x;
+    target.measurement_z = slot.measurement_world.y;
+    target.measurement_covariance = slot.measurement_covariance;
+    target.measurement_covariance_valid = slot.measurement_covariance_valid;
     target.detection_confidence = slot.detection_confidence;
     target.tracking_confidence = slot.tracking_confidence;
     target.last_observed_time = to_builtin_time(slot.last_observed_time_ns);
@@ -73,6 +77,8 @@ void mark_direct_measurement(
         : tensorrt_detect_msgs::msg::WorldTarget::POSITION_INVALID;
     target.observed = observed;
     target.covariance_valid = false;
+    // 直通项从未进入世界 Kalman，不存在"实际使用的测量 R"
+    target.measurement_covariance_valid = false;
     target.detection_confidence = target.score;
     target.tracking_confidence = observed ? target.score : 0.0f;
     target.lost_duration_s = 0.0f;

@@ -63,7 +63,7 @@ pose_node:
     projection_surface_discontinuity_m: 0.12
 
     # V1 默认把 car/armor 作为两个完整 measurement hypotheses 分别评分并二选一；
-    # false 时安全地优先选 car（car 缺失/失效则回退 armor），不会隐式恢复插值。
+    # false 时安全地优先选 armor（armor 缺失/失效则回退 car），不会隐式恢复插值。
     projection_selector_enabled: true
     projection_uncertainty_bad_std_m: 0.50
     projection_condition_bad: 30.0
@@ -169,6 +169,8 @@ rviz_debug_node:
     trajectories: true
     velocity: true
     covariance: true
+    # 白色椭圆：最近一次被 Kalman 实际采用的测量噪声 R（原始测量位置处）
+    measurement_covariance: true
     guess_candidates: true
     blind_zones: true
     nav_grid: true

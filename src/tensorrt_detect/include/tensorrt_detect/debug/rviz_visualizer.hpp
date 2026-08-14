@@ -63,6 +63,7 @@ struct RvizVisualizerOptions {
     bool trajectories = true;      // 目标历史轨迹折线
     bool velocity = true;          // 速度箭头
     bool covariance = true;        // xz 平面 2σ 不确定度椭圆
+    bool measurement_covariance = true;  // Kalman 实际消费的测量噪声 R 椭圆
     bool guess_candidates = true;  // prior 候选球体与主猜点
 
     // topic 与坐标系

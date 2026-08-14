@@ -522,10 +522,10 @@ private:
         auto& state = selector_states_[projectionStateKey(detection)];
 
         if (!selector_config_.enabled) {
-            // Disabled 是无插值的安全回退：优先 car；仅 car 质量失效而 armor
-            // 健康时改用 armor，避免关闭实验功能后发布明显无效的测量。
-            state.mode = !projectionHealthy(car) && projectionHealthy(armor)
-                ? ProjectionMode::ARMOR : ProjectionMode::CAR;
+            // Disabled 是无插值的安全回退：优先 armor；仅 armor 质量失效而 car
+            // 健康时改用 car，避免关闭实验功能后发布明显无效的测量。
+            state.mode = !projectionHealthy(armor) && projectionHealthy(car)
+                ? ProjectionMode::CAR : ProjectionMode::ARMOR;
             state.pending_mode = state.mode;
             state.pending_confirm_count = 0;
             return state.mode == ProjectionMode::CAR ? car : armor;
