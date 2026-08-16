@@ -48,6 +48,7 @@ public:
 
         // 各图层开关：全部默认开启，可单独关闭以减轻 RViz 渲染压力
         declare_parameter<bool>("mesh", true);
+        declare_parameter<bool>("field_grid", true);
         declare_parameter<bool>("tracks", true);
         declare_parameter<bool>("trajectories", true);
         declare_parameter<bool>("velocity", true);
@@ -77,6 +78,7 @@ public:
         visualizer_options.velocity_scale_seconds = std::max(
             0.0, get_parameter("velocity_scale_seconds").as_double());
         visualizer_options.mesh = get_parameter("mesh").as_bool();
+        visualizer_options.field_grid = get_parameter("field_grid").as_bool();
         visualizer_options.tracks = get_parameter("tracks").as_bool();
         visualizer_options.trajectories = get_parameter("trajectories").as_bool();
         visualizer_options.velocity = get_parameter("velocity").as_bool();

@@ -3,11 +3,11 @@
 # 所有参数通过 ConfigManager 加载，可在运行时通过修改此文件 + 重启 pose_node 生效
 
 # ========== Track 生命周期 ==========
-max_lost_time_s: 0.30             # 从最后真实观测起超过该时间后标记为 DEAD
+max_lost_time_s: 0.80             # 从最后真实观测起超过该时间后标记为 DEAD
 max_predict_time_s: 0.20          # 丢失不超过该时间时保持 PREDICTED（卡尔曼外推仍显示）
 dead_retention_time_s: 0.10       # DEAD 状态继续保留的时间，供下游接收状态变化
 dead_target_hold_time_s: 0.10     # 死亡装甲板直接测量的短时显示保持时间
-min_hit: 3                        # 最少命中次数才允许对外输出 / 绑定 slot
+min_hit: 2                        # 最少命中次数才允许对外输出 / 绑定 slot
 max_tracks: 20                    # 最大同时跟踪的 PhysicalTrack 数量
 
 # ========== 物理匹配 gate ==========
@@ -35,7 +35,7 @@ class_mismatch_penalty: 0.40      # 类别不一致时的最大软惩罚（保�
 # ========== 身份更新阈值 ==========
 # 低于该置信度的分类结果不写入 BotIdentity，避免遮挡/低质量 ROI 污染身份池
 min_identity_update_conf: 0.20
-identity_confirm_observations: 3         # 新轨迹身份连续确认观测次数
+identity_confirm_observations: 2         # 新轨迹身份连续确认观测次数
 identity_switch_confirm_observations: 8  # 已提交身份的连续切换确认观测次数
 
 # ========== Official slot owner 机制 ==========
@@ -43,7 +43,7 @@ identity_switch_confirm_observations: 8  # 已提交身份的连续切换确认�
 slot_bind_min_conf: 0.30
 
 # owner 不可输出后进入 RESERVED，租约按物理时间计算
-slot_lease_time_s: 0.30
+slot_lease_time_s: 0.20
 
 # 身份不稳定或频繁切换的 track 禁止抢槽
 slot_min_stability: 0.70

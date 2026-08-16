@@ -50,6 +50,7 @@ struct RvizVisualizerOptions {
 
     // 静态要素开关
     bool mesh = true;              // 场地三角面 Mesh
+    bool field_grid = true;        // 场地参考网格（替代 rviz2 自带的 Grid 显示，见 rviz_visualizer.cpp）
     bool camera = true;            // 相机本体立方体 + 光轴箭头
     bool fov = true;               // 由内参反投影出的 FOV 四棱锥线框
     bool blind_zones = true;       // 盲区边界/面积/标签

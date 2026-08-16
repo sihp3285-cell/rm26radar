@@ -70,7 +70,7 @@ std_msgs::msg::ColorRGBA team_color(int team_id, float alpha = 1.0f) {
     return color(1.0f, 0.85f, 0.10f, alpha);
 }
 
-/** 带常用默认值的 Marker 工厂：ADD 动作、单位四元数，ns/id 由调用方决定。 */
+/** 带常用默认值的 Marker 工厂：ADD 动作、单位四元数、单位缩放，ns/id 由调用方决定。 */
 Marker make_marker(
     const std_msgs::msg::Header& header,
     std::string marker_namespace,
@@ -83,6 +83,12 @@ Marker make_marker(
     marker.type = type;
     marker.action = Marker::ADD;
     marker.pose.orientation.w = 1.0;
+    // 缩放默认给 1：TRIANGLE_LIST 等类型不看 scale，但 rviz2 会把它应用到
+    // 挂载 Marker 的 Ogre 场景节点上；缩放为 0 会得到退化节点变换，本机实测
+    // 部分会话里整块 Mesh 会被静默剔除（同一条消息里的其他 Marker 正常渲染）。
+    marker.scale.x = 1.0;
+    marker.scale.y = 1.0;
+    marker.scale.z = 1.0;
     return marker;
 }
 
@@ -652,6 +658,31 @@ void RvizVisualizer::publishStaticScene(
             RCLCPP_WARN(node_.get_logger(),
                 "RViz 无法读取场地 Mesh: %s", mesh_path.c_str());
         }
+    }
+
+    // 场地参考网格：rviz2 自带的 Grid 显示在本机部分会话里会静默不渲染（与
+    // 本项目发布的消息无关，rviz2 单独启动即可复现），网格消失后场地失去
+    // 透视线参考，视觉上变成"实心"。改为随静态场景发布自己的 1m 网格，
+    // 保证每次启动场地观感一致：y 取 0.0025 略高于地面 Mesh（≤0.001）、
+    // 低于 NavGrid 薄片（≥0.0125），避免与两者 z-fighting。
+    if (options_.field_grid) {
+        auto grid = make_marker(header, "radar/field_grid", 0, Marker::LINE_LIST);
+        grid.scale.x = 0.03;
+        grid.color = color(0.43f, 0.45f, 0.49f, 0.45f);  // 与 rviz Grid 默认灰一致
+        constexpr double grid_height = 0.0025;
+        // world x ∈ [-7.5, 7.5]、z ∈ [-14, 14] 对应 15×28m 场地；步进 10（0.1m
+        // 单位）即 1m 间距，整数步进避免浮点累加漂移。
+        for (int x_step = -75; x_step <= 75; x_step += 10) {
+            const double x = static_cast<double>(x_step) / 10.0;
+            grid.points.push_back(point(x, grid_height, -14.0));
+            grid.points.push_back(point(x, grid_height, 14.0));
+        }
+        for (int z_step = -140; z_step <= 140; z_step += 10) {
+            const double z = static_cast<double>(z_step) / 10.0;
+            grid.points.push_back(point(-7.5, grid_height, z));
+            grid.points.push_back(point(7.5, grid_height, z));
+        }
+        output.markers.push_back(std::move(grid));
     }
 
     if (options_.blind_zones) {

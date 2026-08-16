@@ -165,6 +165,9 @@ rviz_debug_node:
     initial_flip_team: false
 
     mesh: true
+    # 场地参考网格：替代 rviz2 自带的 Grid 显示（后者在本机部分会话里会
+    # 静默不渲染，导致场地视觉上变成实心）
+    field_grid: true
     tracks: true
     trajectories: true
     velocity: true
