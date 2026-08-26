@@ -14,6 +14,10 @@
 #include <std_srvs/srv/trigger.hpp>
 #include <opencv2/opencv.hpp>
 #include <filesystem>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <atomic>
 #include <cmath>
 #include <cstdint>
 #include <yaml-cpp/yaml.h>
@@ -44,6 +48,9 @@ public:
         this->declare_parameter<bool>("publish_debug_image", true);
         
         this->declare_parameter<int>("debug_output_max_width", 1280);
+        this->declare_parameter<bool>("frame_sampling_enabled", false);
+        this->declare_parameter<int>("frame_sampling_step", 1);
+        this->declare_parameter<int>("frame_sampling_period_ms", 50);
 
         std::string config_dir = this->get_parameter("config_dir").as_string();
         input_topic_ = this->get_parameter("input_topic").as_string();
@@ -52,6 +59,9 @@ public:
         const int64_t debug_output_max_width_param =
             this->get_parameter("debug_output_max_width").as_int();
         debug_output_max_width_ = static_cast<int>(std::max<int64_t>(1, debug_output_max_width_param));
+        frame_sampling_enabled_ = this->get_parameter("frame_sampling_enabled").as_bool();
+        frame_sampling_step_ = static_cast<int>(std::max<std::int64_t>(1, this->get_parameter("frame_sampling_step").as_int()));
+        frame_sampling_period_ms_ = static_cast<int>(std::max<std::int64_t>(1, this->get_parameter("frame_sampling_period_ms").as_int()));
 
         RCLCPP_INFO(this->get_logger(), "配置目录: %s", config_dir.c_str());
         RCLCPP_INFO(this->get_logger(), "订阅话题: %s", input_topic_.c_str());
@@ -76,7 +86,20 @@ public:
             std::bind(&DetectNode::reloadROI, this,
                       std::placeholders::_1, std::placeholders::_2));
 
+        // 异步调试图 worker：UI 开/关不影响主链（借鉴 radar2026）
+        debug_running_ = true;
+        debug_worker_ = std::thread(&DetectNode::debugWorkerLoop, this);
+
         RCLCPP_INFO(this->get_logger(), "DetectNode 初始化完成，等待图像输入...");
+    }
+
+    ~DetectNode() override
+    {
+        debug_running_ = false;
+        debug_cv_.notify_all();
+        if (debug_worker_.joinable()) {
+            debug_worker_.join();
+        }
     }
 
 
@@ -97,6 +120,16 @@ private:
                 msg->header.stamp, this->get_clock()->get_clock_type()).nanoseconds();
             if (stamp_ns <= 0) {
                 stamp_ns = this->get_clock()->now().nanoseconds();
+            }
+            // 确定性帧采样：内容锚定的合成时间戳下，帧号 = stamp/period - 1。
+            // 只处理目标步进的帧，未命中直接返回（不推进 dt 状态，保证相邻
+            // 处理帧的 elapsed_s 恰好是 step*period）。
+            if (frame_sampling_enabled_) {
+                const std::int64_t frame_idx =
+                    stamp_ns / (frame_sampling_period_ms_ * 1000000LL) - 1;
+                if (frame_idx % frame_sampling_step_ != 0) {
+                    return;
+                }
             }
             if (last_image_stamp_ns_ > 0) {
                 const double stamp_dt_s =
@@ -191,28 +224,31 @@ private:
             }
 
             if (publish_debug_image_) {
-                // 先 resize 再画框：避免 resize 插值把文字线条模糊
-                // 在缩小后的图上绘制也更快（像素量大幅减少）
+                // 异步调试图：只把缩小帧与结果交给后台 worker（最新帧替换语义），
+                // 绘制/序列化/发布完全脱离检测回调关键路径，UI 开/关不影响主链
+                // 吞吐与帧选择（借鉴 radar2026 netdetector 的线程化发布）。
+                cv::Mat small;
                 double scale_x = 1.0, scale_y = 1.0;
                 if (frame.cols > debug_output_max_width_) {
                     scale_x = static_cast<double>(debug_output_max_width_) / frame.cols;
                     scale_y = scale_x;  // 等比缩放
                     int target_h = static_cast<int>(frame.rows * scale_y);
-                    cv::resize(frame, debug_output_frame_, cv::Size(debug_output_max_width_, target_h));
+                    cv::resize(frame, small, cv::Size(debug_output_max_width_, target_h));
                 } else {
                     // 必须 deep copy：frame 数据来自 cv_bridge::toCvShare（不拥有数据），
                     // 回调结束后 ROS 消息销毁，数据即失效，浅拷贝会导致悬空指针
-                    frame.copyTo(debug_output_frame_);
+                    frame.copyTo(small);
                 }
-
-                drawDetect(debug_output_frame_, results, cfg_->model.classNames, scale_x, scale_y);
-
-                debug_cv_image_.header = msg->header;
-                debug_cv_image_.header.frame_id = "detected_frame";
-                debug_cv_image_.image = debug_output_frame_;
-                auto out_msg = std::make_unique<sensor_msgs::msg::Image>();
-                debug_cv_image_.toImageMsg(*out_msg);
-                image_pub_->publish(std::move(out_msg));
+                {
+                    std::lock_guard<std::mutex> lock(debug_mutex_);
+                    debug_pending_frame_ = std::move(small);
+                    debug_pending_results_ = results;
+                    debug_pending_scale_x_ = scale_x;
+                    debug_pending_scale_y_ = scale_y;
+                    debug_pending_header_ = msg->header;
+                    debug_dirty_ = true;
+                }
+                debug_cv_.notify_one();
             }
 
             RCLCPP_INFO_THROTTLE(
@@ -227,6 +263,41 @@ private:
         }
         catch (const std::exception& e) {
             RCLCPP_ERROR(this->get_logger(), "检测回调异常: %s", e.what());
+        }
+    }
+
+    /** 后台线程：绘制检测框并发布 /detected_image（最新帧替换，不阻塞检测回调）。 */
+    void debugWorkerLoop()
+    {
+        while (debug_running_) {
+            cv::Mat frame;
+            std::vector<Result> results;
+            double sx = 1.0, sy = 1.0;
+            std_msgs::msg::Header header;
+            {
+                std::unique_lock<std::mutex> lock(debug_mutex_);
+                debug_cv_.wait_for(lock, std::chrono::milliseconds(250),
+                                   [this]() { return !debug_running_ || debug_dirty_; });
+                if (!debug_running_) break;
+                if (!debug_dirty_) continue;
+                frame = debug_pending_frame_;
+                results = debug_pending_results_;
+                sx = debug_pending_scale_x_;
+                sy = debug_pending_scale_y_;
+                header = debug_pending_header_;
+                debug_dirty_ = false;
+            }
+            drawDetect(frame, results, cfg_->model.classNames, sx, sy);
+            try {
+                auto cv_img = cv_bridge::CvImage(header, "bgr8", frame);
+                cv_img.header.frame_id = "detected_frame";
+                auto out_msg = std::make_unique<sensor_msgs::msg::Image>();
+                cv_img.toImageMsg(*out_msg);
+                image_pub_->publish(std::move(out_msg));
+            } catch (const std::exception& e) {
+                RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                                      "调试图发布异常: %s", e.what());
+            }
         }
     }
 
@@ -280,14 +351,29 @@ private:
 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_pub_;
+
+    // 确定性帧采样：配合 video_node 的 synthetic_stamp，只处理帧号满足
+    // (帧号 % frame_sampling_step_ == 0) 的帧，使观察序列与负载/UI 无关。
+    bool frame_sampling_enabled_ = false;
+    int frame_sampling_step_ = 1;
+    int frame_sampling_period_ms_ = 50;
     rclcpp::Publisher<tensorrt_detect_msgs::msg::DetectionArray>::SharedPtr armor_pub_;
     rclcpp::Publisher<tensorrt_detect_msgs::msg::PipelineTiming>::SharedPtr timing_pub_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reload_roi_service_;
     std::chrono::steady_clock::time_point last_time_ = std::chrono::steady_clock::now();
     double fps_ = 0.0;
     cv::Mat detect_input_frame_;
-    cv::Mat debug_output_frame_;
-    cv_bridge::CvImage debug_cv_image_{std_msgs::msg::Header(), "bgr8"};
+    // 异步调试图 worker（最新帧替换语义）
+    std::thread debug_worker_;
+    std::mutex debug_mutex_;
+    std::condition_variable debug_cv_;
+    std::atomic<bool> debug_running_{false};
+    std::atomic<bool> debug_dirty_{false};
+    cv::Mat debug_pending_frame_;
+    std::vector<Result> debug_pending_results_;
+    double debug_pending_scale_x_ = 1.0;
+    double debug_pending_scale_y_ = 1.0;
+    std_msgs::msg::Header debug_pending_header_;
     int64_t last_image_stamp_ns_ = 0;
 };
 

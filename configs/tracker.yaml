@@ -37,6 +37,12 @@ class_mismatch_penalty: 0.40      # 类别不一致时的最大软惩罚（保�
 min_identity_update_conf: 0.20
 identity_confirm_observations: 2         # 新轨迹身份连续确认观测次数
 identity_switch_confirm_observations: 8  # 已提交身份的连续切换确认观测次数
+# 帧数门在 FPS 变化时会把"确认时间窗"压缩（高 FPS 下错误目标更快攒满帧数）。
+# 增加最小确认时间窗（毫秒）作为时间门：默认按 ~14Hz 参考频率换算
+# （2帧≈145ms / 8帧≈580ms，取略低值保证参考频率下行为不变）；FPS 更高时
+# 需更多帧才能完成确认，抑制短时误确认。设为 <=0 关闭时间门（纯帧数门）。
+identity_confirm_min_time_ms: 135
+identity_switch_confirm_min_time_ms: 540
 
 # ========== Official slot owner 机制 ==========
 # track 第一次绑定 official slot 时，stable confidence 至少要达到该值

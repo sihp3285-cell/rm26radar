@@ -10,6 +10,7 @@ video_node:
     video_path: "/home/delphine/rm/car_project/test/08.mp4"
     topic_name: "/image_raw"
     fps: 20
+    synthetic_stamp: false
 
 # ─────────────────────────────────────────────
 # 图像源：camera_node（工业相机模式）
@@ -43,6 +44,12 @@ detect_node:
     input_topic: "/image_raw"
     output_topic: "/detected_image"
     publish_debug_image: true
+    # 确定性帧采样（配合 video_node.synthetic_stamp=true 使用）：
+    #   每 frame_sampling_step 帧只处理 1 帧（如 2 -> 10Hz），
+    #   处理帧序列由内容帧号决定，与 Qt/负载无关。默认关闭保持原行为。
+    frame_sampling_enabled: false
+    frame_sampling_step: 1
+    frame_sampling_period_ms: 50
     debug_output_max_width: 1280
 
 pose_node:
@@ -68,16 +75,16 @@ pose_node:
     projection_uncertainty_bad_std_m: 0.50
     projection_condition_bad: 30.0
     # 初始值并非理论最优，需要通过真实场地数据继续标定。
-    projection_cost_uncertainty_weight: 1.2
+    projection_cost_uncertainty_weight: 1.0
     projection_cost_condition_weight: 0.4
-    projection_cost_surface_weight: 1.5
-    projection_cost_region_weight: 0.5
+    projection_cost_surface_weight: 1.7
+    projection_cost_region_weight: 1.5
 
     # signed distance 位于 outer/inner 时，armor prior 分别约为 0.1/0.9。
     projection_region_outer_m: -1.5
-    projection_region_inner_m: 0.0
-    projection_switch_margin: 0.30
-    projection_switch_confirm_frames: 3
+    projection_region_inner_m: -0.4
+    projection_switch_margin: 0.5
+    projection_switch_confirm_frames: 5
 
     # canonical 沟区 polygon 只生成 soft region prior，不再直接生成插值权重。
     gully_region_path: "/home/delphine/rm/tensorrt10_detect/generated/gully.yaml"

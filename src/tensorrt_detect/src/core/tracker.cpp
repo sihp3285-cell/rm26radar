@@ -230,12 +230,14 @@ void Tracker::update_identity_state(
     if (!valid) {
         track.pending_class = -1;
         track.pending_class_observations = 0;
+        track.pending_class_since_time_ns = 0;
         return;
     }
 
     if (detection.class_id == track.committed_class) {
         track.pending_class = -1;
         track.pending_class_observations = 0;
+        track.pending_class_since_time_ns = 0;
         return;
     }
 
@@ -244,13 +246,25 @@ void Tracker::update_identity_state(
     } else {
         track.pending_class = detection.class_id;
         track.pending_class_observations = 1;
+        track.pending_class_since_time_ns = current_time_ns_;
     }
 
     const int confirm_observations = track.committed_class < 0
         ? params_.identity_confirm_observations
         : params_.identity_switch_confirm_observations;
+    // 时间门：帧数门在高 FPS 下会被压缩，要求确认窗口同时满足最小物理时间，
+    // 使"连续确认 N 帧"在不同发送频率下对应大致相同的时间。时间门 <=0 时关闭。
+    const float confirm_min_time_ms = track.committed_class < 0
+        ? params_.identity_confirm_min_time_ms
+        : params_.identity_switch_confirm_min_time_ms;
+    const bool time_gate_ok =
+        confirm_min_time_ms <= 0.0f ||
+        (track.pending_class_since_time_ns > 0 &&
+         (current_time_ns_ - track.pending_class_since_time_ns) >=
+             static_cast<std::int64_t>(confirm_min_time_ms * 1e6f));
     const auto stats = track.bot_id.getStats();
     if (track.pending_class_observations >= confirm_observations &&
+        time_gate_ok &&
         stats.class_id == track.pending_class &&
         stats.confidence >= params_.slot_bind_min_conf &&
         stats.stability >= params_.slot_min_stability &&
@@ -258,6 +272,7 @@ void Tracker::update_identity_state(
         track.committed_class = track.pending_class;
         track.pending_class = -1;
         track.pending_class_observations = 0;
+        track.pending_class_since_time_ns = 0;
     }
 }
 

@@ -220,6 +220,8 @@ public:
         tp.min_identity_update_conf = cfg_->tracker.minIdentityUpdateConf;
         tp.identity_confirm_observations = cfg_->tracker.identityConfirmObservations;
         tp.identity_switch_confirm_observations = cfg_->tracker.identitySwitchConfirmObservations;
+        tp.identity_confirm_min_time_ms = cfg_->tracker.identityConfirmMinTimeMs;
+        tp.identity_switch_confirm_min_time_ms = cfg_->tracker.identitySwitchConfirmMinTimeMs;
         // Official slot owner 机制
         tp.slot_bind_min_conf = cfg_->tracker.slotBindMinConf;
         tp.slot_lease_time_s = cfg_->tracker.slotLeaseTimeS;

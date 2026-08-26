@@ -134,6 +134,9 @@ struct TrackerConfig {
     float minIdentityUpdateConf = 0.20f;
     int identityConfirmObservations = 3;
     int identitySwitchConfirmObservations = 5;
+    // 帧数确认的时间门（毫秒）：高 FPS 下保持确认所需物理时间稳定，<=0 关闭
+    float identityConfirmMinTimeMs = 135.0f;
+    float identitySwitchConfirmMinTimeMs = 540.0f;
 
     // ========== Official slot owner 机制 ==========
     float slotBindMinConf = 0.40f;

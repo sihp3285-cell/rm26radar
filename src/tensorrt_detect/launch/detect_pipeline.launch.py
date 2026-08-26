@@ -33,6 +33,8 @@ def launch_setup(context, *args, **kwargs):
         'rviz_debug_enabled').perform(context).lower() in ('1', 'true', 'yes', 'on')
     enable_rviz = LaunchConfiguration(
         'enable_rviz').perform(context).lower() in ('1', 'true', 'yes', 'on')
+    enable_qt_display = LaunchConfiguration(
+        'enable_qt_display').perform(context).lower() in ('1', 'true', 'yes', 'on')
 
     # FindPackageShare 从安装空间定位 package share 目录；因此正常使用前需要先
     # colcon build/source install/setup.bash。PathJoinSubstitution 延迟到 launch
@@ -82,7 +84,11 @@ def launch_setup(context, *args, **kwargs):
             package='tensorrt_detect',
             plugin='DetectNode',
             name='detect_node',
-            parameters=[params_file],
+            # UI 关闭时不再发布/序列化 1280px 调试图（每帧 ~3.3MB 的序列化开销，
+            # 是 Qt 对主链最大的间接影响）。UI 打开时保持发布。
+            parameters=[params_file, {
+                'publish_debug_image': enable_qt_display,
+            }],
             extra_arguments=[{'use_intra_process_comms': True}],
         ),
         ComposableNode(
@@ -146,8 +152,22 @@ def launch_setup(context, *args, **kwargs):
             parameters=[params_file],
         ),
 
-        # Qt 显示节点（独立进程，含 Qt 事件循环）
+        # ROI 设置节点（独立进程，含交互式 OpenCV 窗口）。保存配置后通过
+        # DetectNode service 重载，避免在交互期间重启 TensorRT 模型。
         Node(
+            package='tensorrt_detect',
+            executable='roi_set_node',
+            name='roi_set_node',
+            output='screen',
+            parameters=[params_file],
+        ),
+    ]
+    # Qt 显示节点（独立进程，含 Qt 事件循环）。比赛/压测模式可
+    # enable_qt_display:=false 关闭，省掉图像跨进程序列化与 Qt 渲染，
+    # 提高 /radar_map 实际发送频率。注意：/flip_team 目前由它发布，
+    # 关闭后阵营切换需另发该话题。
+    if enable_qt_display:
+        actions.append(Node(
             package='tensorrt_detect',
             executable='qt_display_node',
             name='qt_display_node',
@@ -161,18 +181,8 @@ def launch_setup(context, *args, **kwargs):
                 'LOCPATH': '',
                 'QT_ACCESSIBILITY': '0',
             },
-        ),
+        ))
 
-        # ROI 设置节点（独立进程，含交互式 OpenCV 窗口）。保存配置后通过
-        # DetectNode service 重载，避免在交互期间重启 TensorRT 模型。
-        Node(
-            package='tensorrt_detect',
-            executable='roi_set_node',
-            name='roi_set_node',
-            output='screen',
-            parameters=[params_file],
-        ),
-    ]
     if enable_rviz:
         actions.append(Node(
             package='rviz2',
@@ -198,5 +208,10 @@ def generate_launch_description():
             'enable_rviz',
             default_value='false',
             description='是否自动启动 rviz2 并加载 radar_debug.rviz'),
+        DeclareLaunchArgument(
+            'enable_qt_display',
+            default_value='true',
+            description='是否启动 Qt 显示节点（关闭可提升 /radar_map 发送频率）'),
+
         OpaqueFunction(function=launch_setup),
     ])

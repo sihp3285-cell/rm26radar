@@ -249,6 +249,9 @@ void Config::loadTrackerConfig(const std::string& path) {
     tracker.minIdentityUpdateConf = cfg["min_identity_update_conf"] ? cfg["min_identity_update_conf"].as<float>() : 0.20f;
     tracker.identityConfirmObservations = cfg["identity_confirm_observations"] ? cfg["identity_confirm_observations"].as<int>() : 3;
     tracker.identitySwitchConfirmObservations = cfg["identity_switch_confirm_observations"] ? cfg["identity_switch_confirm_observations"].as<int>() : 5;
+    // 帧数确认的时间门（毫秒）：高 FPS 下保持确认所需物理时间稳定，<=0 关闭
+    tracker.identityConfirmMinTimeMs = cfg["identity_confirm_min_time_ms"] ? cfg["identity_confirm_min_time_ms"].as<float>() : 135.0f;
+    tracker.identitySwitchConfirmMinTimeMs = cfg["identity_switch_confirm_min_time_ms"] ? cfg["identity_switch_confirm_min_time_ms"].as<float>() : 540.0f;
 
     // ========== Official slot owner 机制 ==========
     tracker.slotBindMinConf = cfg["slot_bind_min_conf"] ? cfg["slot_bind_min_conf"].as<float>() : 0.40f;

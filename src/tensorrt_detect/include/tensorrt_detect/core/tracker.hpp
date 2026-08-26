@@ -78,6 +78,14 @@ struct TrackerParams {
     int identity_confirm_observations = 3;
     int identity_switch_confirm_observations = 5;
 
+    // 帧数确认在 FPS 变化时会把"确认时间窗"压缩/拉长（高 FPS 下错误目标
+    // 更快攒满帧数）。增加最小确认时间窗（毫秒），使确认同时满足"帧数门+
+    // 时间门"。默认值按 ~14Hz 参考频率换算：确认 2 帧≈145ms / 切换 8 帧
+    // ≈580ms，取略低值保证参考频率下行为不变；更高 FPS 时需更多帧才能
+    // 完成确认，抑制短时误确认。设为 <=0 关闭时间门（纯帧数门，旧行为）。
+    float identity_confirm_min_time_ms = 135.0f;
+    float identity_switch_confirm_min_time_ms = 540.0f;
+
     // ========== Official slot owner 机制 ==========
     // track 第一次绑定 official slot 时，stable confidence 至少要达到该值。
     float slot_bind_min_conf = 0.40f;
@@ -194,6 +202,7 @@ private:
         int committed_class = -1;         // 连续确认后才用于槽位映射
         int pending_class = -1;           // 正在连续确认的候选身份
         int pending_class_observations = 0;
+        std::int64_t pending_class_since_time_ns = 0; // 候选身份开始连续确认的时刻（时间门用）
 
         cv::Rect last_box;
         cv::Point2f last_world;          // Kalman 后的平滑世界坐标

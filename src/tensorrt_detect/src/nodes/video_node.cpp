@@ -2,10 +2,11 @@
  * @file video_node.cpp
  * @brief 文件视频输入 component，作为工业相机的可替换数据源发布 /image_raw。
  *
- * VideoCapture 在专用线程中循环读帧，按参数/文件 FPS 节流，再把 BGR cv::Mat
- * 转成 sensor_msgs/Image。cv_bridge::toImageMsg 会把像素写入 ROS 消息，因此
- * 发布的消息不依赖循环内局部 cv::Mat 的后续生命周期。Node 析构时先停止并 join
- * 线程，再释放文件句柄，避免 component 被卸载后线程继续访问 this。
+ * VideoCapture 在专用线程中按参数/文件 FPS 节流读帧，再把 BGR cv::Mat
+ * 转成 sensor_msgs/Image；视频播放完毕自动关闭节点（不再循环播放）。
+ * cv_bridge::toImageMsg 会把像素写入 ROS 消息，发布的消息不依赖循环内局部
+ * cv::Mat 的后续生命周期。Node 析构时先停止并 join 线程，再释放文件句柄，避免
+ * component 被卸载后线程继续访问 this。
  */
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
@@ -29,8 +30,10 @@ private:
     // 视频帧率控制,保存目标帧率和每帧的理论处理时间
     double fps_;
     int frame_delay_ms_;
+    bool synthetic_stamp_ = false;   // 用内容锚定的合成时间戳发布（帧号可恢复、跨运行确定）
+    std::int64_t frame_index_ = 0;   // 已发布的帧计数
 
-    /** 独立线程按目标 FPS 解码视频、处理 EOF 循环并发布带当前 ROS 时间的 Image。 */
+    /** 独立线程按目标 FPS 解码视频并发布带当前 ROS 时间的 Image；EOF 时关闭节点。 */
     void captureLoop()
     {   
         // 只要 ROS 正常运行且标志位为 true，就持续读取
@@ -41,16 +44,29 @@ private:
             cv::Mat frame;
             cap_ >> frame;
 
-            // 【Debug 利器：循环播放】如果视频读完，把进度条拉回第 0 帧
+            // 视频播放完毕：不再循环回卷，直接关闭项目（组件容器/独立进程随之退出）
             if(frame.empty()) {
-                cap_.set(cv::CAP_PROP_POS_FRAMES, 0);
-                continue;
+                RCLCPP_INFO(this->get_logger(), "视频播放完毕，关闭项目...");
+                is_running_ = false;
+                // 给 DDS 一点时间把最后一帧消息发出去，再关闭全局上下文
+                std::this_thread::sleep_for(std::chrono::milliseconds(200));
+                rclcpp::shutdown();
+                break;
             }
 
             // unique_ptr 让 rclcpp 在启用 intra-process 时可以转移消息所有权；
             // 但下一步 cv_bridge 把 cv::Mat 像素填入 Image，那里仍是一次深拷贝。
             auto msg = std::make_unique<sensor_msgs::msg::Image>();
-            msg->header.stamp = this->now();
+            if (synthetic_stamp_) {
+                // 合成时间戳：第 k 帧固定为 (k+1)*frame_delay_ms，内容锚定、跨运行
+                // 一致，下游可用它恢复视频帧号做确定性采样（见 detect_node 的
+                // frame_sampling_* 参数）。仅视频模式使用；相机模式不受影响。
+                msg->header.stamp = rclcpp::Time(
+                    0, (frame_index_ + 1) * frame_delay_ms_ * 1000000LL);
+                frame_index_++;
+            } else {
+                msg->header.stamp = this->now();
+            }
             
             // 为了后续和真实相机无缝切换，通常把 frame_id 设为一样
             // 或者在 Launch 文件中统一配置，这里先用 video_frame
@@ -83,10 +99,12 @@ public:
         this->declare_parameter<std::string>("video_path", "/home/delphine/rm/car_project/test/008.mp4");
         this->declare_parameter<std::string>("topic_name", "/image_raw");
         this->declare_parameter<int>("fps", 0);
+        this->declare_parameter<bool>("synthetic_stamp", false);
 
         std::string video_path = this->get_parameter("video_path").as_string();
         std::string topic_name = this->get_parameter("topic_name").as_string();
         int fps_param = this->get_parameter("fps").as_int();
+        synthetic_stamp_ = this->get_parameter("synthetic_stamp").as_bool();
 
         // 2. 打开视频
         cap_.open(video_path);
