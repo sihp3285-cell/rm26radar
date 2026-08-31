@@ -214,7 +214,10 @@ BlindZoneBiasResult BlindZonePrior::apply(
     const NavigationRouteMap& routes,
     PriorDistribution& distribution) const {
     BlindZoneBiasResult result;
-    if (!loaded_ || !routes.valid || !distribution.valid ||
+    // navgrid 核心逻辑关闭（prior_navgrid_enabled=false）时 routes.valid=false，
+    // 此时盲区候选仍生效，只是距离过滤退化为欧氏直线距离（has_routes=false）。
+    const bool has_routes = routes.valid;
+    if (!loaded_ || !distribution.valid ||
         distribution.candidates.empty() ||
         maximum_path_distance_m < 0.0) {
         return result;
@@ -261,8 +264,8 @@ BlindZoneBiasResult BlindZonePrior::apply(
         // 2. 候选只能来自起点同一 component 的兵种可通行 cell，并按 zone 配置
         // 过滤高度层，避免把沟底目标注入到被多边形包围的高台表面。
         auto cells = navigation_mesh.walkable_cells_in_polygon(
-            role, polygon, routes.component_id);
-        if (zone.same_elevation_as_last && !cells.empty()) {
+            role, polygon, has_routes ? routes.component_id : -1);
+        if (has_routes && zone.same_elevation_as_last && !cells.empty()) {
             const double last_height =
                 navigation_mesh.cell_height_m(routes.start_cell);
             candidate_zone.minimum_allowed_height_m =
@@ -301,11 +304,24 @@ BlindZoneBiasResult BlindZonePrior::apply(
         }
         cells.erase(std::remove_if(cells.begin(), cells.end(),
             [&](int cell) {
-                return cell < 0 ||
-                    static_cast<std::size_t>(cell) >= routes.distances_m.size() ||
-                    !std::isfinite(routes.distances_m[cell]) ||
-                    routes.distances_m[cell] >
-                        maximum_path_distance_m + 1e-9;
+                if (cell < 0) {
+                    return true;
+                }
+                if (has_routes) {
+                    return static_cast<std::size_t>(cell) >=
+                            routes.distances_m.size() ||
+                        !std::isfinite(routes.distances_m[cell]) ||
+                        routes.distances_m[cell] >
+                            maximum_path_distance_m + 1e-9;
+                }
+                // 欧氏回退：无 Dijkstra route map 时，按与最后可靠锚点的
+                // 直线距离过滤盲区候选。
+                const Point2d point = navigation_mesh.cell_center(cell);
+                const double euclidean = std::hypot(
+                    point.x - last_canonical.x,
+                    point.y - last_canonical.y);
+                return !std::isfinite(euclidean) ||
+                    euclidean > maximum_path_distance_m + 1e-9;
             }), cells.end());
         // 3. 以运动预测和 zone 中心的组合距离排序，再用最小间隔做空间去簇，
         // 避免若干候选都落在同一个 0.2m 局部邻域。
@@ -377,7 +393,8 @@ BlindZoneBiasResult BlindZonePrior::apply(
             }
             const auto snap = navigation_mesh.snap_to_walkable(
                 role, candidate.canonical,
-                navigation_mesh.resolution() * 1.5, routes.component_id);
+                navigation_mesh.resolution() * 1.5,
+                has_routes ? routes.component_id : -1);
             if (!snap.valid ||
                 navigation_mesh.cell_height_m(snap.cell_index) <
                     zone.minimum_allowed_height_m - 1e-9 ||

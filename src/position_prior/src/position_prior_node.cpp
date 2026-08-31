@@ -214,14 +214,18 @@ public:
         const bool navgrid_enabled =
             get_parameter("test_config.prior_navgrid_enabled").as_bool();
         navigation_mesh_.set_enabled(navgrid_enabled);
-        if (navgrid_enabled && !navgrid_path.empty()) {
+        // 无论是否启用 Dijkstra 都加载网格：盲区先验需要可通行格/高度信息。
+        // enabled=false 时 PriorGate 的通用猜点退回欧氏距离，盲区先验内部
+        // 也退回欧氏过滤（见 BlindZonePrior::apply）。
+        if (!navgrid_path.empty()) {
             try {
                 navigation_mesh_.load(navgrid_path);
                 gate_.set_navigation_mesh(&navigation_mesh_);
                 RCLCPP_INFO(get_logger(),
-                    "兵种 navgrid 加载完成: %s (%dx%d, %.2f m)",
+                    "兵种 navgrid 加载完成: %s (%dx%d, %.2f m) 核心逻辑=%s",
                     navgrid_path.c_str(), navigation_mesh_.columns(),
-                    navigation_mesh_.rows(), navigation_mesh_.resolution());
+                    navigation_mesh_.rows(), navigation_mesh_.resolution(),
+                    navgrid_enabled ? "启用" : "关闭(欧氏回退)");
             } catch (const std::exception& error) {
                 RCLCPP_ERROR(get_logger(),
                     "navgrid 加载失败，将退回欧氏距离门控: %s", error.what());

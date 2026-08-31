@@ -228,10 +228,12 @@ test_config:
 
     # ── 位置先验 / 猜点（position_prior_node）─────────────────────────
     # 注意：navgrid/盲区路径本体仍在 position_prior.yaml，这里只控制开关
-    prior_navgrid_enabled: true  # 【核心逻辑】是否启用导航网格 Dijkstra 最短路径
-                                 # （navigation_mesh.cpp）；false=不加载 navgrid，
-                                 # 退化为欧氏直线距离；盲区先验也依赖它
-    prior_enable_blind_zone: true   # true=启用盲区先验(需 navgrid 已加载)
+    prior_navgrid_enabled: false  # 【核心逻辑】是否启用导航网格 Dijkstra 最短路径
+                                 # （navigation_mesh.cpp）。false 时通用猜点距离
+                                 # 退化为欧氏直线距离；navgrid 仍会加载供盲区先验
+                                 # 使用（盲区候选按欧氏距离过滤），两者已解耦
+    prior_enable_blind_zone: true   # 盲区先验（独立于 prior_navgrid_enabled；
+                                    # navgrid 关闭时盲区候选按欧氏距离过滤）
     prior_enable_stay: true         # true=启用 stay probability 驻留锚点
                                     # false=stay_anchor_probability_scale 强制 0
 

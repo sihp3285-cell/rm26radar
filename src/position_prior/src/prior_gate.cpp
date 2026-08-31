@@ -155,11 +155,17 @@ GateResult PriorGate::apply(
     }
 
     // 4. 在不修改原始 model query 结果的副本上应用盲区偏置和驻留锚点。
+    // 盲区先验与 navgrid 核心逻辑解耦：mesh_used=false（Dijkstra 关闭）时
+    // 传入无效 route map，apply() 内部退回欧氏距离过滤，盲区先验仍生效。
     PriorDistribution effective_distribution = distribution;
-    if (result.mesh_used && blind_zone_prior_ && blind_zone_prior_->loaded()) {
+    if (blind_zone_prior_ && blind_zone_prior_->loaded() && navigation_mesh_) {
+        NavigationRouteMap empty_routes;  // valid=false → 欧氏回退
+        const NavigationRouteMap& bias_routes =
+            (result.mesh_used && routes) ? *routes : empty_routes;
         const auto bias = blind_zone_prior_->apply(
             role, last_canonical, result.motion_prediction_canonical,
-            maximum_distance, *navigation_mesh_, *routes, effective_distribution);
+            maximum_distance, *navigation_mesh_, bias_routes,
+            effective_distribution);
         result.blind_zone_biased = bias.applied;
         result.blind_zone_probability_mass = bias.injected_probability_mass;
     }
