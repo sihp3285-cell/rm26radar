@@ -139,7 +139,8 @@ def launch_setup(context, *args, **kwargs):
             executable='position_prior_node',
             name='position_prior_node',
             output='screen',
-            parameters=[prior_params_file],
+            # 后传 ros2_params.yaml，让底部 test_config 板块能覆盖/补充先验参数
+            parameters=[prior_params_file, params_file],
         ),
 
         # 标定节点（独立进程，含交互式 OpenCV 窗口）。它与主链并行订阅原图，

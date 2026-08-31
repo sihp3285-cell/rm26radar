@@ -136,7 +136,8 @@ GateResult PriorGate::apply(
     NavigationRouteMap local_routes;
     const NavigationRouteMap* routes = nullptr;
     const bool mesh_requested =
-        navigation_mesh_ && navigation_mesh_->loaded() &&
+        navigation_mesh_ && navigation_mesh_->enabled() &&
+        navigation_mesh_->loaded() &&
         navigation_mesh_->supports_role(role);
     if (mesh_requested) {
         if (prepared_routes && prepared_routes->role == role) {

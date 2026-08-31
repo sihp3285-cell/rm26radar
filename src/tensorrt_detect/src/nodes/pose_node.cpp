@@ -113,6 +113,14 @@ public:
         this->declare_parameter<int>("rviz_debug_image_width", 5472);
         this->declare_parameter<int>("rviz_debug_image_height", 3648);
 
+        // ── 测试调参板块（test_config，见 ros2_params.yaml 底部）──
+        this->declare_parameter<std::string>(
+            "test_config.pose_covariance_mode", "ray");
+        this->declare_parameter<double>(
+            "test_config.pose_fixed_world_std_m", 0.50);
+        this->declare_parameter<std::string>(
+            "test_config.tracker_gate_mode", "fixed");
+
         config_dir_ = this->get_parameter("config_dir").as_string();
         input_topic_ = this->get_parameter("input_topic").as_string();
         output_topic_ = this->get_parameter("output_topic").as_string();
@@ -127,6 +135,18 @@ public:
         projection_config_.maximum_world_std_m = static_cast<float>(std::max(
             static_cast<double>(projection_config_.minimum_world_std_m),
             this->get_parameter("projection_max_world_std_m").as_double()));
+        const std::string covariance_mode = this->get_parameter(
+            "test_config.pose_covariance_mode").as_string();
+        projection_config_.covariance_mode =
+            (covariance_mode == "fixed") ? "fixed" : "ray";
+        projection_config_.fixed_world_std_m = static_cast<float>(std::max(
+            0.01,
+            this->get_parameter(
+                "test_config.pose_fixed_world_std_m").as_double()));
+        RCLCPP_INFO(this->get_logger(),
+            "测量协方差模式: %s (fixed_std=%.2fm)",
+            projection_config_.covariance_mode.c_str(),
+            projection_config_.fixed_world_std_m);
         projection_config_.surface_discontinuity_m =
             static_cast<float>(std::max(
                 0.0,
@@ -207,6 +227,8 @@ public:
         tp.max_gate_world = cfg_->tracker.maxGateWorld;
         tp.kalman_gate_box = cfg_->tracker.kalmanGateBox;
         tp.kalman_gate_world = cfg_->tracker.kalmanGateWorld;
+        tp.kalman_gate_mode = this->get_parameter(
+            "test_config.tracker_gate_mode").as_string();
         tp.negative_gate_box = cfg_->tracker.negativeGateBox;
         tp.negative_gate_world = cfg_->tracker.negativeGateWorld;
         // Hungarian 匹配代价

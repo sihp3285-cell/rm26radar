@@ -184,9 +184,21 @@ std::vector<WorldProjection> PoseSolver::middletoworldBatchWithUncertainty(
                 ? std::sqrt(jacobian_max_eigen / jacobian_min_eigen)
                 : std::numeric_limits<float>::infinity();
 
-        float covariance_xx = minimum_variance + sigma_squared * g_xx;
-        float covariance_xz = sigma_squared * g_xz;
-        float covariance_zz = minimum_variance + sigma_squared * g_zz;
+        float covariance_xx;
+        float covariance_xz;
+        float covariance_zz;
+        if (config.covariance_mode == "fixed") {
+            // 测试用固定协方差：各向同性，不随射线方向/地形变化。
+            const float fixed_variance =
+                config.fixed_world_std_m * config.fixed_world_std_m;
+            covariance_xx = fixed_variance;
+            covariance_xz = 0.0f;
+            covariance_zz = fixed_variance;
+        } else {
+            covariance_xx = minimum_variance + sigma_squared * g_xx;
+            covariance_xz = sigma_squared * g_xz;
+            covariance_zz = minimum_variance + sigma_squared * g_zz;
+        }
 
         const float minimum_height = std::min(
             {center.y, u_minus.y, u_plus.y, v_minus.y, v_plus.y});
@@ -195,7 +207,8 @@ std::vector<WorldProjection> PoseSolver::middletoworldBatchWithUncertainty(
         result.surface_discontinuity =
             maximum_height - minimum_height >
                 config.surface_discontinuity_m;
-        if (result.surface_discontinuity) {
+        if (result.surface_discontinuity &&
+            config.covariance_mode != "fixed") {
             // 比较差分射线与中心命中的 x-z 平面距离，用于识别地形表面跳变。
             const auto planar_distance = [&center](const cv::Point3f& point) {
                 return std::hypot(point.x - center.x, point.z - center.z);

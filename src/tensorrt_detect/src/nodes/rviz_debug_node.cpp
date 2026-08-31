@@ -58,6 +58,12 @@ public:
         declare_parameter<bool>("blind_zones", true);
         declare_parameter<bool>("nav_grid", true);
 
+        // 测试调参板块开关（ros2_params.yaml 底部 test_config），覆盖上方同名开关。
+        declare_parameter<bool>("test_config.rviz_nav_grid", true);
+        declare_parameter<bool>("test_config.rviz_field_grid", true);
+        declare_parameter<bool>("test_config.rviz_blind_zones", true);
+        declare_parameter<bool>("test_config.rviz_guess_candidates", true);
+
         // ──────── 2. 参数 → Visualizer 配置 ────────
         if (!get_parameter("rviz_debug_enabled").as_bool()) {
             // 关闭时不创建任何 publisher/subscription，节点空转，对主流程零影响
@@ -78,7 +84,8 @@ public:
         visualizer_options.velocity_scale_seconds = std::max(
             0.0, get_parameter("velocity_scale_seconds").as_double());
         visualizer_options.mesh = get_parameter("mesh").as_bool();
-        visualizer_options.field_grid = get_parameter("field_grid").as_bool();
+        visualizer_options.field_grid =
+            get_parameter("test_config.rviz_field_grid").as_bool();
         visualizer_options.tracks = get_parameter("tracks").as_bool();
         visualizer_options.trajectories = get_parameter("trajectories").as_bool();
         visualizer_options.velocity = get_parameter("velocity").as_bool();
@@ -86,9 +93,11 @@ public:
         visualizer_options.measurement_covariance =
             get_parameter("measurement_covariance").as_bool();
         visualizer_options.guess_candidates =
-            get_parameter("guess_candidates").as_bool();
-        visualizer_options.blind_zones = get_parameter("blind_zones").as_bool();
-        visualizer_options.nav_grid = get_parameter("nav_grid").as_bool();
+            get_parameter("test_config.rviz_guess_candidates").as_bool();
+        visualizer_options.blind_zones =
+            get_parameter("test_config.rviz_blind_zones").as_bool();
+        visualizer_options.nav_grid =
+            get_parameter("test_config.rviz_nav_grid").as_bool();
 
         visualizer_ = std::make_unique<tensorrt_detect::debug::RvizVisualizer>(
             *this, std::move(visualizer_options));

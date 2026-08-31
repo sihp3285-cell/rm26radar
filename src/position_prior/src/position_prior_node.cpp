@@ -115,6 +115,11 @@ public:
         declare_parameter<std::string>("shadow_log_path", "");
         declare_parameter<double>("log_interval_s", 0.5);
 
+        // ── 测试调参板块开关（ros2_params.yaml 底部 test_config）──
+        declare_parameter<bool>("test_config.prior_navgrid_enabled", true);
+        declare_parameter<bool>("test_config.prior_enable_blind_zone", true);
+        declare_parameter<bool>("test_config.prior_enable_stay", true);
+
         input_topic_ = get_parameter("input_topic").as_string();
         output_topic_ = get_parameter("output_topic").as_string();
         context_ = get_parameter("context").as_string();
@@ -174,9 +179,13 @@ public:
         gate_config.mesh_prediction_snap_distance_m =
             std::max(0.0,
                 get_parameter("mesh_prediction_snap_distance_m").as_double());
-        gate_config.stay_anchor_probability_scale = std::clamp(
-            get_parameter("stay_anchor_probability_scale").as_double(),
-            0.0, 0.95);
+        const bool enable_stay =
+            get_parameter("test_config.prior_enable_stay").as_bool();
+        gate_config.stay_anchor_probability_scale = enable_stay
+            ? std::clamp(
+                get_parameter("stay_anchor_probability_scale").as_double(),
+                0.0, 0.95)
+            : 0.0;
         gate_config.blind_zone_minimum_stay_anchor_mass = std::clamp(
             get_parameter("blind_zone_minimum_stay_anchor_mass").as_double(),
             0.0, 0.95);
@@ -202,7 +211,10 @@ public:
 
         const std::string navgrid_path =
             get_parameter("navgrid_path").as_string();
-        if (!navgrid_path.empty()) {
+        const bool navgrid_enabled =
+            get_parameter("test_config.prior_navgrid_enabled").as_bool();
+        navigation_mesh_.set_enabled(navgrid_enabled);
+        if (navgrid_enabled && !navgrid_path.empty()) {
             try {
                 navigation_mesh_.load(navgrid_path);
                 gate_.set_navigation_mesh(&navigation_mesh_);
@@ -216,7 +228,9 @@ public:
             }
         }
 
-        if (navigation_mesh_.loaded()) {
+        const bool enable_blind_zone =
+            get_parameter("test_config.prior_enable_blind_zone").as_bool();
+        if (enable_blind_zone && navigation_mesh_.loaded()) {
             BlindZoneBiasConfig blind_config;
             blind_config.trigger_distance_m = std::max(
                 0.0, get_parameter("blind_zone_trigger_distance_m").as_double());

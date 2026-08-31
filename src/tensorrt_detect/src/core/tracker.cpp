@@ -761,17 +761,27 @@ void Tracker::update(
                     static_cast<float>(det.box.width),
                     static_cast<float>(det.box.height)
                 };
-                const bool box_gate_rejected =
-                    params_.kalman_gate_box > 0.0f &&
-                    track.kf_box.innovationSquared(box_meas) > params_.kalman_gate_box;
                 const auto* world_covariance =
                     det.world_covariance_valid
                         ? &det.world_covariance : nullptr;
+                const float box_nis =
+                    track.kf_box.innovationSquared(box_meas);
+                const float world_nis = track.kf_world.innovationSquared(
+                    {det.world.x, det.world.y}, world_covariance);
+                float gate_box = params_.kalman_gate_box;
+                float gate_world = params_.kalman_gate_world;
+                if (params_.kalman_gate_mode == "adaptive" && track.initialized) {
+                    gate_box = params_.kalman_gate_box *
+                        std::clamp(track.ema_nis_box / 4.0f, 0.5f, 2.0f);
+                    gate_world = params_.kalman_gate_world *
+                        std::clamp(track.ema_nis_world / 2.0f, 0.5f, 2.0f);
+                }
+                const bool box_gate_rejected =
+                    params_.kalman_gate_box > 0.0f &&
+                    box_nis > gate_box;
                 const bool world_gate_rejected =
                     params_.kalman_gate_world > 0.0f &&
-                    track.kf_world.innovationSquared(
-                        {det.world.x, det.world.y}, world_covariance) >
-                        params_.kalman_gate_world;
+                    world_nis > gate_world;
                 if (box_gate_rejected || world_gate_rejected) {
                     continue;
                 }
@@ -851,8 +861,19 @@ void Tracker::update(
                     track.last_world = det.world;
                     track.detected_world = det.world;
                 } else {
-                    auto box_upd = track.kf_box.update(
-                        box_meas, params_.kalman_gate_box);
+                    float upd_gate_box = params_.kalman_gate_box;
+                    float upd_gate_world = params_.kalman_gate_world;
+                    if (params_.kalman_gate_mode == "adaptive" && track.initialized) {
+                        upd_gate_box = params_.kalman_gate_box *
+                            std::clamp(track.ema_nis_box / 4.0f, 0.5f, 2.0f);
+                        upd_gate_world = params_.kalman_gate_world *
+                            std::clamp(track.ema_nis_world / 2.0f, 0.5f, 2.0f);
+                    }
+                    float box_nis = 0.0f;
+                    if (params_.kalman_gate_mode == "adaptive") {
+                        box_nis = track.kf_box.innovationSquared(box_meas);
+                    }
+                    auto box_upd = track.kf_box.update(box_meas, upd_gate_box);
 
                     track.last_box = cv::Rect(
                         static_cast<int>(box_upd[0] - box_upd[2] / 2.0f),
@@ -865,10 +886,23 @@ void Tracker::update(
                         det.world_covariance_valid
                             ? &det.world_covariance : nullptr;
                     bool world_update_accepted = false;
+                    float world_nis = 0.0f;
+                    if (params_.kalman_gate_mode == "adaptive") {
+                        world_nis = track.kf_world.innovationSquared(
+                            {det.world.x, det.world.y}, world_covariance);
+                    }
                     auto world_upd = track.kf_world.update(
                         {det.world.x, det.world.y},
-                        params_.kalman_gate_world, &world_update_accepted,
+                        upd_gate_world, &world_update_accepted,
                         world_covariance);
+                    if (params_.kalman_gate_mode == "adaptive") {
+                        track.ema_nis_box = 0.95f * track.ema_nis_box +
+                            0.05f * box_nis;
+                        if (world_update_accepted) {
+                            track.ema_nis_world = 0.95f * track.ema_nis_world +
+                                0.05f * world_nis;
+                        }
+                    }
                     track.last_world = cv::Point2f(world_upd[0], world_upd[1]);
                     if (world_update_accepted) {
                         // 记录本帧 Kalman 实际消费的原始测量与解析后的 R；
