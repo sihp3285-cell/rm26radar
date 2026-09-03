@@ -10,6 +10,7 @@
 
   <depend>openssl</depend>
   <depend>rclcpp</depend>
+  <depend>rm_field</depend>
   <depend>std_msgs</depend>
   <depend>tensorrt_detect_msgs</depend>
   <depend>yaml-cpp</depend>

@@ -1,0 +1,2 @@
+# rb26SDK 是纯 CMake 相机封装库，由 tensorrt_detect 通过 add_subdirectory 构建，
+# 不作为独立的 colcon 包发布；忽略它可避免全量 colcon build 把它误当成 ROS 包。

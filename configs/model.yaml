@@ -30,14 +30,12 @@ isNMS4: false
 modelType4: "DETECT"
 airplane_interval_ms: 200
 
-# 前哨站复用 armor engine，但只在固定像素 ROI 内推理；连续 miss 超时才判死亡。
-outpost_enabled: true
-outpost_roi: [1807, 1451, 173, 65]
-outpost_score_threshold: 0.4
-outpost_miss_timeout_s: 1.0
-#此处为默认值
+# 前哨站复用 armor engine 并在固定像素 ROI 内推理；其开关/ROI/阈值/地图点
+# 统一由 configs/outpost_roi.yaml 提供（ConfigManager 与 /detect_node/reload_roi
+# 都只读取该文件），本文件不再重复存放，避免“默认值被覆盖”的两层配置。
 
-# 数值必须与 robot_id.hpp、分类 raw_id 映射和 ROS 消息保持一致。
+# 数值必须与 rm_field/robot_class.hpp（robot_id.hpp 的兼容来源）、分类 raw_id
+# 映射和 ROS 消息保持一致。
 classNames:
   0: "car"
   1: "armor"

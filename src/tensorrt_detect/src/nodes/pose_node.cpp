@@ -26,6 +26,8 @@
 #include "tensorrt_detect_msgs/msg/detection_box.hpp"
 #include "ConfigManager.hpp"
 #include "posesolver.hpp"
+
+#include <rm_field/field_geometry.hpp>
 #include "robot_id.hpp"
 #include "tracker.hpp"
 #include "tracker_message.hpp"
@@ -348,8 +350,13 @@ private:
                     std::vector<cv::Point2f> mirrored;
                     mirrored.reserve(polygon.size());
                     for (const auto& point : polygon) {
+                        double mx = 0.0, my = 0.0;
+                        rm_field::mirror_field_point(
+                            point.x, point.y,
+                            rm_field::kDefaultFieldLength,
+                            rm_field::kDefaultFieldWidth, mx, my);
                         mirrored.emplace_back(
-                            28.0f - point.x, 15.0f - point.y);
+                            static_cast<float>(mx), static_cast<float>(my));
                     }
                     gully_polygons_.push_back(std::move(mirrored));
                 }
@@ -374,10 +381,13 @@ private:
         }
 
         // Raycaster 返回 world=(x,z)。这里按与地图/先验一致的 28m×15m field 约定
-        // 转换后才与 canonical 盲区 polygon 比较；gully_field_x_flip 适配场地方向。
+        // 转换后才与 canonical 盲区 polygon 比较；公式统一来自 rm_field。
+        double field_x = 0.0, field_y = 0.0;
+        rm_field::world_to_field(
+            world.x, world.y, /*world_z_toward_blue=*/gully_field_x_flip_,
+            field_x, field_y);
         const cv::Point2f field(
-            gully_field_x_flip_ ? world.y + 14.0f : 14.0f - world.y,
-            world.x + 7.5f);
+            static_cast<float>(field_x), static_cast<float>(field_y));
         double signed_distance = -std::numeric_limits<double>::infinity();
         for (const auto& polygon : gully_polygons_) {
             signed_distance = std::max(
@@ -834,7 +844,6 @@ private:
                     outpost_target.class_id = det.idx;
                     outpost_target.team_id  = det.armor_color;
                     outpost_target.is_dead  = det.is_dead;
-                    outpost_target.score    = det.confidence;
                     outpost_target.valid    = true;
                     outpost_target.bbox_x   = det.x;
                     outpost_target.bbox_y   = det.y;
@@ -845,7 +854,7 @@ private:
                     outpost_target.world_z  = world_pos.y;
                     const bool directly_observed = det.width > 0 && det.height > 0;
                     tracker_message::mark_direct_measurement(
-                        outpost_target, directly_observed);
+                        outpost_target, directly_observed, det.confidence);
                     if (directly_observed) {
                         outpost_target.last_observed_time =
                             static_cast<builtin_interfaces::msg::Time>(
@@ -862,7 +871,6 @@ private:
                     t.class_id = robot_id::ARMOR;
                     t.team_id  = robot_id::UNKNOWN;
                     t.is_dead  = true;
-                    t.score    = det.confidence;
                     t.valid    = true;
                     t.bbox_x   = det.x;
                     t.bbox_y   = det.y;
@@ -873,7 +881,7 @@ private:
                     t.world_z  = world_pos.y;
                     t.stable_class_id  = -1;
                     t.stable_class_conf = 0.0f;
-                    tracker_message::mark_direct_measurement(t, true);
+                    tracker_message::mark_direct_measurement(t, true, det.confidence);
                     t.last_observed_time =
                         static_cast<builtin_interfaces::msg::Time>(
                             rclcpp::Time(stamp_ns, this->get_clock()->get_clock_type()));
@@ -996,7 +1004,7 @@ private:
                 target.class_id = robot_id::OUTPOST;
                 target.team_id  = robot_id::UNKNOWN;
                 target.valid    = false;
-                tracker_message::mark_direct_measurement(target, false);
+                tracker_message::mark_direct_measurement(target, false, 0.0f);
             }
 
             // 动态追加死亡装甲板

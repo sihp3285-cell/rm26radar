@@ -107,38 +107,8 @@ pose_node:
     rviz_debug_image_width: 5472
     rviz_debug_image_height: 3648
 
-    # ══════════════════════════════════════════════════════════════
-    # Tracker 参数（由 config_dir/tracker.yaml 加载，此处仅为文档说明）
-    # 实际修改请编辑 configs/tracker.yaml，重启 pose_node 生效
-    # ══════════════════════════════════════════════════════════════
-    # max_lost_time_s: 0.30          # 从最后真实观测起多久后 track 标记为 DEAD
-    # max_predict_time_s: 0.20       # 丢失多久内保持 PREDICTED（卡尔曼外推）
-    # dead_retention_time_s: 0.10    # DEAD 状态对下游的保留时间
-    # dead_target_hold_time_s: 0.10  # 死亡装甲板直接测量的显示保持时间
-    # min_hit: 3                     # 最少命中观测次数才允许对外输出 / 绑定 slot
-    # max_tracks: 20                 # 最大同时跟踪的 PhysicalTrack 数量
-    # max_gate_box: 1500.0           # 像素框中心距离门限
-    # max_gate_world: 2.5            # 世界坐标 gate（米），<= 0 则禁用
-    # kalman_gate_box: 18.467        # 4维 box 创新 NIS 门限（约 99.9%）
-    # kalman_gate_world: 13.816      # 2维 world 创新 NIS 门限（约 99.9%）
-    # negative_gate_box: 200.0       # 死亡负观测像素中心抑制距离
-    # negative_gate_world: 1.0       # 死亡负观测世界坐标抑制距离（米）
-    # w_box: 1.0                     # 像素框归一化距离权重
-    # w_world: 1.0                   # 世界坐标归一化距离权重
-    # class_mismatch_min_penalty: 0.05 # 跨兵种匹配的最低软惩罚
-    # class_mismatch_penalty: 0.40   # 跨兵种匹配的最大软惩罚（随身份/检测可靠度动态插值）
-    # min_identity_update_conf: 0.20 # 身份更新最低置信度
-    # slot_bind_min_conf: 0.40       # 绑定 slot 最低 stable confidence
-    # identity_confirm_observations: 3        # 新身份连续确认观测次数
-    # identity_switch_confirm_observations: 8 # 身份切换连续确认观测次数
-    # slot_lease_time_s: 0.30        # owner 不可输出后的槽位租约时间
-    # max_slot_jump_dist: 2.5        # 防 slot 瞬移最大距离（米），<= 0 则禁用
-    # # BotIdentity 身份稳定器子参数:
-    # bot_identity.max_history: 30              # 历史有效观测最大保存次数
-    # bot_identity.purge_after_lost_time_s: 1.0 # 连续丢失多久后清空历史
-    # bot_identity.min_history_for_stable: 6    # 稳定身份最小观测次数门槛
-    # bot_identity.decay: 0.99               # 指数加权衰减系数
-    # bot_identity.num_classes: 9            # 类别总数
+    # Tracker 全部参数统一由 config_dir/tracker.yaml 加载（ConfigManager），
+    # 本文件不重复列出，避免注释值与真实值不一致；修改后重启 pose_node 生效。
 
 map_node:
   ros__parameters:

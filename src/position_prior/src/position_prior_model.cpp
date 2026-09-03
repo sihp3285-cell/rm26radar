@@ -6,6 +6,8 @@
  */
 #include "position_prior/position_prior_model.hpp"
 
+#include <rm_field/robot_class.hpp>
+
 #include <openssl/evp.h>
 #include <yaml-cpp/yaml.h>
 
@@ -208,8 +210,8 @@ void PositionPriorModel::load(
         roles_.emplace(role_name, std::move(role_data));
     }
 
-    for (const std::string& required_role :
-         {"hero", "engineer", "infantry3", "infantry4", "sentry"}) {
+    for (const char* const required_role_key : rm_field::kRoleKeys) {
+        const std::string required_role(required_role_key);
         if (!supports_role(required_role)) {
             throw std::runtime_error("模型缺少在线兵种: " + required_role);
         }

@@ -1,4 +1,5 @@
-# ROISetNode 写入、DetectNode /detect_node/reload_roi 读取的前哨站配置。
+# 前哨站配置的唯一来源：ConfigManager 启动加载、ROISetNode 写入、
+# DetectNode /detect_node/reload_roi 重载均读取本文件。
 # outpost_roi=[x,y,width,height] 为原图像素；mappoints_* 是 MapNode 固定设施像素位置。
 outpost_enabled: true
 outpost_roi:

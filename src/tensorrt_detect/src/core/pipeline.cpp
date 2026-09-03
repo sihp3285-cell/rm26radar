@@ -160,8 +160,6 @@ std::vector<Result> DetectPipeline::runArmorDetect(const cv::Mat& frame,
             armor.idx = robot_id::ARMOR;
             armor.isDead = (raw_id == 0);
             armor.armorColor = armor.isDead ? robot_id::UNKNOWN : raw_id;
-            armor.worldPoint = cv::Point2f(packed.car->box.x + packed.car->box.width / 2.0f,
-                                           packed.car->box.y + packed.car->box.height / 2.0f);
             armorResults.push_back(armor);
         }
     }

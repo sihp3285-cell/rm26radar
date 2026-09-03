@@ -155,7 +155,7 @@ private:
             if (!prediction.valid) {
                 continue;
             }
-            const int opponent_team = flip_team_ ? robot_id::BLUE : robot_id::RED;
+            const int opponent_team = robot_id::opponent_team_for_view(flip_team_);
             // UI 防御过滤：即使接收到旧版本或异常发布者产生的己方先验，
             // 也绝不在地图上绘制。
             if (prediction.team_id != opponent_team) {

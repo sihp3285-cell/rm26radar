@@ -186,9 +186,6 @@ private:
                 box.car_y       = res.car_box.y;
                 box.car_width   = res.car_box.width;
                 box.car_height  = res.car_box.height;
-                box.world_x     = res.worldPoint.x;
-                box.world_y     = res.worldPoint.y;
-                box.fps         = static_cast<float>(fps_);
 
                 armor_msg->detections.push_back(box);
             }

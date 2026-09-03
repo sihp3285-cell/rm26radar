@@ -1,6 +1,8 @@
 # 本包同时提供主链 ROS2 Components、交互式独立节点和共享算法静态库。
 # launch 实际加载 video/camera、detect、pose、map 四个 component；calibrate、
-# roi_set、qt_display 以独立 executable 启动。standard 是兼容入口，不在当前 launch。
+# roi_set、qt_display 以独立 executable 启动。
+# video_node/detect_node/pose_node/rviz_debug_node/map_node 的 executable 版本
+# 供 scripts/run_noqt_test.sh 等脚本化压测使用（component 版本供正式 launch）。
 cmake_minimum_required(VERSION 3.22.1)
 project(tensorrt_detect LANGUAGES CXX CUDA)
 
@@ -40,6 +42,7 @@ find_package(visualization_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tensorrt_detect_msgs REQUIRED)
+find_package(rm_field REQUIRED)
 
 # --- 修正 Open3D 查找方式 ---
 list(APPEND CMAKE_PREFIX_PATH "/home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0")
@@ -89,13 +92,13 @@ add_library(tensorrt_detect_core STATIC
     src/core/hungarian.cpp
     src/core/preprocess.cu
     src/visualization/draw.cpp
-    src/visualization/ui.cpp
     src/config/ConfigManager.cpp
 )
 
-target_include_directories(tensorrt_detect_core PUBLIC ${COMMON_INCLUDE_DIRS})
+target_include_directories(tensorrt_detect_core PUBLIC ${COMMON_INCLUDE_DIRS} ${rm_field_INCLUDE_DIRS})
 
 target_link_libraries(tensorrt_detect_core
+    rm_field::rm_field
     ${OpenCV_LIBS}
     yaml-cpp::yaml-cpp
     curl
@@ -115,7 +118,7 @@ set_target_properties(tensorrt_detect_core PROPERTIES POSITION_INDEPENDENT_CODE 
 add_library(tensorrt_detect_rviz STATIC
     src/debug/rviz_visualizer.cpp
 )
-target_include_directories(tensorrt_detect_rviz PUBLIC ${COMMON_INCLUDE_DIRS})
+target_include_directories(tensorrt_detect_rviz PUBLIC ${COMMON_INCLUDE_DIRS} ${rm_field_INCLUDE_DIRS})
 ament_target_dependencies(tensorrt_detect_rviz
     rclcpp
     std_msgs
@@ -126,19 +129,12 @@ ament_target_dependencies(tensorrt_detect_rviz
     tensorrt_detect_msgs
 )
 target_link_libraries(tensorrt_detect_rviz
+    rm_field::rm_field
     ${OpenCV_LIBS}
     yaml-cpp::yaml-cpp
     Open3D::Open3D
 )
 set_target_properties(tensorrt_detect_rviz PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
-# ========== 原程序（独立运行） ==========
-add_executable(standard apps/standalone_main.cpp)
-
-target_link_libraries(standard
-    PRIVATE
-    tensorrt_detect_core
-)
 
 # ========== Component libraries for进程内主链 ==========
 # register_nodes 会生成 ament index plugin 元数据；launch 中 ComposableNode.plugin
@@ -186,7 +182,7 @@ ament_target_dependencies(map_node_component rclcpp rclcpp_components sensor_msg
 target_link_libraries(map_node_component tensorrt_detect_core)
 rclcpp_components_register_nodes(map_node_component "MapNode")
 
-# Standalone executables (backward compatibility)
+# Standalone executables（脚本化压测/旁路调试用，与 component 同源码）
 add_executable(video_node src/nodes/video_node.cpp)
 ament_target_dependencies(video_node rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs std_srvs)
 target_link_libraries(video_node pthread ${OpenCV_LIBS})
@@ -240,7 +236,6 @@ target_link_libraries(qt_display_node tensorrt_detect_core Qt5::Core Qt5::Widget
 # ========== 安装 & ament 打包 ==========
 # 可执行文件安装到 lib/${PROJECT_NAME}/
 install(TARGETS
-    standard
     detect_node
     video_node
     pose_node

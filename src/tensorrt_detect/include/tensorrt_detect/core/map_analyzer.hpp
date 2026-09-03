@@ -6,6 +6,8 @@
 #ifndef MAP_ANALYZER_HPP
 #define MAP_ANALYZER_HPP
 
+#include <rm_field/robot_class.hpp>
+
 #include <vector>
 #include "tensorrt_detect_msgs/msg/world_target.hpp"
 #include "robot_id.hpp"
@@ -20,15 +22,9 @@ class MapAnalyzer{
         void setFieldXFlip(bool flip) { field_x_flip_ = flip; }
         /** 按显示视角同步 my_team/opponent_team；不修改目标消息本身。 */
         void setTeamByFlip(bool flip_team) {
-            // flip_team=false: 蓝方视角 → 我方=蓝方
-            // flip_team=true : 红方视角 → 我方=红方
-            if (flip_team) {
-                my_team_ = robot_id::RED;
-                opponent_team_ = robot_id::BLUE;
-            } else {
-                my_team_ = robot_id::BLUE;
-                opponent_team_ = robot_id::RED;
-            }
+            // 公式统一来自 rm_field/robot_class.hpp：false=我方蓝，true=我方红。
+            my_team_ = rm_field::own_team_for_view(flip_team);
+            opponent_team_ = rm_field::opponent_team_for_view(flip_team);
         }
         /** 返回工程位于资源岛的阵营编码：0 无、1 我方、2 敌方。 */
         int engineer_on_island() const {return engineer_on_island_;}

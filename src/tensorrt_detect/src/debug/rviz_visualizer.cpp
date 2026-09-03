@@ -12,6 +12,8 @@
 
 #include "tensorrt_detect/core/robot_id.hpp"
 
+#include <rm_field/field_geometry.hpp>
+
 #include <geometry_msgs/msg/point.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <std_msgs/msg/color_rgba.hpp>
@@ -282,8 +284,13 @@ std::vector<BlindZonePolygon> load_blind_zones(
                 BlindZonePolygon mirrored = zone;
                 mirrored.name += "_mirrored";
                 for (auto& vertex : mirrored.vertices) {
-                    vertex[0] = 28.0 - vertex[0];
-                    vertex[1] = 15.0 - vertex[1];
+                    double mx = 0.0, my = 0.0;
+                    rm_field::mirror_field_point(
+                        vertex[0], vertex[1],
+                        rm_field::kDefaultFieldLength,
+                        rm_field::kDefaultFieldWidth, mx, my);
+                    vertex[0] = mx;
+                    vertex[1] = my;
                 }
                 result.push_back(std::move(mirrored));
             }
@@ -299,19 +306,16 @@ geometry_msgs::msg::Point canonical_to_world(
     double height = 0.04,
     double field_length = 28.0,
     double field_width = 15.0) {
-    // 与 PositionPriorNode 的 CoordinateTransform 保持同一顺序：BlindZone/NavGrid
-    // 固定为红方 canonical；红方视角时敌方为蓝方，先做中心对称恢复到蓝方
-    // field，再按当前场地方向转成 PoseNode 使用的 world(x,z)。
-    const bool enemy_is_blue = flip_team;
-    const double field_x = enemy_is_blue
-        ? field_length - canonical_x : canonical_x;
-    const double field_y = enemy_is_blue
-        ? field_width - canonical_y : canonical_y;
+    // 公式统一来自 rm_field/field_geometry.hpp：BlindZone/NavGrid 固定为红方
+    // canonical；先按敌方队伍做中心对称恢复到 field，再按场地方向转成
+    // PoseNode 使用的 world(x,z)。
+    const int enemy_team_id = flip_team
+        ? rm_field::kTeamBlue : rm_field::kTeamRed;
     const bool world_z_toward_blue = !flip_team;
-    const double world_x = field_y - field_width / 2.0;
-    const double world_z = world_z_toward_blue
-        ? field_x - field_length / 2.0
-        : field_length / 2.0 - field_x;
+    double world_x = 0.0, world_z = 0.0;
+    rm_field::canonical_to_world(
+        canonical_x, canonical_y, enemy_team_id, world_z_toward_blue,
+        field_length, field_width, world_x, world_z);
     return point(world_x, height, world_z);
 }
 
@@ -697,7 +701,8 @@ void RvizVisualizer::publishStaticScene(
                 BlindZonePolygon effective_zone = zone;
                 if (flip_team) {
                     for (auto& vertex : effective_zone.vertices) {
-                        vertex[0] = 28.0 - vertex[0];
+                        vertex[0] = rm_field::flip_field_x(
+                            vertex[0], rm_field::kDefaultFieldLength);
                     }
                 }
                 const auto zone_color = effective_zone.engineer_only

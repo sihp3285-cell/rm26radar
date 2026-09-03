@@ -25,8 +25,7 @@ enum class PositionSource {
     INVALID = 0,
     MEASURED = 1,
     TRACKED = 2,
-    PREDICTED = 3,
-    PRIOR_GUESSED = 4
+    PREDICTED = 3
 };
 
 // 单帧观测输入（像素框 + 世界坐标）

@@ -6,6 +6,8 @@
  */
 #include "position_prior/blind_zone_prior.hpp"
 
+#include <rm_field/field_geometry.hpp>
+
 #include <yaml-cpp/yaml.h>
 
 #include <algorithm>
@@ -108,8 +110,13 @@ void BlindZonePrior::load_file(
             mirrored.mirror_centrally = false;
             mirrored.centroid = {};
             for (auto& point : mirrored.polygon) {
-                point.x = 28.0 - point.x;
-                point.y = 15.0 - point.y;
+                double mx = 0.0, my = 0.0;
+                rm_field::mirror_field_point(
+                    point.x, point.y,
+                    rm_field::kDefaultFieldLength,
+                    rm_field::kDefaultFieldWidth, mx, my);
+                point.x = mx;
+                point.y = my;
                 mirrored.centroid.x += point.x;
                 mirrored.centroid.y += point.y;
             }
@@ -130,7 +137,9 @@ std::vector<Point2d> BlindZonePrior::effective_polygon(
     std::vector<Point2d> flipped;
     flipped.reserve(zone.polygon.size());
     for (const auto& point : zone.polygon) {
-        flipped.push_back(Point2d{28.0 - point.x, point.y});
+        flipped.push_back(Point2d{
+            rm_field::flip_field_x(point.x, rm_field::kDefaultFieldLength),
+            point.y});
     }
     return flipped;
 }
@@ -238,7 +247,9 @@ BlindZoneBiasResult BlindZonePrior::apply(
         }
         const auto polygon = effective_polygon(zone);
         const Point2d centroid = flipped_view_
-            ? Point2d{28.0 - zone.centroid.x, zone.centroid.y}
+            ? Point2d{rm_field::flip_field_x(
+                          zone.centroid.x, rm_field::kDefaultFieldLength),
+                      zone.centroid.y}
             : zone.centroid;
         const bool inside = point_in_polygon(last_canonical, polygon);
         const double distance = distance_to_polygon(

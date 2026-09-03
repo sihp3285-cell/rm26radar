@@ -6,6 +6,8 @@
  */
 #include "position_prior/navigation_mesh.hpp"
 
+#include <rm_field/robot_class.hpp>
+
 #include <yaml-cpp/yaml.h>
 
 #include <algorithm>
@@ -67,8 +69,8 @@ void NavigationMesh::load(const std::string& path) {
     }
 
     const auto profiles = root["profiles"];
-    for (const std::string& role :
-         {"hero", "engineer", "infantry3", "infantry4", "sentry"}) {
+    for (const char* const role_key : rm_field::kRoleKeys) {
+        const std::string role(role_key);
         const auto node = profiles[role];
         if (!node) {
             throw std::runtime_error("navgrid 缺少兵种 profile: " + role);

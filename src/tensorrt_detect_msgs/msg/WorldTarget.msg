@@ -4,7 +4,6 @@
 int32 idx
 int32 class_id
 int32 team_id
-float32 score
 bool is_dead
 bool valid
 
@@ -29,12 +28,11 @@ uint8 TRACKING_PREDICTED=2
 uint8 TRACKING_LOST=3
 uint8 TRACKING_DEAD=4
 
-# 当前 position 字段的数据来源。第一阶段不会产生 PRIOR_GUESSED。
+# 当前 position 字段的数据来源（先验猜点仍在 shadow 旁路中，不作为主链来源）。
 uint8 POSITION_INVALID=0
 uint8 POSITION_MEASURED=1
 uint8 POSITION_TRACKED=2
 uint8 POSITION_PREDICTED=3
-uint8 POSITION_PRIOR_GUESSED=4
 
 # PhysicalTrack 唯一 ID；非 tracker 目标和空 slot 为 -1。
 int32 track_id
@@ -53,7 +51,7 @@ float32 velocity_z
 float64[16] state_covariance
 bool covariance_valid
 
-# detection_confidence 是最后一次真实检测置信度；score 暂时保持同值以兼容旧代码。
+# detection_confidence 是最后一次真实检测置信度；tracking_confidence 反映跟踪寿命。
 float32 detection_confidence
 float32 tracking_confidence
 

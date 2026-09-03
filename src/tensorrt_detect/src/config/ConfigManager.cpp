@@ -89,7 +89,8 @@ Config::Config(const std::string& configDir) {
         }
     }
 
-    // outpost_roi.yaml 优先覆盖 model.yaml 中的 outpost 配置
+    // outpost_roi.yaml 是前哨站配置的唯一来源（由 ROISetNode 维护，
+    // DetectNode /detect_node/reload_roi 也读取同一文件）；model.yaml 不再重复存放。
     const std::string outpostYaml = (dir / "outpost_roi.yaml").string();
     if (fs::exists(outpostYaml)) {
         try {
@@ -113,7 +114,7 @@ Config::Config(const std::string& configDir) {
                 map.outpostMapPointsBlue = cfg["outpost_mappoints_blue"].as<std::vector<int>>();
             }
         } catch (const std::exception& e) {
-            // outpost_roi.yaml 可选，加载失败不阻断
+            // outpost_roi.yaml 缺失/损坏时按“前哨站关闭”的默认状态继续，不阻断启动
         }
     }
 
@@ -179,17 +180,6 @@ void Config::loadModelConfig(const std::string& path) {
                             ? std::max(1, cfg["max_armor_rois"].as<int>()) : 4;
 
     model.classNames = parseClassNamesNode(cfg["classNames"]);
-
-    model.outpostEnabled = cfg["outpost_enabled"] ? cfg["outpost_enabled"].as<bool>() : false;
-    if (cfg["outpost_roi"]) {
-        model.outpostRoi = cfg["outpost_roi"].as<std::vector<int>>();
-    }
-    model.outpostScoreThreshold = cfg["outpost_score_threshold"]
-                                      ? cfg["outpost_score_threshold"].as<float>()
-                                      : 0.0f;
-    model.outpostMissTimeoutS = cfg["outpost_miss_timeout_s"]
-                                   ? cfg["outpost_miss_timeout_s"].as<float>()
-                                   : 1.0f;
 }
 
 void Config::loadCameraConfig(const std::string& path) {

@@ -46,7 +46,8 @@ def main():
         rows, ts = load_csv(p)
         # 每帧: (match_t, [(idx, x, y, w, h, conf)])  按 detections[k] 前缀聚合
         frames = {}
-        N_FIELDS = 17  # DetectionBox 字段数
+        # DetectionBox 字段数（移除 world_x/world_y/fps 后为 14；旧 bag 需重新导出）
+        N_FIELDS = 14
         for r in rows:
             mt = (ts(r) - b) / a
             if mt < 1.0 or mt > 420.0:

@@ -14,6 +14,7 @@ find_package(OpenSSL REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(tensorrt_detect_msgs REQUIRED)
+find_package(rm_field REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
 add_library(position_prior_core
@@ -28,8 +29,10 @@ add_library(position_prior_core
 target_include_directories(position_prior_core PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
+  ${rm_field_INCLUDE_DIRS}
 )
 target_link_libraries(position_prior_core PUBLIC
+  rm_field::rm_field
   OpenSSL::Crypto
   yaml-cpp::yaml-cpp
 )
@@ -53,6 +56,6 @@ install(TARGETS position_prior_core position_prior_node
 
 ament_export_include_directories(include)
 ament_export_targets(export_position_prior HAS_LIBRARY_TARGET)
-ament_export_dependencies(OpenSSL yaml-cpp)
+ament_export_dependencies(OpenSSL yaml-cpp rm_field)
 
 ament_package()

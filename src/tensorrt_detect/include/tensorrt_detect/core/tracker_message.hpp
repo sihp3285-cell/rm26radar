@@ -16,9 +16,11 @@ void fill_world_target(
     const Tracker::SlotOutput& slot,
     tensorrt_detect_msgs::msg::WorldTarget& target);
 
-/** 为不经过 Tracker 的前哨站/死亡装甲板直接测量补齐来源和观测状态字段。 */
+/** 为不经过 Tracker 的前哨站/死亡装甲板直接测量补齐来源和观测状态字段。
+ *  detection_score 是该直通项的检测置信度；observed=false 时记 0。 */
 void mark_direct_measurement(
     tensorrt_detect_msgs::msg::WorldTarget& target,
-    bool observed);
+    bool observed,
+    float detection_score);
 
 }  // namespace tracker_message

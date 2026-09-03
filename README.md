@@ -97,18 +97,25 @@ cd ../../targets/x86_64-linux-gnu/bin/
 ```
 **若编译与运行都正常，则说明安装成功**
 
-# 部署
-当环境配置正常，则该仓库代码部署也应该没什么问题.
-一般`git`下来后，修改`CMakeLists.txt`中`TensorRT`的路径，以及`main.cpp`中的文件路径后，进行编译即可。
+# 部署（ROS2 主链）
+
+当前主入口是 ROS2 component pipeline（不再使用旧的 standalone `standard` 入口）：
 
 ``` sh
-git clone https://github.com/LZY-XiXi/tensorrt10_detect.git
-cd tensorrt10_detect
-mkdir build && cd build
-cmake ..
-make -j8
-./standard
+# 1) 编译四个 ROS2 包（rm_field 为坐标/角色契约，position_prior 与 launch 依赖）
+source /opt/ros/jazzy/setup.bash    # 按实际 ROS 发行版调整
+colcon build --packages-select rm_field tensorrt_detect_msgs position_prior tensorrt_detect
+
+# 2) 加载工作空间并启动（默认视频回放模式）
+source install/setup.bash
+ros2 launch tensorrt_detect detect_pipeline.launch.py mode:=video
+
+# 工业相机模式
+ros2 launch tensorrt_detect detect_pipeline.launch.py mode:=camera
 ```
+
+启动参数、节点/话题说明见 `src/tensorrt_detect/launch/detect_pipeline.launch.py`；
+RViz 调试画面含义见 `src/tensorrt_detect/RVIZ_USAGE.md` 与 `RVIZ_DEBUG.md`。
 
 # 另说
 本仓库代码是针对`ultralytics`的，所以`engine`文件需要利用`ultralytics`仓库代码进行生成。其中，直接使用`ultralytics`仓库的`export`是会出现模型文件序列化失败的。

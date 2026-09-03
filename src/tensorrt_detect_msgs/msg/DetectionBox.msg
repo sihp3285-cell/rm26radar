@@ -16,11 +16,8 @@ int32 car_x
 int32 car_y
 int32 car_width
 int32 car_height
-# 兼容字段：DetectNode 当前不在检测阶段求世界坐标；真实 world 坐标由 PoseNode
-# 使用相机标定与 PLY Raycaster 计算。
-float32 world_x
-float32 world_y
-float32 fps
+# 分类 top1 置信度；检测阶段不计算世界坐标，world 坐标统一由 PoseNode
+# 使用相机标定与 PLY Raycaster 生成。
 float32 class_conf
 # 分类 top1 与 top2 的置信度差，用于 BotIdentity 判断身份是否有明显优势。
 float32 class_margin

@@ -17,6 +17,8 @@
 #include "position_prior/prior_lifecycle.hpp"
 #include "position_prior/team_selection.hpp"
 
+#include <rm_field/robot_class.hpp>
+
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/bool.hpp>
 #include <tensorrt_detect_msgs/msg/prior_candidate.hpp>
@@ -58,18 +60,6 @@ builtin_interfaces::msg::Time ns_to_time(std::int64_t timestamp_ns) {
     result.sec = static_cast<std::int32_t>(timestamp_ns / NS_PER_SECOND);
     result.nanosec = static_cast<std::uint32_t>(timestamp_ns % NS_PER_SECOND);
     return result;
-}
-
-/** 把稳定 class_id 映射为离线模型/NavGrid 的 role key；不支持类别返回空串。 */
-std::string role_for_class(int class_id) {
-    switch (class_id) {
-        case 2: return "hero";
-        case 3: return "engineer";
-        case 4: return "infantry3";
-        case 5: return "infantry4";
-        case 6: return "sentry";
-        default: return {};
-    }
 }
 
 }  // namespace
@@ -133,8 +123,7 @@ public:
         const auto configured_roles = get_parameter("enabled_roles").as_string_array();
         all_roles_enabled_ = configured_roles.empty();
         for (const auto& role : configured_roles) {
-            if (role == "hero" || role == "engineer" || role == "infantry3" ||
-                role == "infantry4" || role == "sentry") {
+            if (rm_field::is_role_key(role.c_str())) {
                 enabled_roles_.insert(role);
             } else {
                 RCLCPP_WARN(get_logger(),
@@ -462,7 +451,7 @@ private:
             message.rejection_reason = "waiting_for_prior_window";
             return message;
         }
-        const std::string role = role_for_class(cache.role_class_id);
+        const std::string role = rm_field::role_key_for_class(cache.role_class_id);
         if (role.empty() || !model_.supports_role(role)) {
             message.rejection_code = Prediction::REJECTION_UNSUPPORTED_ROLE;
             message.rejection_reason = "unsupported_role";
@@ -645,7 +634,7 @@ private:
                 observation_confirmations_.erase(static_cast<int>(index));
                 continue;
             }
-            const std::string target_role = role_for_class(target.class_id);
+            const std::string target_role = rm_field::role_key_for_class(target.class_id);
             const bool role_enabled = all_roles_enabled_ ||
                 enabled_roles_.find(target_role) != enabled_roles_.end();
             const bool observation_candidate = target.observed &&

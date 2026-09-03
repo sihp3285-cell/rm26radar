@@ -4,6 +4,8 @@
  */
 #include "map_analyzer.hpp"
 
+#include <rm_field/field_geometry.hpp>
+
 MapAnalyzer::MapAnalyzer(int our_team_id)
     : our_team_id_(our_team_id),
       my_team_(our_team_id),
@@ -12,12 +14,14 @@ MapAnalyzer::MapAnalyzer(int our_team_id)
 
 std::pair<float, float> MapAnalyzer::toFieldCoord(float world_x, float world_z) const
 {
-    // field_x_flip_ 用于适配不同标定/素材中 world_z 正方向不一致的问题。
-    // false: world_z 正方向指向蓝方（蓝方基地 world_z ≈ +14）
-    // true : world_z 正方向指向红方（红方基地 world_z ≈ +14）
-    float field_x = field_x_flip_ ? (world_z + 14.0f) : (14.0f - world_z);
-    float field_y = world_x + 7.5f;
-    return {field_x, field_y};
+    // field_x_flip_ 与 rm_field 的 world_z_toward_blue 同义：
+    // true  → world_z + 14（蓝方正方向），false → 14 - world_z。
+    // 公式统一来自 rm_field/field_geometry.hpp，避免多模块重复维护。
+    double field_x = 0.0, field_y = 0.0;
+    rm_field::world_to_field(
+        world_x, world_z, /*world_z_toward_blue=*/field_x_flip_,
+        field_x, field_y);
+    return {static_cast<float>(field_x), static_cast<float>(field_y)};
 }
 
 void MapAnalyzer::evaluate(const std::vector<tensorrt_detect_msgs::msg::WorldTarget>& targets)

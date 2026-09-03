@@ -1,3 +1,3 @@
-# 兼容 standalone 可视化开关；当前 ROS2 detect_pipeline.launch 的 Qt 显示节点不
-# 依赖此值决定是否启动，launch 会无条件创建 qt_display_node。
+# 历史兼容字段：旧 standalone 可视化开关。当前 ROS2 流程由 launch 的
+# enable_qt_display 参数决定是否启动 qt_display_node，本文件只保留兼容加载。
 show_flag: true
