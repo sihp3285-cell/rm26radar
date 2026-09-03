@@ -16,7 +16,6 @@
 
 #include <array>
 #include <cstdint>
-#include <string>
 #include <vector>
 
 // BotIdentityConfig 定义在 bot_identity.hpp 中，此处直接复用
@@ -51,11 +50,6 @@ struct TrackerParams {
     // 默认值对应约 99.9% 置信区间，<= 0 可关闭对应门控。
     float kalman_gate_box = 18.467f;
     float kalman_gate_world = 13.816f;
-    // NIS 门控模式（test_config.tracker_gate_mode）：
-    //   "fixed"   = 固定卡方阈值（默认）；
-    //   "adaptive"= 按每条轨迹创新一致性 EMA 自适应缩放阈值
-    //               （box 期望 NIS≈4，world 期望 NIS≈2，缩放夹在 0.5~2.0）。
-    std::string kalman_gate_mode = "fixed";
 
     // 死亡装甲板负观测的邻域。启用的维度必须同时满足，避免抑制相邻活车；
     // 对应值 <= 0 时禁用该维度，两个都禁用则关闭负观测抑制。
@@ -218,9 +212,6 @@ private:
         cv::Point2f last_measurement_world{0.0f, 0.0f};
         std::array<float, 4> last_measurement_R{{1.0f, 0.0f, 0.0f, 1.0f}};
         bool last_measurement_R_valid = false;
-        // adaptive NIS 门控用的创新一致性 EMA（box≈4 维 / world≈2 维）。
-        float ema_nis_box = 0.0f;
-        float ema_nis_world = 0.0f;
 
         float last_score = 0.0f;
         bool last_is_dead = false;

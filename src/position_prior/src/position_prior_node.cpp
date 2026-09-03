@@ -115,11 +115,6 @@ public:
         declare_parameter<std::string>("shadow_log_path", "");
         declare_parameter<double>("log_interval_s", 0.5);
 
-        // ── 测试调参板块开关（ros2_params.yaml 底部 test_config）──
-        declare_parameter<bool>("test_config.prior_navgrid_enabled", true);
-        declare_parameter<bool>("test_config.prior_enable_blind_zone", true);
-        declare_parameter<bool>("test_config.prior_enable_stay", true);
-
         input_topic_ = get_parameter("input_topic").as_string();
         output_topic_ = get_parameter("output_topic").as_string();
         context_ = get_parameter("context").as_string();
@@ -179,13 +174,9 @@ public:
         gate_config.mesh_prediction_snap_distance_m =
             std::max(0.0,
                 get_parameter("mesh_prediction_snap_distance_m").as_double());
-        const bool enable_stay =
-            get_parameter("test_config.prior_enable_stay").as_bool();
-        gate_config.stay_anchor_probability_scale = enable_stay
-            ? std::clamp(
-                get_parameter("stay_anchor_probability_scale").as_double(),
-                0.0, 0.95)
-            : 0.0;
+        gate_config.stay_anchor_probability_scale = std::clamp(
+            get_parameter("stay_anchor_probability_scale").as_double(),
+            0.0, 0.95);
         gate_config.blind_zone_minimum_stay_anchor_mass = std::clamp(
             get_parameter("blind_zone_minimum_stay_anchor_mass").as_double(),
             0.0, 0.95);
@@ -211,30 +202,21 @@ public:
 
         const std::string navgrid_path =
             get_parameter("navgrid_path").as_string();
-        const bool navgrid_enabled =
-            get_parameter("test_config.prior_navgrid_enabled").as_bool();
-        navigation_mesh_.set_enabled(navgrid_enabled);
-        // 无论是否启用 Dijkstra 都加载网格：盲区先验需要可通行格/高度信息。
-        // enabled=false 时 PriorGate 的通用猜点退回欧氏距离，盲区先验内部
-        // 也退回欧氏过滤（见 BlindZonePrior::apply）。
         if (!navgrid_path.empty()) {
             try {
                 navigation_mesh_.load(navgrid_path);
                 gate_.set_navigation_mesh(&navigation_mesh_);
                 RCLCPP_INFO(get_logger(),
-                    "兵种 navgrid 加载完成: %s (%dx%d, %.2f m) 核心逻辑=%s",
+                    "兵种 navgrid 加载完成: %s (%dx%d, %.2f m)",
                     navgrid_path.c_str(), navigation_mesh_.columns(),
-                    navigation_mesh_.rows(), navigation_mesh_.resolution(),
-                    navgrid_enabled ? "启用" : "关闭(欧氏回退)");
+                    navigation_mesh_.rows(), navigation_mesh_.resolution());
             } catch (const std::exception& error) {
                 RCLCPP_ERROR(get_logger(),
                     "navgrid 加载失败，将退回欧氏距离门控: %s", error.what());
             }
         }
 
-        const bool enable_blind_zone =
-            get_parameter("test_config.prior_enable_blind_zone").as_bool();
-        if (enable_blind_zone && navigation_mesh_.loaded()) {
+        if (navigation_mesh_.loaded()) {
             BlindZoneBiasConfig blind_config;
             blind_config.trigger_distance_m = std::max(
                 0.0, get_parameter("blind_zone_trigger_distance_m").as_double());

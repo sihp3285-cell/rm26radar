@@ -174,13 +174,16 @@ rviz_debug_node:
     mesh: true
     # 场地参考网格：替代 rviz2 自带的 Grid 显示（后者在本机部分会话里会
     # 静默不渲染，导致场地视觉上变成实心）
-    # 显示开关已集中到文件底部 test_config 板块（rviz_field_grid 等）。
+    field_grid: true
     tracks: true
     trajectories: true
     velocity: true
     covariance: true
     # 白色椭圆：最近一次被 Kalman 实际采用的测量噪声 R（原始测量位置处）
     measurement_covariance: true
+    guess_candidates: true
+    blind_zones: true
+    nav_grid: true
     trajectory_length: 50
     velocity_scale_seconds: 1.0
 
@@ -208,41 +211,3 @@ roi_set_node:
     outpost_roi_path: "/home/delphine/rm/tensorrt10_detect/configs/outpost_roi.yaml"
     auto_set_roi: true
     auto_set_delay_sec: 3
-# ═════════════════════════════════════════════════════════════════════════
-# 🧪 测试调参板块（TEST BENCH）
-# -------------------------------------------------------------------------
-# 统一在这里开关/调节实验变量；修改后重启对应节点生效。
-# 由各节点读取（参数名均带 test_config. 前缀）：
-#   rviz_debug_node      读取 rviz_*（显示开关）
-#   position_prior_node  读取 prior_*（猜点算法，需 launch 同时传入本文件）
-#   pose_node            读取 pose_*/tracker_gate_mode（透传 posesolver/tracker）
-# ═════════════════════════════════════════════════════════════════════════
-test_config:
-  ros__parameters:
-
-    # ── 可视化（rviz_debug_node，仅显示，不影响算法）──────────────────
-    rviz_nav_grid: true          # 仅可视化：是否绘制导航网格
-    rviz_field_grid: true        # 仅可视化：是否绘制场地参考网格
-    rviz_blind_zones: true       # 仅可视化：是否绘制盲区多边形
-    rviz_guess_candidates: true  # 仅可视化：是否绘制猜点候选
-
-    # ── 位置先验 / 猜点（position_prior_node）─────────────────────────
-    # 注意：navgrid/盲区路径本体仍在 position_prior.yaml，这里只控制开关
-    prior_navgrid_enabled: false  # 【核心逻辑】是否启用导航网格 Dijkstra 最短路径
-                                 # （navigation_mesh.cpp）。false 时通用猜点距离
-                                 # 退化为欧氏直线距离；navgrid 仍会加载供盲区先验
-                                 # 使用（盲区候选按欧氏距离过滤），两者已解耦
-    prior_enable_blind_zone: true   # 盲区先验（独立于 prior_navgrid_enabled；
-                                    # navgrid 关闭时盲区候选按欧氏距离过滤）
-    prior_enable_stay: true         # true=启用 stay probability 驻留锚点
-                                    # false=stay_anchor_probability_scale 强制 0
-
-    # ── 测量协方差（pose_node → posesolver）───────────────────────────
-    pose_covariance_mode: "ray"     # "ray"  =多条差分射线/Jacobian 传播真实协方差(默认)
-                                    # "fixed"=固定各向同性协方差(pose_fixed_world_std_m)
-    pose_fixed_world_std_m: 0.50    # fixed 模式下的各向同性标准差 (m)
-
-    # ── 跟踪门控（pose_node → tracker）────────────────────────────────
-    tracker_gate_mode: "fixed"      # "fixed"   =固定卡方阈值(默认, kalman_gate_box/world)
-                                    # "adaptive"=按每条轨迹创新一致性 EMA 自适应缩放阈值
-

@@ -10,7 +10,6 @@
 
 #include <opencv2/opencv.hpp>
 #include <array>
-#include <string>
 #include <vector>
 #include "raycaster.hpp"
 
@@ -28,11 +27,6 @@ struct ProjectionUncertaintyConfig {
     float surface_discontinuity_m = 0.12f;
     // 仅在 RViz 动态 topic 有订阅者时保存中心射线的完整三维终点。
     bool capture_debug_ray_endpoint = false;
-    // 测量协方差模式（test_config.pose_covariance_mode）：
-    //   "ray"   = 多条差分射线/Jacobian 传播方向相关真实协方差（默认）；
-    //   "fixed" = 固定各向同性协方差，标准差取 fixed_world_std_m。
-    std::string covariance_mode = "ray";
-    float fixed_world_std_m = 0.50f;
 };
 
 /** 一个落地点及其测量质量；world 只承载世界平面 (x,z)。 */

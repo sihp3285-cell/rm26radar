@@ -43,16 +43,8 @@ public:
     /** 解析离线 NavGrid 元数据、高度和各兵种 profile；校验失败抛异常。 */
     void load(const std::string& path);
 
-    /** 测试开关：是否启用核心网格逻辑（Dijkstra 最短路径/可达性）。
-     *  false 时 route_map/path_distance 等全部按"未启用"处理，
-     *  调用方（PriorGate）会退回二维欧氏直线距离。
-     *  对应 ros2_params.yaml 底部 test_config.prior_navgrid_enabled。 */
-    void set_enabled(bool enabled) { enabled_ = enabled; }
-
     /** 返回 NavGrid 是否已成功完整加载。 */
     bool loaded() const { return loaded_; }
-    /** 返回核心网格逻辑是否启用（加载且 enabled）。 */
-    bool enabled() const { return enabled_ && loaded_; }
     /** 返回当前 NavGrid 来源路径，便于日志和模型一致性诊断。 */
     const std::string& path() const { return path_; }
     /** 返回网格覆盖的场地长度，单位米。 */
@@ -121,7 +113,6 @@ private:
         const std::vector<Point2d>& polygon);
 
     bool loaded_ = false;
-    bool enabled_ = true;   // test_config.prior_navgrid_enabled
     std::string path_;
     double field_length_ = 0.0;
     double field_width_ = 0.0;
