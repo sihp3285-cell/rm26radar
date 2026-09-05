@@ -1,0 +1,15 @@
+{
+  "bag_counts": {
+    "/armor_detections": 5655,
+    "/pipeline_timing": 5655,
+    "/world_targets": 5655,
+    "/radar_map": 5655,
+    "/prior_predictions": 5655
+  },
+  "exported_counts": {
+    "/pipeline_timing": 5655,
+    "/radar_map": 5655,
+    "/prior_predictions": 5655
+  },
+  "verified_all_bag_messages": true
+}

@@ -130,3 +130,9 @@ RViz 调试画面含义见 `src/tensorrt_detect/RVIZ_USAGE.md` 与 `RVIZ_DEBUG.m
 远场视线方向会自动获得更低的 Kalman 增益；相邻射线命中沟底和高台等不同
 PLY 高度面时会进一步放大该帧不确定性。相关参数位于
 `src/tensorrt_detect/config/ros2_params.yaml` 的 `pose_node` 段。
+
+## 测试与离线工具
+
+所有维护中的测试、回放、报告生成和离线模型构建入口统一见 [scripts/README.md](scripts/README.md)。`log/` 保存输出及复核材料。
+
+答辩使用的六份最终报告已纳入版本管理，入口见 [reports/README.md](reports/README.md)。仅提交报告和直接链接的小型证据文件，模型、录像、数据库及原始 bag 保留在本机。

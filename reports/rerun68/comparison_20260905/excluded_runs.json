@@ -1,0 +1,7 @@
+[
+  {
+    "path": "log/rerun68/comparison_20260905/failed_runs/cmp05_fixed_r1_g3",
+    "reason": "Recorder SQLite database is locked during assistant live read-only bag spot-check. Incomplete; excluded from all scores. Restart with same configuration; no further open-bag queries.",
+    "excluded_epoch": 1788540323.9946098
+  }
+]

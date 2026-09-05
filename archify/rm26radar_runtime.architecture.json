@@ -1,0 +1,340 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "rm26radar 运行时架构",
+    "output": "rm26radar_runtime.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "frame-path",
+        "label": "主图像链路",
+        "focus": [
+          "src",
+          "detect",
+          "pose",
+          "map",
+          "consumer"
+        ],
+        "note": "单条主链：/image_raw → /armor_detections → /world_targets → /radar_map。"
+      },
+      {
+        "id": "shadow-prior",
+        "label": "先验影子通道",
+        "focus": [
+          "pose",
+          "prior",
+          "map"
+        ],
+        "note": "位置先验订阅 /world_targets，但从不回写。"
+      },
+      {
+        "id": "operator-tools",
+        "label": "运维工具",
+        "focus": [
+          "calibrate",
+          "roi",
+          "qtui"
+        ],
+        "note": "独立进程：调参或展示主链结果。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "cam",
+      "type": "external",
+      "label": "工业相机",
+      "sublabel": "Hikvision · rb26SDK",
+      "pos": [
+        10,
+        350
+      ],
+      "size": [
+        160,
+        76
+      ]
+    },
+    {
+      "id": "src",
+      "type": "backend",
+      "label": "图像源",
+      "sublabel": "CameraNode · VideoNode",
+      "tag": "容器内组件",
+      "pos": [
+        280,
+        340
+      ],
+      "size": [
+        150,
+        86
+      ]
+    },
+    {
+      "id": "detect",
+      "type": "backend",
+      "label": "DetectNode",
+      "sublabel": "TensorRT 10 多模型检测管线",
+      "tag": "容器内组件",
+      "pos": [
+        600,
+        340
+      ],
+      "size": [
+        190,
+        86
+      ]
+    },
+    {
+      "id": "pose",
+      "type": "backend",
+      "label": "PoseNode",
+      "sublabel": "射线投影 · Kalman · 官方槽位",
+      "tag": "容器内组件",
+      "pos": [
+        950,
+        340
+      ],
+      "size": [
+        190,
+        86
+      ]
+    },
+    {
+      "id": "map",
+      "type": "backend",
+      "label": "MapNode",
+      "sublabel": "RadarMap · 战术摘要 · 先验叠加",
+      "tag": "容器内组件",
+      "pos": [
+        1300,
+        340
+      ],
+      "size": [
+        180,
+        86
+      ]
+    },
+    {
+      "id": "consumer",
+      "type": "external",
+      "label": "雷达上行消费者",
+      "sublabel": "裁判系统栈 · 仓库之外",
+      "pos": [
+        1660,
+        352
+      ],
+      "size": [
+        200,
+        76
+      ]
+    },
+    {
+      "id": "engines",
+      "type": "external",
+      "label": "TensorRT 10 引擎",
+      "sublabel": "car · armor · cls · outpost · airplane",
+      "tag": ".engine · GPU",
+      "pos": [
+        595,
+        110
+      ],
+      "size": [
+        200,
+        80
+      ]
+    },
+    {
+      "id": "prior",
+      "type": "backend",
+      "label": "PositionPriorNode",
+      "sublabel": "影子猜点旁路",
+      "tag": "独立进程",
+      "pos": [
+        1010,
+        650
+      ],
+      "size": [
+        220,
+        80
+      ]
+    },
+    {
+      "id": "qtui",
+      "type": "frontend",
+      "label": "QtDisplayNode",
+      "sublabel": "桌面 UI · /flip_team",
+      "tag": "独立进程",
+      "pos": [
+        1330,
+        650
+      ],
+      "size": [
+        200,
+        80
+      ]
+    },
+    {
+      "id": "calibrate",
+      "type": "frontend",
+      "label": "CalibrateNode",
+      "sublabel": "外参标定界面",
+      "tag": "独立进程",
+      "pos": [
+        300,
+        650
+      ],
+      "size": [
+        200,
+        80
+      ]
+    },
+    {
+      "id": "roi",
+      "type": "frontend",
+      "label": "RoiSetNode",
+      "sublabel": "前哨站 ROI 配置界面",
+      "tag": "独立进程",
+      "pos": [
+        630,
+        650
+      ],
+      "size": [
+        200,
+        80
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "detect_pipeline_container · 单进程 / 进程内话题",
+      "wraps": [
+        "src",
+        "detect",
+        "pose",
+        "map"
+      ],
+      "pad": 44
+    },
+    {
+      "kind": "region",
+      "label": "独立进程 · 序列化话题 / 控制面边界",
+      "wraps": [
+        "prior",
+        "qtui",
+        "calibrate",
+        "roi"
+      ],
+      "pad": 44
+    },
+    {
+      "kind": "security-group",
+      "label": "GPU 产物入口 · 不可信 .engine 二进制",
+      "wraps": [
+        "engines"
+      ],
+      "pad": 26
+    }
+  ],
+  "connections": [
+    {
+      "id": "cam-src",
+      "from": "cam",
+      "to": "src",
+      "label": "mode:=camera",
+      "variant": "dashed"
+    },
+    {
+      "id": "src-detect",
+      "from": "src",
+      "to": "detect",
+      "label": "/image_raw",
+      "variant": "emphasis"
+    },
+    {
+      "id": "detect-pose",
+      "from": "detect",
+      "to": "pose",
+      "label": "/armor_detections",
+      "variant": "emphasis"
+    },
+    {
+      "id": "pose-map",
+      "from": "pose",
+      "to": "map",
+      "label": "/world_targets",
+      "variant": "emphasis"
+    },
+    {
+      "id": "map-consumer",
+      "from": "map",
+      "to": "consumer",
+      "label": "/radar_map",
+      "variant": "emphasis"
+    },
+    {
+      "id": "engines-detect",
+      "from": "engines",
+      "to": "detect",
+      "label": "加载 .engine",
+      "variant": "security",
+      "labelDx": 65,
+      "labelDy": 24
+    },
+    {
+      "id": "pose-prior",
+      "from": "pose",
+      "to": "prior",
+      "label": "/world_targets",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "prior-map",
+      "from": "prior",
+      "to": "map",
+      "label": "/prior_predictions",
+      "variant": "dashed"
+    },
+    {
+      "id": "map-qtui",
+      "from": "map",
+      "to": "qtui",
+      "label": "/map_image",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "主链路与容器",
+      "items": [
+        "主链：/image_raw → /armor_detections → /world_targets → /radar_map",
+        "Camera/Video 源发布同一话题；容器内 intra-process，跨进程 best-effort",
+        "Qt UI 发布 /flip_team；Calibrate/ROI 写 YAML 后触发 reload 服务"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "感知与地图",
+      "items": [
+        "DetectPipeline：车辆 → 装甲板 → 兵种 → 前哨站 → 无人机（异步）",
+        "PoseNode：PLY 射线投影 + Kalman/Hungarian 维护官方槽位",
+        "MapNode：/radar_map 槽位 + /map_tactics 战术标志；/flip_team 切换视角"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "影子先验与外部依赖",
+      "items": [
+        "先验旁路只叠加显示，从不回写 Tracker / RadarMap",
+        "导航网格可达性；模型 SHA-256 校验、配置 OpenSSL 保护",
+        ".engine 在进程内执行、按可信产物管理；外部依赖含 TensorRT/CUDA/OpenCV/Open3D/Qt"
+      ]
+    }
+  ]
+}

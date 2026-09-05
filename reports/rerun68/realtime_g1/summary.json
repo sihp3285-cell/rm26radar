@@ -1,0 +1,338 @@
+{
+  "A": {
+    "union_s": 373.2,
+    "sum_s": 658.7,
+    "alive_union_s": 371.69999999999993,
+    "alive_sum_s": 646.2,
+    "conditional_unlock_s": [
+      77.0,
+      142.8
+    ],
+    "alive_unlock_s": [
+      78.5,
+      144.3
+    ]
+  },
+  "B": {
+    "union_s": 417.4,
+    "sum_s": 1353.9,
+    "alive_union_s": 417.4,
+    "alive_sum_s": 1249.7000000000003,
+    "conditional_unlock_s": [
+      62.6,
+      122.6
+    ],
+    "alive_unlock_s": [
+      62.6,
+      122.6
+    ]
+  },
+  "key": "g1",
+  "gid": 1778913533396,
+  "stats": {
+    "map_receipts": 5386,
+    "map_hz": 12.824301276776556,
+    "first_receipt_s": 0.03004298100000824,
+    "last_receipt_s": 419.93596095500004,
+    "latency_median_ms": 83.12214349999999,
+    "latency_p95_ms": 91.196066,
+    "map_gap_p95_ms": 86.46261860001232,
+    "map_gap_max_ms": 147.52879799999974,
+    "guess_packets": 14735,
+    "stale_prior_frames_rejected": 0,
+    "guess_packets_old_array_index_would_omit": 6736,
+    "time_basis": "rosbag local reception; not referee-server reception",
+    "causal_prior_max_age_s": 0.5,
+    "db_hp_used_for_packet_selection": false,
+    "source_frames_published": 5657,
+    "source_frames_dropped_late": 10,
+    "negative_output_latency_count": 0
+  },
+  "alignment": {
+    "score": 3.0254673541851966,
+    "slope": 1.5594999999999977,
+    "offset": -19.84999999999999,
+    "gid": 1778913533396,
+    "video_identity_scores": {
+      "g1": {
+        "score": 3.0254673541851966,
+        "slope": 1.5594999999999977,
+        "offset": -19.84999999999999
+      },
+      "g2": {
+        "score": 8.965106570964712,
+        "slope": 2.1109999999999998,
+        "offset": -13.349999999999994
+      },
+      "g3": {
+        "score": 7.975581355097436,
+        "slope": 2.046499999999999,
+        "offset": -35.35000000000005
+      }
+    },
+    "observations": 2319,
+    "valid_observations": 1784,
+    "rms_m": 1.0793103171571996,
+    "median_m": 0.6574809410266241,
+    "holdout_rms_m": 1.0888181410255404,
+    "method": "frozen content-frame affine mapping; even 10s blocks fit, odd blocks held out",
+    "source": "discovery_g1/events.jsonl",
+    "local_shift_checks": [
+      {
+        "start_s": 0,
+        "best_shift_s": -0.8999999999999981,
+        "n": 98
+      },
+      {
+        "start_s": 120,
+        "best_shift_s": 0.5000000000000031,
+        "n": 113
+      },
+      {
+        "start_s": 180,
+        "best_shift_s": -0.2999999999999976,
+        "n": 88
+      },
+      {
+        "start_s": 240,
+        "best_shift_s": -0.2999999999999976,
+        "n": 192
+      },
+      {
+        "start_s": 300,
+        "best_shift_s": -0.1999999999999975,
+        "n": 187
+      },
+      {
+        "start_s": 360,
+        "best_shift_s": 1.0000000000000036,
+        "n": 232
+      }
+    ]
+  },
+  "model_split": "validation",
+  "sender": {
+    "hz": 5,
+    "protocol": "0x0305",
+    "protocol_version": "V1.3.0 (20260327)",
+    "source_url": "https://bbs-web-static.robomaster.com/ef4f084944e34393aa70378a4a405c681774586313231/RoboMaster%202026%20%E6%9C%BA%E7%94%B2%E5%A4%A7%E5%B8%88%E9%AB%98%E6%A0%A1%E7%B3%BB%E5%88%97%E8%B5%9B%E9%80%9A%E4%BF%A1%E5%8D%8F%E8%AE%AE%20V1.3.0%EF%BC%8820260327%EF%BC%89.pdf",
+    "coordinate_quantization": "nearest centimeter; unrepresentable uint16 rejected; zero-zero omitted",
+    "extra_transport_delay_s": 0.0,
+    "packet_loss": 0.0,
+    "clock_phase_match_s": 0.0,
+    "real_referee_transmission": false
+  },
+  "DB": {
+    "union_s": 318.0,
+    "sum_s": 581.0,
+    "alive_union_s": 287.0,
+    "alive_sum_s": 491.0
+  },
+  "assumptions": {
+    "rf_suppression": "unknown, assumed absent",
+    "position_module_offline": "unknown, assumed absent",
+    "referee_transport": "unmeasured; 5Hz virtual send after local receipt; delay/loss scenarios included",
+    "death_progress": "interruptions continue; only x resets on revival",
+    "double": "conditional opportunity times, not actual triggered double vulnerability"
+  },
+  "sensitivity": [
+    {
+      "label": "时间映射偏移 -2.0s",
+      "A": {
+        "union_s": 247.39999999999992,
+        "sum_s": 328.6999999999999
+      },
+      "B": {
+        "union_s": 394.7,
+        "sum_s": 1037.7999999999997
+      }
+    },
+    {
+      "label": "时间映射偏移 -1.0s",
+      "A": {
+        "union_s": 299.7,
+        "sum_s": 548.7999999999998
+      },
+      "B": {
+        "union_s": 413.20000000000005,
+        "sum_s": 1295.1
+      }
+    },
+    {
+      "label": "时间映射偏移 -0.5s",
+      "A": {
+        "union_s": 343.9,
+        "sum_s": 657.3999999999999
+      },
+      "B": {
+        "union_s": 417.3,
+        "sum_s": 1353.0000000000002
+      }
+    },
+    {
+      "label": "时间映射偏移 -0.2s",
+      "A": {
+        "union_s": 376.79999999999995,
+        "sum_s": 686.3
+      },
+      "B": {
+        "union_s": 417.4,
+        "sum_s": 1370.5
+      }
+    },
+    {
+      "label": "时间映射偏移 +0.0s",
+      "A": {
+        "union_s": 373.2,
+        "sum_s": 658.7
+      },
+      "B": {
+        "union_s": 417.4,
+        "sum_s": 1353.9
+      }
+    },
+    {
+      "label": "时间映射偏移 +0.2s",
+      "A": {
+        "union_s": 370.5,
+        "sum_s": 657.4
+      },
+      "B": {
+        "union_s": 417.2,
+        "sum_s": 1344.4
+      }
+    },
+    {
+      "label": "时间映射偏移 +0.5s",
+      "A": {
+        "union_s": 355.0,
+        "sum_s": 603.5
+      },
+      "B": {
+        "union_s": 416.9,
+        "sum_s": 1285.1000000000001
+      }
+    },
+    {
+      "label": "时间映射偏移 +1.0s",
+      "A": {
+        "union_s": 301.2999999999999,
+        "sum_s": 469.6999999999998
+      },
+      "B": {
+        "union_s": 406.40000000000003,
+        "sum_s": 1149.9999999999998
+      }
+    },
+    {
+      "label": "时间映射偏移 +2.0s",
+      "A": {
+        "union_s": 196.5,
+        "sum_s": 286.70000000000005
+      },
+      "B": {
+        "union_s": 378.3,
+        "sum_s": 904.0
+      }
+    },
+    {
+      "label": "额外通信延迟 100ms",
+      "A": {
+        "union_s": 369.59999999999997,
+        "sum_s": 652.5999999999999
+      },
+      "B": {
+        "union_s": 417.3,
+        "sum_s": 1360.0
+      }
+    },
+    {
+      "label": "额外通信延迟 130ms",
+      "A": {
+        "union_s": 369.96999999999997,
+        "sum_s": 653.21
+      },
+      "B": {
+        "union_s": 417.27,
+        "sum_s": 1355.58
+      }
+    },
+    {
+      "label": "额外通信延迟 200ms",
+      "A": {
+        "union_s": 370.5,
+        "sum_s": 657.4
+      },
+      "B": {
+        "union_s": 417.2,
+        "sum_s": 1344.4
+      }
+    },
+    {
+      "label": "固定发送节拍 4Hz",
+      "A": {
+        "union_s": 321.0,
+        "sum_s": 544.75
+      },
+      "B": {
+        "union_s": 416.75,
+        "sum_s": 1331.0
+      }
+    },
+    {
+      "label": "固定发送节拍 5Hz",
+      "A": {
+        "union_s": 373.2,
+        "sum_s": 658.7
+      },
+      "B": {
+        "union_s": 417.4,
+        "sum_s": 1353.9
+      }
+    },
+    {
+      "label": "固定发送节拍 10Hz（超协议上限，仅诊断）",
+      "A": {
+        "union_s": 405.3,
+        "sum_s": 829.8
+      },
+      "B": {
+        "union_s": 418.7,
+        "sum_s": 1414.2
+      }
+    },
+    {
+      "label": "5Hz＋130ms＋1%丢包（种子68）",
+      "A": {
+        "union_s": 369.77,
+        "sum_s": 645.81
+      },
+      "B": {
+        "union_s": 417.27,
+        "sum_s": 1354.18
+      }
+    },
+    {
+      "label": "5Hz＋200ms＋3%丢包（种子68）",
+      "A": {
+        "union_s": 362.0,
+        "sum_s": 629.6999999999998
+      },
+      "B": {
+        "union_s": 417.2,
+        "sum_s": 1324.8
+      }
+    },
+    {
+      "label": "未限频地图节拍（超协议上限，仅诊断）",
+      "A": {
+        "union_s": 404.885025845,
+        "sum_s": 868.9149946069997
+      },
+      "B": {
+        "union_s": 418.95208952999997,
+        "sum_s": 1432.8903210729995
+      }
+    }
+  ]
+}

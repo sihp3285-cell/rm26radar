@@ -1,0 +1,30 @@
+{
+  "alignment_sha256": "921ef401211b213353189147ce9318ec53f92fc4b45437343022d2e99ddee42e",
+  "fixed_source_changes": {
+    "float covariance_xx = minimum_variance + sigma_squared * g_xx;": "float covariance_xx = 1.0f;",
+    "float covariance_xz = sigma_squared * g_xz;": "float covariance_xz = 0.0f;",
+    "float covariance_zz = minimum_variance + sigma_squared * g_zz;": "float covariance_zz = 1.0f;",
+    "if (result.surface_discontinuity) {": "if (false && result.surface_discontinuity) {"
+  },
+  "variants": {
+    "baseline": {},
+    "armor": {
+      "params_file": "/home/delphine/rm/tensorrt10_detect/log/rerun68/comparison_20260905/armor.yaml"
+    },
+    "fixed": {
+      "pose_library": "/home/delphine/rm/tensorrt10_detect/log/rerun68/comparison_20260905/libpose_node_fixed.so"
+    },
+    "nav_off": {
+      "prior_params_file": "/home/delphine/rm/tensorrt10_detect/log/rerun68/comparison_20260905/nav_off.yaml"
+    }
+  },
+  "artifacts": {
+    "libpose_node_fixed.so": "5ea280c7ef30ed15cd4f2affc04d3f0e2924a708857b338ef65b651965b976ec",
+    "posesolver_fixed.cpp": "2e42f99d1fed50182319da72e13be9ab34616baa1db60a3bf9de245de1c3922f",
+    "armor.yaml": "bebb1c73b5325581546363f3e3dee05b4d3ce6935e69c519922d01a9a4a665b4",
+    "nav_off.yaml": "5081e8642bc8fb51132562a26c78e6d53cbd4df4f3eb71d757fc66439d5d4ae9"
+  },
+  "fixed_semantics": "R=identity for normal valid five-ray projections, no terrain inflation; preserve original invalid-ray fallbacks and selector use of R",
+  "nav_off_semantics": "No navgrid loaded; blind-zone prior consequently disabled; stay scale remains 0.8",
+  "armor_semantics": "Existing projection_selector_enabled=false: prefer armor, fallback to healthy car if armor invalid"
+}

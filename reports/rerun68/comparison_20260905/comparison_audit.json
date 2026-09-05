@@ -1,0 +1,138 @@
+{
+  "status": "complete",
+  "production_files_checked": 625,
+  "production_changes": [],
+  "frozen_alignment_unchanged": true,
+  "primary_reports_unchanged": false,
+  "primary_report_data_unchanged": true,
+  "runs": [
+    {
+      "folder": "cmp05_baseline_r1_g1",
+      "provenance_and_ledger_checked": true,
+      "actual_parameters_and_R_checked": true,
+      "summary_sha256": "f6d3f2e295755090159e37a027468192c5569630d4d8fe8d9c753ea94177f5ba",
+      "measurement_counts": {
+        "valid_R": 30490,
+        "anisotropic_R": 30490
+      }
+    },
+    {
+      "folder": "cmp05_armor_r1_g1",
+      "provenance_and_ledger_checked": true,
+      "actual_parameters_and_R_checked": true,
+      "summary_sha256": "844e1b4139486c6a386603217f49210f96627a2cb962d9f8041587f2ec73d3aa",
+      "measurement_counts": {
+        "valid_R": 30274,
+        "anisotropic_R": 30274
+      }
+    },
+    {
+      "folder": "cmp05_armor_r2_g1",
+      "provenance_and_ledger_checked": true,
+      "actual_parameters_and_R_checked": true,
+      "summary_sha256": "f5ea7f175d9f83c2283186448d44b6c35219b89c8c1ca533325eaa6fa29f98d2",
+      "measurement_counts": {
+        "valid_R": 30276,
+        "anisotropic_R": 30276
+      }
+    },
+    {
+      "folder": "cmp05_baseline_r2_g1",
+      "provenance_and_ledger_checked": true,
+      "actual_parameters_and_R_checked": true,
+      "summary_sha256": "a94217b80b57a932dbbc53b5ba0b4655b35057332d307676ab31e6b7b60d4ac0",
+      "measurement_counts": {
+        "valid_R": 30495,
+        "anisotropic_R": 30495
+      }
+    },
+    {
+      "folder": "cmp05_baseline_r1_g3",
+      "provenance_and_ledger_checked": true,
+      "actual_parameters_and_R_checked": true,
+      "summary_sha256": "04815ceb71e4d044756c7e61e0b0fdea4b39cffa49062ce0e894e7d33768aae6",
+      "measurement_counts": {
+        "valid_R": 27375,
+        "anisotropic_R": 27375
+      }
+    },
+    {
+      "folder": "cmp05_fixed_r1_g3",
+      "provenance_and_ledger_checked": true,
+      "actual_parameters_and_R_checked": true,
+      "summary_sha256": "4a3ec2b439d7e37b2da91e9d3120576e0c7c43dfc33676d01b041cd0898277cd",
+      "measurement_counts": {
+        "valid_R": 27554,
+        "identity_R": 27554
+      }
+    },
+    {
+      "folder": "cmp05_nav_off_r1_g3",
+      "provenance_and_ledger_checked": true,
+      "actual_parameters_and_R_checked": true,
+      "summary_sha256": "af3d480b786425539a49e09e3d5350033239b25f157dbf5c4b8a5943d61d1e84",
+      "measurement_counts": {
+        "valid_R": 27321,
+        "anisotropic_R": 27321
+      }
+    },
+    {
+      "folder": "cmp05_nav_off_r2_g3",
+      "provenance_and_ledger_checked": true,
+      "actual_parameters_and_R_checked": true,
+      "summary_sha256": "f4e20b9c79c049bcf5eb8356d8468c8b31fe6ffb7cf47831cc915f332c8a673a",
+      "measurement_counts": {
+        "valid_R": 27345,
+        "anisotropic_R": 27345
+      }
+    },
+    {
+      "folder": "cmp05_fixed_r2_g3",
+      "provenance_and_ledger_checked": true,
+      "actual_parameters_and_R_checked": true,
+      "summary_sha256": "52e8fbbcdbe823d675c8cc93eaabada67c9c2cdd5ec3707a5aa375de09d795fb",
+      "measurement_counts": {
+        "valid_R": 27554,
+        "identity_R": 27554
+      }
+    },
+    {
+      "folder": "cmp05_baseline_r2_g3",
+      "provenance_and_ledger_checked": true,
+      "actual_parameters_and_R_checked": true,
+      "summary_sha256": "7de022e8ecfc5a35d47ab50b80229ac2a785714741cf2c8f49c6ca27cd189ed2",
+      "measurement_counts": {
+        "valid_R": 27203,
+        "anisotropic_R": 27203
+      }
+    }
+  ],
+  "reports": [
+    {
+      "path": "log/report_68g1_armor_dyn/report.html",
+      "sha256": "84d9525102a41edd7c55d2d333ebfcea07d553282ceb65e0756d2f051a44c678",
+      "bars_match_raw_summaries": true,
+      "tables_links_timelines_checked": true
+    },
+    {
+      "path": "log/report_68g3_cov_cmp/report.html",
+      "sha256": "3278db321573ce3b9713ff9a6cbad9dc9c9bfe265f4e381bfa807f0b927475c7",
+      "bars_match_raw_summaries": true,
+      "tables_links_timelines_checked": true
+    },
+    {
+      "path": "log/report_68g3_navgrid_cmp/report.html",
+      "sha256": "43f6f916d7608c1607cc629a3d6ee0f843538472175cbeb595740ae195971e80",
+      "bars_match_raw_summaries": true,
+      "tables_links_timelines_checked": true
+    }
+  ],
+  "browser_visual_check": "not performed; local file navigation previously blocked; HTML/SVG data and structure checked",
+  "excluded_runs": [
+    {
+      "path": "log/rerun68/comparison_20260905/failed_runs/cmp05_fixed_r1_g3",
+      "reason": "Recorder SQLite database is locked during assistant live read-only bag spot-check. Incomplete; excluded from all scores. Restart with same configuration; no further open-bag queries.",
+      "excluded_epoch": 1788540323.9946098
+    }
+  ]
+}

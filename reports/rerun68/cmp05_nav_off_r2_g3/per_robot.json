@@ -1,0 +1,210 @@
+{
+  "A": [
+    {
+      "role": "英雄",
+      "total_s": 95.09999999999994,
+      "t20_s": 81.90000000000002,
+      "t15_s": 13.199999999999918,
+      "alive_s": 89.79999999999993,
+      "first100_s": 2.6,
+      "first120_s": 2.8000000000000003,
+      "counts": {
+        "accurate": 328,
+        "semi": 59,
+        "wrong": 52
+      },
+      "packets": 439,
+      "guess_packets": 0,
+      "interruptions": 659,
+      "revivals": [],
+      "rms_m": 0.912221042728826
+    },
+    {
+      "role": "工程",
+      "total_s": 89.69999999999993,
+      "t20_s": 81.39999999999995,
+      "t15_s": 8.299999999999983,
+      "alive_s": 79.69999999999993,
+      "first100_s": 47.2,
+      "first120_s": 179.60000000000002,
+      "counts": {
+        "accurate": 291,
+        "wrong": 54,
+        "semi": 131
+      },
+      "packets": 476,
+      "guess_packets": 0,
+      "interruptions": 644,
+      "revivals": [
+        368.0
+      ],
+      "rms_m": 0.9493281587213027
+    },
+    {
+      "role": "步兵3",
+      "total_s": 229.9,
+      "t20_s": 208.1000000000001,
+      "t15_s": 21.799999999999898,
+      "alive_s": 224.79999999999998,
+      "first100_s": 41.6,
+      "first120_s": 41.800000000000004,
+      "counts": {
+        "wrong": 101,
+        "semi": 434,
+        "accurate": 519
+      },
+      "packets": 1054,
+      "guess_packets": 0,
+      "interruptions": 401,
+      "revivals": [
+        265.0
+      ],
+      "rms_m": 1.0025487662406767
+    },
+    {
+      "role": "步兵4",
+      "total_s": 221.80000000000007,
+      "t20_s": 208.0,
+      "t15_s": 13.800000000000068,
+      "alive_s": 213.70000000000005,
+      "first100_s": 7.2,
+      "first120_s": 7.6000000000000005,
+      "counts": {
+        "semi": 342,
+        "accurate": 517,
+        "wrong": 63
+      },
+      "packets": 922,
+      "guess_packets": 0,
+      "interruptions": 459,
+      "revivals": [
+        334.0,
+        376.0
+      ],
+      "rms_m": 1.0002725228439586
+    },
+    {
+      "role": "哨兵",
+      "total_s": 0,
+      "t20_s": 0,
+      "t15_s": 0,
+      "alive_s": 0,
+      "first100_s": null,
+      "first120_s": null,
+      "counts": {
+        "accurate": 18,
+        "semi": 41,
+        "wrong": 70
+      },
+      "packets": 129,
+      "guess_packets": 0,
+      "interruptions": 785,
+      "revivals": [],
+      "rms_m": 1.5691564917189975
+    }
+  ],
+  "B": [
+    {
+      "role": "英雄",
+      "total_s": 242.99999999999991,
+      "t20_s": 235.00000000000003,
+      "t15_s": 7.999999999999886,
+      "alive_s": 219.99999999999991,
+      "first100_s": 2.6,
+      "first120_s": 2.8000000000000003,
+      "counts": {
+        "accurate": 478,
+        "semi": 701,
+        "wrong": 714
+      },
+      "packets": 1893,
+      "guess_packets": 1454,
+      "interruptions": 80,
+      "revivals": [],
+      "rms_m": 1.854576868166054
+    },
+    {
+      "role": "工程",
+      "total_s": 180.50000000000003,
+      "t20_s": 174.3,
+      "t15_s": 6.200000000000017,
+      "alive_s": 123.4,
+      "first100_s": 45.2,
+      "first120_s": 45.6,
+      "counts": {
+        "semi": 610,
+        "accurate": 337,
+        "wrong": 954
+      },
+      "packets": 1901,
+      "guess_packets": 1425,
+      "interruptions": 75,
+      "revivals": [
+        368.0
+      ],
+      "rms_m": 1.7799006774209152
+    },
+    {
+      "role": "步兵3",
+      "total_s": 341.8,
+      "t20_s": 331.50000000000006,
+      "t15_s": 10.299999999999955,
+      "alive_s": 319.8,
+      "first100_s": 17.8,
+      "first120_s": 18.2,
+      "counts": {
+        "accurate": 727,
+        "wrong": 252,
+        "semi": 768
+      },
+      "packets": 1747,
+      "guess_packets": 693,
+      "interruptions": 133,
+      "revivals": [
+        265.0
+      ],
+      "rms_m": 1.1383279275277334
+    },
+    {
+      "role": "步兵4",
+      "total_s": 292.4,
+      "t20_s": 282.59999999999997,
+      "t15_s": 9.800000000000011,
+      "alive_s": 254.4,
+      "first100_s": 7.2,
+      "first120_s": 7.6000000000000005,
+      "counts": {
+        "semi": 666,
+        "accurate": 625,
+        "wrong": 477
+      },
+      "packets": 1768,
+      "guess_packets": 846,
+      "interruptions": 127,
+      "revivals": [
+        334.0,
+        376.0
+      ],
+      "rms_m": 1.5121787738990295
+    },
+    {
+      "role": "哨兵",
+      "total_s": 256.19999999999993,
+      "t20_s": 239.70000000000005,
+      "t15_s": 16.499999999999886,
+      "alive_s": 256.19999999999993,
+      "first100_s": 5.2,
+      "first120_s": 15.0,
+      "counts": {
+        "accurate": 92,
+        "semi": 1274,
+        "wrong": 635
+      },
+      "packets": 2001,
+      "guess_packets": 1872,
+      "interruptions": 40,
+      "revivals": [],
+      "rms_m": 2.7080548974081586
+    }
+  ]
+}

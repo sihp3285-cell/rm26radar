@@ -1,0 +1,24 @@
+--- /home/delphine/rm/tensorrt10_detect/src/tensorrt_detect/src/core/posesolver.cpp
++++ /home/delphine/rm/tensorrt10_detect/log/rerun68/comparison_20260905/posesolver_fixed.cpp
+@@ -184,9 +184,9 @@
+                 ? std::sqrt(jacobian_max_eigen / jacobian_min_eigen)
+                 : std::numeric_limits<float>::infinity();
+ 
+-        float covariance_xx = minimum_variance + sigma_squared * g_xx;
+-        float covariance_xz = sigma_squared * g_xz;
+-        float covariance_zz = minimum_variance + sigma_squared * g_zz;
++        float covariance_xx = 1.0f;
++        float covariance_xz = 0.0f;
++        float covariance_zz = 1.0f;
+ 
+         const float minimum_height = std::min(
+             {center.y, u_minus.y, u_plus.y, v_minus.y, v_plus.y});
+@@ -195,7 +195,7 @@
+         result.surface_discontinuity =
+             maximum_height - minimum_height >
+                 config.surface_discontinuity_m;
+-        if (result.surface_discontinuity) {
++        if (false && result.surface_discontinuity) {
+             // 比较差分射线与中心命中的 x-z 平面距离，用于识别地形表面跳变。
+             const auto planar_distance = [&center](const cv::Point3f& point) {
+                 return std::hypot(point.x - center.x, point.z - center.z);

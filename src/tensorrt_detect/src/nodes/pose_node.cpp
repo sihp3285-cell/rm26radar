@@ -68,15 +68,17 @@ public:
     {
         // 提前初始化 CUDA primary context，避免与 DetectNode/TensorRT 并发初始化导致 SIGSEGV
         cudaFree(0);
-
+        //声明参数
         this->declare_parameter<std::string>("config_dir",
-            "/home/delphine/rm/tensorrt10_detect/configs");
-        this->declare_parameter<std::string>("input_topic", "/armor_detections");
-        this->declare_parameter<std::string>("output_topic", "/world_targets");
+            "/home/delphine/rm/tensorrt10_detect/configs");//配置文件目录
+        this->declare_parameter<std::string>("input_topic", "/armor_detections");//输入话题
+        this->declare_parameter<std::string>("output_topic", "/world_targets");//输出话题
+        //以下为投影评估误差的参数
         this->declare_parameter<double>("projection_pixel_sigma_px", 4.0);
         this->declare_parameter<double>("projection_finite_difference_px", 2.0);
         this->declare_parameter<double>("projection_min_world_std_m", 0.03);
         this->declare_parameter<double>("projection_max_world_std_m", 1.50);
+        //以下为投影决策选择的参数
         this->declare_parameter<double>(
             "projection_surface_discontinuity_m", 0.12);
         this->declare_parameter<bool>("projection_selector_enabled", true);
@@ -95,6 +97,7 @@ public:
         this->declare_parameter<double>("projection_region_inner_m", 0.0);
         this->declare_parameter<double>("projection_switch_margin", 0.30);
         this->declare_parameter<int>("projection_switch_confirm_frames", 3);
+        //以下为沟区先验参数
         this->declare_parameter<std::string>(
             "gully_region_path",
             "/home/delphine/rm/tensorrt10_detect/generated/gully.yaml");
