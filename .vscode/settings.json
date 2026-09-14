@@ -82,5 +82,6 @@
         "**/build/**": true,
         "**/install/**": true,
         "**/log/**": true
-    }
+    },
+    "cmake.sourceDirectory": "/home/delphine/rm/tensorrt10_detect/rb26SDK"
 }

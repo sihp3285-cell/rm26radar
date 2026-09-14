@@ -84,6 +84,9 @@ position_prior_node:
       - "/home/delphine/rm/tensorrt10_detect/generated/home.yaml"
       - "/home/delphine/rm/tensorrt10_detect/generated/gully.yaml"
     engineer_blind_zone_path: "/home/delphine/rm/tensorrt10_detect/generated/engineer.yaml"
+    # 最后可靠位置进入或靠近 home（沿用 blind_zone_trigger_distance_m）时：工程固定取矿点，其他兵种限定在回血区域内部。
+    engineer_home_path: "/home/delphine/rm/tensorrt10_detect/generated/engineer_home.yaml"
+    other_home_path: "/home/delphine/rm/tensorrt10_detect/generated/other_home.yaml"
     blind_zone_trigger_distance_m: 1.2
     blind_zone_probability_mass: 0.65
     blind_zone_candidates_per_zone: 4

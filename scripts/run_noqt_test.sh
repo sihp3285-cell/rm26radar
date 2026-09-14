@@ -29,7 +29,7 @@ echo "[test] $(date +%H:%M:%S) logs=$LOG"
 PIDS=""
 # 1) 录制（-o 目录必须不存在）
 ros2 bag record -o "$BAG" --topics \
-  /armor_detections /world_targets /radar_map /prior_predictions /pipeline_timing \
+  /armor_detections /world_targets /radar_map /prior_predictions /fused_targets /pipeline_timing \
   > "$LOG/record.log" 2>&1 &
 REC_PID=$!
 
@@ -60,6 +60,10 @@ fi
 
 # 4) 先验节点（提供 /prior_predictions）
 ros2 run position_prior position_prior_node --ros-args -r __node:=position_prior_node --params-file "$PRIOR_PARAMS" > "$LOG/prior.log" 2>&1 &
+PIDS="$PIDS $!"
+
+# 统一坐标来源，供后续串口模块使用。
+ros2 run tensorrt_detect fusion_node --ros-args -r __node:=fusion_node --params-file "$PARAMS" > "$LOG/fusion.log" 2>&1 &
 PIDS="$PIDS $!"
 
 # 5) 等待 /radar_map 就绪（最多 180s）

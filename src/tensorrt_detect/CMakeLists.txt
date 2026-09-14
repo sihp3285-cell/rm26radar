@@ -182,6 +182,15 @@ ament_target_dependencies(map_node_component rclcpp rclcpp_components sensor_msg
 target_link_libraries(map_node_component tensorrt_detect_core)
 rclcpp_components_register_nodes(map_node_component "MapNode")
 
+# Fusion only depends on ROS messages, not TensorRT/Open3D algorithms.
+add_library(fusion_node_component SHARED src/nodes/fusion_node.cpp)
+ament_target_dependencies(fusion_node_component rclcpp rclcpp_components tensorrt_detect_msgs)
+target_include_directories(fusion_node_component PRIVATE include)
+rclcpp_components_register_nodes(fusion_node_component "FusionNode")
+add_executable(fusion_node src/nodes/fusion_node.cpp)
+ament_target_dependencies(fusion_node rclcpp rclcpp_components tensorrt_detect_msgs)
+target_include_directories(fusion_node PRIVATE include)
+
 # Standalone executables（脚本化压测/旁路调试用，与 component 同源码）
 add_executable(video_node src/nodes/video_node.cpp)
 ament_target_dependencies(video_node rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs std_srvs)
@@ -241,6 +250,7 @@ install(TARGETS
     pose_node
     rviz_debug_node
     map_node
+    fusion_node
     calibrate_node
     roi_set_node
     qt_display_node
@@ -257,6 +267,7 @@ install(TARGETS
     detect_node_component
     pose_node_component
     map_node_component
+    fusion_node_component
     rviz_debug_node_component
     DESTINATION lib
 )
@@ -278,5 +289,13 @@ install(DIRECTORY config
 install(FILES RVIZ_DEBUG.md
     DESTINATION share/${PROJECT_NAME}/docs
 )
+
+if(BUILD_TESTING)
+    enable_testing()
+    add_executable(test_target_fusion tests/test_target_fusion.cpp)
+    ament_target_dependencies(test_target_fusion tensorrt_detect_msgs)
+    target_include_directories(test_target_fusion PRIVATE include)
+    add_test(NAME target_fusion_selection COMMAND test_target_fusion)
+endif()
 
 ament_package()

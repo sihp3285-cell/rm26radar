@@ -138,6 +138,8 @@ rviz_debug_node:
       - "/home/delphine/rm/tensorrt10_detect/generated/home.yaml"
       - "/home/delphine/rm/tensorrt10_detect/generated/gully.yaml"
       - "/home/delphine/rm/tensorrt10_detect/generated/engineer.yaml"
+      - "/home/delphine/rm/tensorrt10_detect/generated/engineer_home.yaml"
+      - "/home/delphine/rm/tensorrt10_detect/generated/other_home.yaml"
     # 与 PositionPriorNode/MapNode 的启动视角一致；运行中订阅 /flip_team 更新。
     initial_flip_team: false
 
@@ -181,3 +183,10 @@ roi_set_node:
     outpost_roi_path: "/home/delphine/rm/tensorrt10_detect/configs/outpost_roi.yaml"
     auto_set_roi: true
     auto_set_delay_sec: 3
+# 为后续串口提供单一坐标来源；不会回灌 Tracker。
+fusion_node:
+  ros__parameters:
+    world_input_topic: "/world_targets"
+    prior_input_topic: "/prior_predictions"
+    output_topic: "/fused_targets"
+    max_prior_age_s: 0.5

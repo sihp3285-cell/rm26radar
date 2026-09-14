@@ -94,6 +94,8 @@ public:
         declare_parameter<std::vector<std::string>>(
             "common_blind_zone_paths", std::vector<std::string>{});
         declare_parameter<std::string>("engineer_blind_zone_path", "");
+        declare_parameter<std::string>("engineer_home_path", "");
+        declare_parameter<std::string>("other_home_path", "");
         declare_parameter<double>("blind_zone_trigger_distance_m", 1.2);
         declare_parameter<double>("blind_zone_probability_mass", 0.65);
         declare_parameter<int>("blind_zone_candidates_per_zone", 4);
@@ -222,7 +224,9 @@ public:
             try {
                 blind_zone_prior_.load(
                     get_parameter("common_blind_zone_paths").as_string_array(),
-                    get_parameter("engineer_blind_zone_path").as_string());
+                    get_parameter("engineer_blind_zone_path").as_string(),
+                    get_parameter("engineer_home_path").as_string(),
+                    get_parameter("other_home_path").as_string());
                 blind_zone_prior_.set_flipped_view(flip_team_);
                 gate_.set_blind_zone_prior(&blind_zone_prior_);
                 RCLCPP_INFO(get_logger(),

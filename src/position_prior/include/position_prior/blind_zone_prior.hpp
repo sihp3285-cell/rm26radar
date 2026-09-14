@@ -25,6 +25,7 @@ struct BlindZoneBiasConfig {
 
 struct BlindZoneBiasResult {
     bool applied = false;
+    bool home_restricted = false;
     std::size_t active_zone_count = 0;
     std::size_t injected_candidate_count = 0;
     double injected_probability_mass = 0.0;
@@ -38,7 +39,9 @@ public:
     /** 依次加载公共区域与工程专用区域；任一解析失败都阻止节点带半配置运行。 */
     void load(
         const std::vector<std::string>& common_zone_paths,
-        const std::string& engineer_zone_path);
+        const std::string& engineer_zone_path,
+        const std::string& engineer_home_path = "",
+        const std::string& other_home_path = "");
 
     /** 返回区域文件是否已完成一次成功加载。 */
     bool loaded() const { return loaded_; }
@@ -71,6 +74,7 @@ private:
     struct Zone {
         std::string name;
         bool engineer_only = false;
+        bool home = false;
         bool mirror_centrally = false;
         bool prefer_lowest_elevation = false;
         double maximum_height_above_lowest_m = 0.0;
@@ -95,6 +99,12 @@ private:
     /** 根据候选 probability 计算 [0,1] 归一化熵，用于偏置前后诊断。 */
     static double normalized_entropy(
         const std::vector<PriorCandidate>& candidates);
+
+    static double distance_to_boundary(const Point2d& point,
+                                       const std::vector<Point2d>& polygon);
+    Point2d engineer_home_;
+    Zone other_home_;
+    bool home_configured_ = false;
 
     BlindZoneBiasConfig config_;
     bool loaded_ = false;

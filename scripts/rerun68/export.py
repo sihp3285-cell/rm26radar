@@ -15,7 +15,7 @@ def export(folder):
     with open(folder/'events.jsonl','w') as f:
         while reader.has_next():
             topic,data,receipt_ns=reader.read_next();counts[topic]+=1
-            if topic not in ('/radar_map','/prior_predictions','/pipeline_timing'):continue
+            if topic not in ('/radar_map','/world_targets','/prior_predictions','/fused_targets','/pipeline_timing'):continue
             msg=deserialize_message(data,types[topic]);d=message_to_ordereddict(msg)
             f.write(json.dumps({'topic':topic,'receipt_ns':receipt_ns,'message':d},ensure_ascii=False)+'\n');kept[topic]+=1
     info=rosbag2_py.Info().read_metadata(str(folder/'bag'),'sqlite3')

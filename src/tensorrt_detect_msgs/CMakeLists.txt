@@ -19,6 +19,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   msg/PriorCandidate.msg
   msg/PriorPrediction.msg
   msg/PriorPredictionArray.msg
+  msg/FusedTarget.msg
+  msg/FusedTargetArray.msg
   DEPENDENCIES std_msgs builtin_interfaces
 )
 

@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <filesystem>
 #include <stdexcept>
 #include <utility>
 
@@ -31,7 +32,9 @@ BlindZonePrior::BlindZonePrior(BlindZoneBiasConfig config)
 
 void BlindZonePrior::load(
     const std::vector<std::string>& common_zone_paths,
-    const std::string& engineer_zone_path) {
+    const std::string& engineer_zone_path,
+    const std::string& engineer_home_path,
+    const std::string& other_home_path) {
     loaded_ = false;
     zones_.clear();
     for (const auto& path : common_zone_paths) {
@@ -44,6 +47,15 @@ void BlindZonePrior::load(
     }
     if (zones_.empty()) {
         throw std::runtime_error("未加载到任何盲区多边形");
+    }
+    home_configured_ = !engineer_home_path.empty() && !other_home_path.empty();
+    if (home_configured_) {
+        const auto point = YAML::LoadFile(engineer_home_path)[0];
+        engineer_home_ = {point[0].as<double>(), point[1].as<double>()};
+        other_home_.polygon.clear();
+        const auto polygon = YAML::LoadFile(other_home_path)["blind_zones"][0]["polygon"];
+        for (const auto& vertex : polygon)
+            other_home_.polygon.push_back({vertex[0].as<double>(), vertex[1].as<double>()});
     }
     loaded_ = true;
 }
@@ -63,6 +75,7 @@ void BlindZonePrior::load_file(
             throw std::runtime_error("盲区 polygon 顶点不足: " + path);
         }
         Zone zone;
+        zone.home = std::filesystem::path(path).filename() == "home.yaml";
         zone.name = node["name"] ? node["name"].as<std::string>() : path;
         zone.engineer_only = engineer_only;
         zone.mirror_centrally = node["mirror_centrally"]
@@ -170,6 +183,11 @@ double BlindZonePrior::distance_to_polygon(
     if (point_in_polygon(point, polygon)) {
         return 0.0;
     }
+    return distance_to_boundary(point, polygon);
+}
+
+double BlindZonePrior::distance_to_boundary(
+    const Point2d& point, const std::vector<Point2d>& polygon) {
     double result = std::numeric_limits<double>::infinity();
     for (std::size_t index = 0; index < polygon.size(); ++index) {
         const Point2d& start = polygon[index];
@@ -226,6 +244,65 @@ BlindZoneBiasResult BlindZonePrior::apply(
     if (!loaded_ || !routes.valid || !distribution.valid ||
         distribution.candidates.empty() ||
         maximum_path_distance_m < 0.0) {
+        return result;
+    }
+
+    // Match the existing blind-zone trigger: the last visible point may be just outside home.
+    if (home_configured_ && std::any_of(zones_.begin(), zones_.end(),
+            [&](const Zone& zone) {
+                return zone.home && distance_to_polygon(last_canonical, effective_polygon(zone))
+                    <= config_.trigger_distance_m;
+            })) {
+        std::vector<PriorCandidate> candidates;
+        if (role == "engineer") {
+            PriorCandidate candidate;
+            candidate.canonical = engineer_home_;
+            if (flipped_view_) candidate.canonical.x =
+                rm_field::flip_field_x(candidate.canonical.x, rm_field::kDefaultFieldLength);
+            candidate.grid_index = 3000000;
+            candidate.probability = 1.0;
+            candidate.from_blind_zone = true;
+            candidates.push_back(candidate);
+        } else {
+            const auto polygon = effective_polygon(other_home_);
+            auto cells = navigation_mesh.walkable_cells_in_polygon(role, polygon, routes.component_id);
+            cells.erase(std::remove_if(cells.begin(), cells.end(), [&](int cell) {
+                return !std::isfinite(routes.distances_m[cell]) ||
+                    routes.distances_m[cell] > maximum_path_distance_m;
+            }), cells.end());
+            // Prefer a 0.2 m inset; retain the deepest reachable cells if the inset is unavailable.
+            double clearance = 0.0;
+            for (int cell : cells) clearance = std::max(clearance,
+                distance_to_boundary(navigation_mesh.cell_center(cell), polygon));
+            const double inset = std::min(0.2, clearance);
+            for (int cell : cells) {
+                const auto point = navigation_mesh.cell_center(cell);
+                if (distance_to_boundary(point, polygon) + 1e-9 < inset) continue;
+                PriorCandidate candidate;
+                candidate.grid_index = 1000000 + cell;
+                candidate.canonical = point;
+                candidate.from_blind_zone = true;
+                // Retain the historical spatial preference within the allowed interior.
+                for (const auto& prior : distribution.candidates) {
+                    const double dx = point.x - prior.canonical.x;
+                    const double dy = point.y - prior.canonical.y;
+                    candidate.probability += prior.probability * std::exp(-(dx*dx + dy*dy) / 0.5);
+                }
+                candidate.probability = std::max(candidate.probability, 1e-12);
+                candidates.push_back(candidate);
+            }
+        }
+        double total = 0.0;
+        for (const auto& candidate : candidates) total += candidate.probability;
+        for (auto& candidate : candidates) candidate.probability /= total;
+        distribution.candidates = std::move(candidates);
+        distribution.normalized_entropy = normalized_entropy(distribution.candidates);
+        distribution.stay_probability = 0.0;
+        result.applied = true;
+        result.home_restricted = true;
+        result.active_zone_count = 1;
+        result.injected_candidate_count = distribution.candidates.size();
+        result.injected_probability_mass = 1.0;
         return result;
     }
 

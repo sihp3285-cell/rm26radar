@@ -12,7 +12,6 @@
 #include <cmath>
 #include <limits>
 #include <utility>
-
 namespace position_prior {
 
 namespace {
@@ -155,10 +154,12 @@ GateResult PriorGate::apply(
 
     // 4. 在不修改原始 model query 结果的副本上应用盲区偏置和驻留锚点。
     PriorDistribution effective_distribution = distribution;
+    bool home_restricted = false;
     if (result.mesh_used && blind_zone_prior_ && blind_zone_prior_->loaded()) {
         const auto bias = blind_zone_prior_->apply(
             role, last_canonical, result.motion_prediction_canonical,
             maximum_distance, *navigation_mesh_, *routes, effective_distribution);
+        home_restricted = bias.home_restricted;
         result.blind_zone_biased = bias.applied;
         result.blind_zone_probability_mass = bias.injected_probability_mass;
     }
@@ -176,6 +177,7 @@ GateResult PriorGate::apply(
             std::clamp(
                 config_.blind_zone_minimum_stay_anchor_mass, 0.0, 0.95));
     }
+    if (home_restricted) stay_anchor_mass = 0.0;
     if (stay_anchor_mass > 0.0) {
         double existing_total = 0.0;
         for (const auto& candidate : effective_distribution.candidates) {
@@ -313,7 +315,7 @@ GateResult PriorGate::apply(
         result.predicted_canonical = last_canonical;
     }
 
-    if (result.mesh_used) {
+    if (result.mesh_used && !home_restricted) {
         const auto predicted_snap = navigation_mesh_->snap_to_walkable(
             role, result.predicted_canonical,
             config_.mesh_prediction_snap_distance_m, routes->component_id);

@@ -131,6 +131,13 @@ def launch_setup(context, *args, **kwargs):
 
     actions = [
         pipeline_container,
+        Node(
+            package='tensorrt_detect',
+            executable='fusion_node',
+            name='fusion_node',
+            output='screen',
+            parameters=[params_file],
+        ),
 
         # 独立 shadow 节点：只发布先验消息与日志，不回灌 tracker。这样统计先验
         # 的收益或失败不会改变 /world_targets 中 Kalman/Tracker 的基线状态。

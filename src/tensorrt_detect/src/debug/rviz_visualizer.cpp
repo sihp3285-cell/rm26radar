@@ -255,6 +255,14 @@ std::vector<BlindZonePolygon> load_blind_zones(
     for (const auto& path : paths) {
         if (path.empty()) continue;
         const YAML::Node root = YAML::LoadFile(path);
+        if (root.IsSequence()) {
+            BlindZonePolygon zone;
+            zone.name = std::filesystem::path(path).stem().string();
+            zone.engineer_only = true;
+            zone.vertices.push_back({root[0][0].as<double>(), root[0][1].as<double>()});
+            result.push_back(std::move(zone));
+            continue;
+        }
         const YAML::Node zones = root["blind_zones"];
         if (!zones || !zones.IsSequence()) continue;
         const bool engineer_only =
@@ -270,6 +278,7 @@ std::vector<BlindZonePolygon> load_blind_zones(
                 ? zone_node["name"].as<std::string>()
                 : std::filesystem::path(path).stem().string();
             zone.engineer_only = engineer_only;
+            if (std::filesystem::path(path).stem() == "other_home") zone.name = "other_home";
             for (const auto& vertex : polygon_node) {
                 if (vertex.IsSequence() && vertex.size() == 2) {
                     zone.vertices.push_back(
@@ -708,33 +717,42 @@ void RvizVisualizer::publishStaticScene(
                 const auto zone_color = effective_zone.engineer_only
                     ? color(0.95f, 0.15f, 0.85f, 0.16f)
                     : color(1.0f, 0.20f, 0.05f, 0.16f);
-                auto boundary = make_marker(
-                    header, "radar/blind_zones/boundary", marker_id,
-                    Marker::LINE_STRIP);
-                boundary.scale.x = 0.07;
-                boundary.color = effective_zone.engineer_only
-                    ? color(0.95f, 0.15f, 0.85f, 0.95f)
-                    : color(1.0f, 0.35f, 0.05f, 0.95f);
-                for (const auto& vertex : effective_zone.vertices) {
-                    boundary.points.push_back(canonical_to_world(
-                        vertex[0], vertex[1], flip_team));
-                }
-                boundary.points.push_back(boundary.points.front());  // 首尾闭合
-                output.markers.push_back(std::move(boundary));
-
-                auto area = make_marker(
-                    header, "radar/blind_zones/area", marker_id,
-                    Marker::TRIANGLE_LIST);
-                area.color = zone_color;
-                // 耳切三角化后按 y=0.03 贴地渲染，避免与 RViz 地面 z-fighting
-                for (const auto& triangle : triangulate_polygon(effective_zone)) {
-                    for (const std::size_t vertex_index : triangle) {
-                        const auto& vertex = effective_zone.vertices[vertex_index];
-                        area.points.push_back(canonical_to_world(
-                            vertex[0], vertex[1], flip_team, 0.03));
+                if (effective_zone.vertices.size() == 1) {
+                    auto target = make_marker(header, "radar/blind_zones/area", marker_id, Marker::SPHERE);
+                    const auto& vertex = effective_zone.vertices.front();
+                    target.pose.position = canonical_to_world(vertex[0], vertex[1], flip_team, 0.12);
+                    target.scale.x = target.scale.y = target.scale.z = 0.24;
+                    target.color = color(0.95f, 0.15f, 0.85f, 1.0f);
+                    output.markers.push_back(std::move(target));
+                } else {
+                    auto boundary = make_marker(
+                        header, "radar/blind_zones/boundary", marker_id,
+                        Marker::LINE_STRIP);
+                    boundary.scale.x = 0.07;
+                    boundary.color = effective_zone.engineer_only
+                        ? color(0.95f, 0.15f, 0.85f, 0.95f)
+                        : color(1.0f, 0.35f, 0.05f, 0.95f);
+                    for (const auto& vertex : effective_zone.vertices) {
+                        boundary.points.push_back(canonical_to_world(
+                            vertex[0], vertex[1], flip_team));
                     }
+                    boundary.points.push_back(boundary.points.front());  // 首尾闭合
+                    output.markers.push_back(std::move(boundary));
+
+                    auto area = make_marker(
+                        header, "radar/blind_zones/area", marker_id,
+                        Marker::TRIANGLE_LIST);
+                    area.color = zone_color;
+                    // 耳切三角化后按 y=0.03 贴地渲染，避免与 RViz 地面 z-fighting
+                    for (const auto& triangle : triangulate_polygon(effective_zone)) {
+                        for (const std::size_t vertex_index : triangle) {
+                            const auto& vertex = effective_zone.vertices[vertex_index];
+                            area.points.push_back(canonical_to_world(
+                                vertex[0], vertex[1], flip_team, 0.03));
+                        }
+                    }
+                    output.markers.push_back(std::move(area));
                 }
-                output.markers.push_back(std::move(area));
 
                 auto label = make_marker(
                     header, "radar/blind_zones/text", marker_id,
