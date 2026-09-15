@@ -94,6 +94,11 @@ python3 scripts/neural_sentry/replay_shadow.py \
 脚本要求：至少产生一条 `valid:true` 建议、输入停止后能观察到 stale 失效，
 且建议 `candidate_index` 与导出参考一致，否则非零退出。
 
+```bash
+# 隔离性回归：输出话题约束、无控制发布者、熔断预算、降级存活、恢复出建议
+python3 scripts/neural_sentry/test_shadow_isolation.py
+```
+
 ## 已知限制
 
 - 纯 Behavior Cloning 排序建议，**不构成战术成功或收益声明**，只作为操作员参考。
