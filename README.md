@@ -117,6 +117,20 @@ ros2 launch tensorrt_detect detect_pipeline.launch.py mode:=camera
 启动参数、节点/话题说明见 `src/tensorrt_detect/launch/detect_pipeline.launch.py`；
 RViz 调试画面含义见 `src/tensorrt_detect/RVIZ_USAGE.md` 与 `RVIZ_DEBUG.md`。
 
+## 哨兵建议 Shadow Mode（旁路，默认关闭）
+
+独立分支 `neural-sentry-decision` 在雷达主链之外增加一条只读建议链路：单独进程用 CPU
+跑哨兵 BC 模型的 ONNX 推理，只把"建议前往的场地坐标"发布到 `/neural_sentry/shadow/*`，
+由 Qt 地图页和 RViz 独立图层显示。它不订阅决策、不发布控制量，模型缺失或连续推理异常时
+只撤下建议显示，原雷达 pipeline 继续运行。
+
+``` sh
+colcon build --packages-select rm_field tensorrt_detect_msgs tensorrt_detect neural_sentry_decision
+ros2 launch tensorrt_detect detect_pipeline.launch.py neural_shadow_enabled:=true
+```
+
+详见 [src/neural_sentry_decision/README.md](src/neural_sentry_decision/README.md)。
+
 # 另说
 本仓库代码是针对`ultralytics`的，所以`engine`文件需要利用`ultralytics`仓库代码进行生成。其中，直接使用`ultralytics`仓库的`export`是会出现模型文件序列化失败的。
 [原因，解决方案](https://blog.csdn.net/ogebgvictor/article/details/145858668)

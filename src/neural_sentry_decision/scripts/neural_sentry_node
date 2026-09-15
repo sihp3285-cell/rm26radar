@@ -1,0 +1,22 @@
+#!/usr/bin/python3
+"""Use the system ROS Python, not the training Conda ABI."""
+import os
+from pathlib import Path
+import resource
+import sys
+
+# Bound native libraries before importing NumPy/ORT/ROS. No CUDA provider is enabled.
+for key in ('OMP_NUM_THREADS','OPENBLAS_NUM_THREADS','MKL_NUM_THREADS','NUMEXPR_NUM_THREADS'):
+    os.environ[key] = '1'
+os.environ['OMP_WAIT_POLICY'] = 'PASSIVE'
+try:
+    os.nice(10)
+    limit = 4*1024**3
+    _, hard = resource.getrlimit(resource.RLIMIT_AS)
+    limit = limit if hard == resource.RLIM_INFINITY else min(limit,hard)
+    resource.setrlimit(resource.RLIMIT_AS,(limit,hard))
+except (OSError,ValueError):
+    pass
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+from neural_sentry.node import main
+main()

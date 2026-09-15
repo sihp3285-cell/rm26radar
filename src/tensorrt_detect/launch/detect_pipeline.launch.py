@@ -15,7 +15,7 @@
 # 事件循环或故障边界。
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, LogInfo
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.actions import ComposableNodeContainer
@@ -35,6 +35,8 @@ def launch_setup(context, *args, **kwargs):
         'enable_rviz').perform(context).lower() in ('1', 'true', 'yes', 'on')
     enable_qt_display = LaunchConfiguration(
         'enable_qt_display').perform(context).lower() in ('1', 'true', 'yes', 'on')
+    neural_shadow_enabled = LaunchConfiguration(
+        'neural_shadow_enabled').perform(context).lower() in ('1', 'true', 'yes', 'on')
 
     # FindPackageShare 从安装空间定位 package share 目录；因此正常使用前需要先
     # colcon build/source install/setup.bash。PathJoinSubstitution 延迟到 launch
@@ -179,7 +181,7 @@ def launch_setup(context, *args, **kwargs):
             executable='qt_display_node',
             name='qt_display_node',
             output='screen',
-            parameters=[params_file],
+            parameters=[params_file, {'neural_shadow_enabled': neural_shadow_enabled}],
             # 从 Snap 版 VS Code 启动时，这些变量会让系统 Qt 误加载
             # /snap/core20 的旧 GTK/glibc 依赖，表现为 libpthread 符号错误。
             # 只隔离 Qt 子进程，不影响相机 SDK、TensorRT 或其他 ROS 节点。
@@ -189,6 +191,26 @@ def launch_setup(context, *args, **kwargs):
                 'QT_ACCESSIBILITY': '0',
             },
         ))
+
+    if neural_shadow_enabled:
+        # Discovery failure must not cancel launch of the baseline radar components.
+        try:
+            from ament_index_python.packages import get_package_share_directory, get_package_prefix
+            from pathlib import Path
+            share = Path(get_package_share_directory('neural_sentry_decision'))
+            executable = Path(get_package_prefix('neural_sentry_decision')) / 'lib/neural_sentry_decision/neural_sentry_node'
+            params = share / 'config/shadow.yaml'
+            if not executable.is_file() or not params.is_file():
+                raise FileNotFoundError('Shadow package not fully installed')
+            # Use an absolute Python launcher: a broken/missing module exits only this process.
+            from launch.actions import ExecuteProcess
+            actions.append(ExecuteProcess(
+                cmd=['/usr/bin/python3', str(executable), '--ros-args',
+                     '--params-file', str(params), '-p',
+                     'bundle_dir:=' + LaunchConfiguration('neural_shadow_bundle').perform(context)],
+                name='neural_sentry_shadow', output='screen', respawn=False))
+        except Exception as exc:
+            actions.append(LogInfo(msg=f'Shadow unavailable; radar pipeline continues: {exc}'))
 
     if enable_rviz:
         actions.append(Node(
@@ -219,6 +241,11 @@ def generate_launch_description():
             'enable_qt_display',
             default_value='true',
             description='是否启动 Qt 显示节点（关闭可提升 /radar_map 发送频率）'),
+        DeclareLaunchArgument('neural_shadow_enabled', default_value='false',
+            description='独立 CPU ONNX 影子推理，只显示建议，不参与原决策'),
+        DeclareLaunchArgument('neural_shadow_bundle',
+            default_value='/home/delphine/rm/tensorrt10_detect/models/neural_sentry/sentry_v2',
+            description='已导出的 ONNX bundle 目录'),
 
         OpaqueFunction(function=launch_setup),
     ])

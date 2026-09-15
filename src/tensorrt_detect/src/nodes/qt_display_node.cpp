@@ -32,6 +32,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <std_msgs/msg/bool.hpp>
+#include <std_msgs/msg/string.hpp>
 #include <std_srvs/srv/trigger.hpp>
 #include <std_srvs/srv/set_bool.hpp>
 #include <cv_bridge/cv_bridge.hpp>
@@ -44,6 +45,7 @@
 #include "tensorrt_detect_msgs/msg/detection_array.hpp"
 #include "tensorrt_detect_msgs/msg/map_tactics.hpp"
 #include "tensorrt_detect_msgs/msg/pipeline_timing.hpp"
+#include "tensorrt_detect/debug/neural_shadow_overlay.hpp"
 
 class QtDisplayNode;
 
@@ -385,7 +387,7 @@ public:
     void refresh()
     {
         if (!node_) return;
-        if (paused_) return;
+        if (paused_) { refreshShadowOnly(); return; }
         updateFromNode();
     }
 
@@ -397,13 +399,22 @@ public:
     }
 
     /** 将地图 BGR Mat 转为 QImage/QPixmap 并按标签尺寸等比例显示。 */
-    void updateMap(const cv::Mat &cv_img)
+    void updateMap(const cv::Mat &cv_img, const neural_shadow::Suggestion& shadow = {})
     {
-        if (cv_img.empty()) return;
-        QPixmap pixmap = cvMatToQPixmap(cv_img);
+        if (!cv_img.empty()) base_map_pixmap_ = cvMatToQPixmap(cv_img);
+        if (base_map_pixmap_.isNull()) return;
+        // Shadow 关闭时直接复用缓存底图，不额外深拷贝，原雷达显示开销与改动前一致。
+        QPixmap pixmap = base_map_pixmap_;
+        if (shadow.enabled) {
+            pixmap = base_map_pixmap_.copy();
+            neural_shadow::draw(pixmap, shadow);
+        }
         map_label_->setPixmap(pixmap.scaled(
             map_label_->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
     }
+
+    // Even paused video must not preserve an expired neural target indefinitely.
+    void refreshShadowOnly();
 
     /** 格式化推理耗时、显示延迟、前哨站与四项战术状态到状态栏。 */
     void updateStatus(const tensorrt_detect_msgs::msg::PipelineTiming& timing, bool outpost_alive,
@@ -538,6 +549,7 @@ private:
 
     GLVideoWidget *video_label_{nullptr};
     QLabel *map_label_{nullptr};
+    QPixmap base_map_pixmap_;  // Clean map copy; neural overlays never modify /map_image.
     QLabel *status_label_{nullptr};
     QLabel *outpost_label_{nullptr};
     QLabel *tactics_label_{nullptr};
@@ -582,10 +594,28 @@ public:
         this->declare_parameter<std::string>("video_topic", "/detected_image");
         this->declare_parameter<std::string>("map_image_topic", "/map_image");
         this->declare_parameter<std::string>("armor_topic", "/armor_detections");
+        this->declare_parameter<bool>("neural_shadow_enabled", false);
+        this->declare_parameter<std::string>("neural_shadow_topic", "/neural_sentry/shadow/suggestion");
 
         video_topic_ = this->get_parameter("video_topic").as_string();
         map_image_topic_ = this->get_parameter("map_image_topic").as_string();
         armor_topic_ = this->get_parameter("armor_topic").as_string();
+        latest_shadow_.enabled = this->get_parameter("neural_shadow_enabled").as_bool();
+        if (latest_shadow_.enabled) {
+            shadow_sub_ = this->create_subscription<std_msgs::msg::String>(
+                this->get_parameter("neural_shadow_topic").as_string(), rclcpp::QoS(1).best_effort(),
+                [this](const std_msgs::msg::String::ConstSharedPtr msg) {
+                    const auto parsed = neural_shadow::parse(msg->data);
+                    QMutexLocker lock(&mutex_);
+                    latest_shadow_ = parsed;
+                });
+            shadow_flip_sub_ = this->create_subscription<std_msgs::msg::Bool>(
+                "/flip_team", rclcpp::QoS(1).reliable(),
+                [this](const std_msgs::msg::Bool::ConstSharedPtr msg) {
+                    QMutexLocker lock(&mutex_); shadow_flip_ = msg->data;
+                    latest_shadow_.valid = false; latest_shadow_.reason = "Team changed";
+                });
+        }
 
         RCLCPP_INFO(this->get_logger(), "视频话题: %s", video_topic_.c_str());
         RCLCPP_INFO(this->get_logger(), "地图图像话题: %s", map_image_topic_.c_str());
@@ -618,6 +648,7 @@ public:
                     auto cv_ptr = cv_bridge::toCvCopy(msg, "bgr8");
                     QMutexLocker lock(&mutex_);
                     latest_map_ = cv_ptr->image.clone();
+                    latest_map_stamp_ = rclcpp::Time(msg->header.stamp).seconds();
                 } catch (const cv_bridge::Exception &e) {
                     RCLCPP_ERROR(this->get_logger(), "地图 cv_bridge 失败: %s", e.what());
                 }
@@ -670,6 +701,12 @@ public:
     /** 发布可靠的 /flip_team 控制消息，使地图和位置先验同步切换视角。 */
     void publishTeamFlip(bool is_blue_team)
     {
+        {
+            QMutexLocker lock(&mutex_);
+            shadow_flip_ = is_blue_team;
+            latest_shadow_.valid = false;
+            latest_shadow_.reason = "Team changed";
+        }
         std_msgs::msg::Bool msg;
         msg.data = is_blue_team;
         team_flip_pub_->publish(msg);
@@ -777,6 +814,11 @@ public:
 
     // 供 DisplayWindow 在主线程调用。再次 clone 让 GUI 绘制期间不持有共享缓存，
     // mutex 可尽快释放给 ROS 回调；代价是每次刷新复制两张图。
+    neural_shadow::Suggestion fetchShadow() {
+        QMutexLocker lock(&mutex_);
+        return neural_shadow::current(latest_shadow_, shadow_flip_, latest_map_stamp_);
+    }
+
     /** 在单锁下深拷贝图像并复制状态快照，保证 GUI 看到同一读取时刻的数据。 */
     void fetchData(cv::Mat &frame, cv::Mat &map,
                    tensorrt_detect_msgs::msg::PipelineTiming &timing,
@@ -810,6 +852,11 @@ private:
     rclcpp::Subscription<tensorrt_detect_msgs::msg::MapTactics>::SharedPtr tactics_sub_;
     rclcpp::Subscription<tensorrt_detect_msgs::msg::PipelineTiming>::SharedPtr timing_sub_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr team_flip_pub_;
+    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr shadow_sub_;
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr shadow_flip_sub_;
+    neural_shadow::Suggestion latest_shadow_;
+    bool shadow_flip_ = false;
+    double latest_map_stamp_ = 0;
 
     cv::Mat latest_frame_;
     cv::Mat latest_map_;
@@ -838,9 +885,13 @@ void DisplayWindow::updateFromNode()
                      engineer_on_island, opponent_attack, our_attack, opponent_near_fortress,
                      display_latency_ms);
     updateVideo(frame);
-    updateMap(map);
+    updateMap(map, node_->fetchShadow());
     updateStatus(timing, outpost_alive, engineer_on_island, opponent_attack, our_attack, opponent_near_fortress,
                  display_latency_ms);
+}
+
+void DisplayWindow::refreshShadowOnly() {
+    if (node_) updateMap(cv::Mat(), node_->fetchShadow());
 }
 
 /** Qt/ROS 双事件循环入口：GUI 留在主线程，ROS executor 在可 join 后台线程运行。 */

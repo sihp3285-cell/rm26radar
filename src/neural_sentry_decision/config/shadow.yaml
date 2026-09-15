@@ -1,0 +1,16 @@
+neural_sentry_shadow:
+  ros__parameters:
+    enabled: true
+    bundle_dir: /home/delphine/rm/tensorrt10_detect/models/neural_sentry/sentry_v2
+    world_targets_topic: /world_targets
+    suggestion_topic: /neural_sentry/shadow/suggestion
+    marker_topic: /neural_sentry/shadow/markers
+    world_frame: world
+    initial_flip_team: false  # false: our blue sentry 107; true: our red sentry 7
+    inference_hz: 2.0
+    input_timeout_s: 0.75
+    display_ttl_s: 1.5
+    inference_timeout_s: 0.15
+    max_consecutive_errors: 3
+    minimum_identity_confidence: 0.5
+    snapshot_tolerance_s: 0.25

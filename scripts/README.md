@@ -8,6 +8,7 @@
 | `gen_report_combined.py` | 三份主报告的精简入口，使用当前5Hz因果评估器 |
 | `export_defense_reports.py` | 将六份报告及直接链接的小型证据复制到版本管理目录 `reports/`，并生成 SHA-256 清单 |
 | `offline/build_position_prior.py` | 离线模型构建及评估；参数、模型产物仍在根目录 `position_prior_toolkit/` |
+| `neural_sentry/` | 哨兵建议 Shadow Mode 的 ONNX 导出（`export_onnx.py`）与隔离域 ROS 回放自检（`replay_shadow.py`） |
 | `record_referee_topic.sh` / `run_noqt_test.sh` | 录制和无Qt运行辅助 |
 | `export_bag_to_csv.sh` / `csv_cleanup.py` | 通用bag CSV导出及清洗 |
 | `merge_topics_csv.py` / `compare_layers.py` | 历史CSV诊断工具，不作为当前比赛易伤计分入口 |
