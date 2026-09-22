@@ -1,3 +1,5 @@
+#include <radar27_interfaces/msg/match_state.hpp>
+#include <rm_field/slots.hpp>
 /**
  * @file position_prior_node.cpp
  * @brief /world_targets 到 /prior_predictions 的 ROS2 编排、缓存与消息转换节点。
@@ -102,6 +104,7 @@ public:
         declare_parameter<double>("blind_zone_candidate_separation_m", 0.6);
         declare_parameter<double>("minimum_confidence", 0.05);
         declare_parameter<bool>("initial_flip_team", false);
+        declare_parameter<bool>("world_z_toward_blue", true);
         declare_parameter<std::vector<double>>(
             "blocked_regions_canonical", std::vector<double>{});
         declare_parameter<std::string>("shadow_log_path", "");
@@ -147,7 +150,7 @@ public:
         }
 
         flip_team_ = get_parameter("initial_flip_team").as_bool();
-        transform_.set_world_z_toward_blue(!flip_team_);
+        transform_.set_world_z_toward_blue(get_parameter("world_z_toward_blue").as_bool());
         RCLCPP_INFO(get_logger(), "位置先验仅服务敌方: 我方=%s 敌方=%s",
             own_team_for_view(flip_team_) == TEAM_RED ? "red" : "blue",
             opponent_team_for_view(flip_team_) == TEAM_RED ? "red" : "blue");
@@ -267,13 +270,12 @@ public:
             create_subscription<radar27_interfaces::msg::WorldTargetArray>(
                 input_topic_, rclcpp::QoS(10).best_effort(),
                 std::bind(&PositionPriorNode::targets_callback, this, std::placeholders::_1));
-        flip_subscription_ = create_subscription<std_msgs::msg::Bool>(
-            "/flip_team", rclcpp::QoS(1).reliable(),
+        flip_subscription_ = create_subscription<radar27_interfaces::msg::MatchState>(
+            "/match_state", rclcpp::QoS(1).reliable().transient_local(),
             // 坐标朝向或敌我定义改变后清空全部旧锚点，禁止跨视角复用 canonical 状态。
-            [this](const std_msgs::msg::Bool::ConstSharedPtr message) {
-                if (flip_team_ != message->data) {
-                    flip_team_ = message->data;
-                    transform_.set_world_z_toward_blue(!flip_team_);
+            [this](const radar27_interfaces::msg::MatchState::ConstSharedPtr message) {
+                if (flip_team_ != (message->own_team == TEAM_RED)) {
+                    flip_team_ = message->own_team == TEAM_RED;
                     blind_zone_prior_.set_flipped_view(flip_team_);
                     caches_.clear();
                     observation_confirmations_.clear();
@@ -606,6 +608,11 @@ private:
         const radar27_interfaces::msg::WorldTargetArray::ConstSharedPtr input) {
         auto output = std::make_unique<radar27_interfaces::msg::PriorPredictionArray>();
         output->header = input->header;
+        output->calibration_version = input->calibration_version;
+        if (calibration_version_ != input->calibration_version) {
+            caches_.clear(); observation_confirmations_.clear();
+            calibration_version_=input->calibration_version;
+        }
         output->model_enabled = model_enabled_;
         output->model_status = model_status_;
 
@@ -628,7 +635,7 @@ private:
         using Prediction = radar27_interfaces::msg::PriorPrediction;
         // 即使上游异常地产生重复槽位，输出仍按“阵营 + 兵种”强制唯一。
         std::map<std::int64_t, Prediction> unique_predictions;
-        const std::size_t slot_count = std::min<std::size_t>(10, input->targets.size());
+        const std::size_t slot_count = std::min<std::size_t>(rm_field::kRobotSlotCount, input->targets.size());
         for (std::size_t index = 0; index < slot_count; ++index) {
             const auto& target = input->targets[index];
             // 猜点只服务敌方。主动清除己方/未知阵营的旧缓存，避免配置切换、
@@ -722,6 +729,7 @@ private:
     double guess_after_s_ = 2.0;
     int query_top_k_ = 16;
     double log_interval_s_ = 0.5;
+    uint64_t calibration_version_=0;
     bool flip_team_ = false;
     bool all_roles_enabled_ = true;
     bool model_enabled_ = false;
@@ -741,7 +749,7 @@ private:
 
     rclcpp::Subscription<radar27_interfaces::msg::WorldTargetArray>::SharedPtr
         target_subscription_;
-    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr flip_subscription_;
+    rclcpp::Subscription<radar27_interfaces::msg::MatchState>::SharedPtr flip_subscription_;
     rclcpp::Publisher<radar27_interfaces::msg::PriorPredictionArray>::SharedPtr publisher_;
 };
 

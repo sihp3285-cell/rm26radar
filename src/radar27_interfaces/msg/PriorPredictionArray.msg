@@ -4,3 +4,6 @@ std_msgs/Header header
 bool model_enabled
 string model_status
 PriorPrediction[] predictions
+
+# Coordinate epoch; consumers must not mix epochs.
+uint64 calibration_version

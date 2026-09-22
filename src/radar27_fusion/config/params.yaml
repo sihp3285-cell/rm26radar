@@ -1,0 +1,6 @@
+fusion_node:
+  ros__parameters:
+    world_input_topic: /world_targets
+    prior_input_topic: /prior_predictions
+    output_topic: /fused_targets
+    max_prior_age_s: 0.5

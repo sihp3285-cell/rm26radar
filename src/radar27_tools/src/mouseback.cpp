@@ -1,0 +1,72 @@
+/**
+ * @file mouseback.cpp
+ * @brief OpenCV 窗口的同步鼠标点采集实现，仅供标定/ROI 旁路工具使用。
+ */
+#include <radar27_tools/mouseback.hpp>
+#include <iostream>
+
+MouseBack::MouseBack(const std::string& windowName, int requirePoints) : windowName(windowName), maxpoints(requirePoints) {}
+void MouseBack::onMouse(int event, int x, int y, int flags, void* userdata)
+{
+    if (event == cv::EVENT_LBUTTONDOWN)
+    {
+        MouseBack* self = static_cast<MouseBack*>(userdata);
+        if (self->points.size() < self->maxpoints)
+        {
+            self->points.emplace_back(cv::Point2f(x, y));
+
+        }
+    }
+}
+std::vector<cv::Point2f> MouseBack::getPoints(const cv::Mat& frame)
+{
+    points.clear();
+    cv::namedWindow(windowName, cv::WINDOW_NORMAL);
+    struct WindowGuard {
+        const std::string& name;
+        ~WindowGuard() {
+            try { cv::destroyWindow(name); } catch (const cv::Exception&) {}
+        }
+    } window_guard{windowName};
+    cv::setMouseCallback(windowName, onMouse, this);
+    while (true)
+    {
+        cv::Mat displayFrame = frame.clone();
+        for (size_t i = 0; i < points.size(); ++i) {
+        cv::circle(displayFrame, points[i], 10, cv::Scalar(0, 0, 255), -1);
+        cv::putText(displayFrame, std::to_string(i+1), points[i] + cv::Point2f(10, 10), 
+                    cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 2);
+        }
+        // 两点模式下，实时绘制矩形预览
+        if (maxpoints == 2 && points.size() == 2) {
+            int x1 = static_cast<int>(points[0].x);
+            int y1 = static_cast<int>(points[0].y);
+            int x2 = static_cast<int>(points[1].x);
+            int y2 = static_cast<int>(points[1].y);
+            int x = std::min(x1, x2);
+            int y = std::min(y1, y2);
+            int w = std::abs(x1 - x2);
+            int h = std::abs(y1 - y2);
+            cv::rectangle(displayFrame, cv::Rect(x, y, w, h), cv::Scalar(0, 255, 0), 2);
+        }
+        cv::imshow(windowName, displayFrame);
+        int key = cv::waitKey(10);
+        if (cv::getWindowProperty(windowName, cv::WND_PROP_VISIBLE) < 1 ||
+            key == 'q' || key == 'Q' || key == 27) {
+            points.clear();
+            break;
+        }
+        if (points.size() >= maxpoints) {
+            cv::waitKey(1000);
+            break;            
+        }
+        if (key == ' ') {
+            if (!points.empty()) {
+                points.pop_back();
+
+            }
+            continue;
+        }
+    }
+    return points;
+}

@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<package format="3">
+<name>radar27_fusion</name><version>0.1.0</version>
+<description>Message-only final coordinate source selection</description>
+<maintainer email="delphine@example.com">delphine</maintainer><license>MIT</license>
+<buildtool_depend>ament_cmake</buildtool_depend>
+<depend>rclcpp</depend>
+<depend>rclcpp_components</depend>
+<depend>radar27_interfaces</depend>
+<depend>rm_field</depend>
+<export><build_type>ament_cmake</build_type></export>
+</package>

@@ -21,6 +21,12 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   msg/PriorPredictionArray.msg
   msg/FusedTarget.msg
   msg/FusedTargetArray.msg
+  msg/WorldMeasurement.msg
+  msg/WorldMeasurementArray.msg
+  msg/ProjectionDebugSample.msg
+  msg/ProjectionDebugArray.msg
+  msg/CalibrationState.msg
+  msg/MatchState.msg
   DEPENDENCIES std_msgs builtin_interfaces
 )
 

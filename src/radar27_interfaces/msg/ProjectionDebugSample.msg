@@ -1,0 +1,9 @@
+int32 marker_key
+int32 class_id
+int32 team_id
+float32 confidence
+bool is_dead
+bool tracker_measurement
+bool negative_measurement
+float32[3] ray_endpoint
+float32[3] measurement

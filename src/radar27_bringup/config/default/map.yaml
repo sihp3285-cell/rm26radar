@@ -1,0 +1,24 @@
+mapPath: map.png
+race_size:
+- 28
+- 15
+map_size:
+- 722
+- 388
+isflip: true
+class_names:
+- car
+- armor
+- '1'
+- '2'
+- '3'
+- '4'
+- s
+- outpost
+- airplane
+outpost_mappoints_red:
+- 439
+- 92
+outpost_mappoints_blue:
+- 280
+- 291

@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package format="3">
+<name>radar27_tools</name><version>0.1.0</version>
+<description>Interactive calibration and ROI configuration tools</description>
+<maintainer email="delphine@example.com">delphine</maintainer><license>MIT</license>
+<buildtool_depend>ament_cmake</buildtool_depend>
+<depend>rclcpp</depend>
+<depend>sensor_msgs</depend>
+<depend>std_msgs</depend>
+<depend>std_srvs</depend>
+<depend>cv_bridge</depend>
+<depend>libopencv-dev</depend>
+<depend>yaml-cpp</depend>
+<export><build_type>ament_cmake</build_type></export>
+</package>

@@ -1,0 +1,9 @@
+detect_node:
+  ros__parameters:
+    input_topic: /image_raw
+    output_topic: /detected_image
+    publish_debug_image: true
+    frame_sampling_enabled: false
+    frame_sampling_step: 1
+    frame_sampling_period_ms: 50
+    debug_output_max_width: 1280

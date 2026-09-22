@@ -63,7 +63,7 @@ if(BUILD_TESTING)
   add_executable(test_home_override tests/test_home_override.cpp)
   target_link_libraries(test_home_override position_prior_core)
   add_test(NAME home_override COMMAND test_home_override
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../generated")
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures")
 endif()
 
 ament_package()

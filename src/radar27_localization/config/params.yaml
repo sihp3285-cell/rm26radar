@@ -1,0 +1,25 @@
+pose_node:
+  ros__parameters:
+    input_topic: /armor_detections
+    output_topic: /world_measurements
+    projection_pixel_sigma_px: 4.0
+    projection_finite_difference_px: 2.0
+    projection_min_world_std_m: 0.03
+    projection_max_world_std_m: 1.5
+    projection_surface_discontinuity_m: 0.12
+    projection_selector_enabled: true
+    projection_uncertainty_bad_std_m: 0.5
+    projection_condition_bad: 30.0
+    projection_cost_uncertainty_weight: 1.0
+    projection_cost_condition_weight: 0.4
+    projection_cost_surface_weight: 1.7
+    projection_cost_region_weight: 1.5
+    projection_region_outer_m: -1.5
+    projection_region_inner_m: -0.4
+    projection_switch_margin: 0.5
+    projection_switch_confirm_frames: 5
+    gully_field_x_flip: false
+    rviz_debug_enabled: false
+    world_frame: world
+    image_width: 5472
+    image_height: 3648

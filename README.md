@@ -1,5 +1,7 @@
 # 简介
-> ultralytics的TensorRT10 C++实现
+> Radar27：ROS 2 雷达感知、定位、跟踪、先验与业务输出。
+
+包边界、消息契约、资源迁移与完整构建说明见 [ARCHITECTURE.md](ARCHITECTURE.md)。
 
 # 环境配置
 - opencv 4.11
@@ -99,23 +101,32 @@ cd ../../targets/x86_64-linux-gnu/bin/
 
 # 部署（ROS2 主链）
 
-当前主入口是 ROS2 component pipeline（不再使用旧的 standalone `standard` 入口）：
+总入口为 `radar27_bringup`，旧 `tensorrt_detect` 包及启动入口已移除。
 
-``` sh
-# 1) 编译四个 ROS2 包（rm_field 为坐标/角色契约，position_prior 与 launch 依赖）
-source /opt/ros/jazzy/setup.bash    # 按实际 ROS 发行版调整
-colcon build --packages-select rm_field radar27_interfaces position_prior tensorrt_detect
-
-# 2) 加载工作空间并启动（默认视频回放模式）
+```sh
+source /opt/ros/jazzy/setup.bash
+# 第一次构建请按 ARCHITECTURE.md 指定本机 TensorRT/Open3D 路径
+colcon build --base-paths src
 source install/setup.bash
-ros2 launch tensorrt_detect detect_pipeline.launch.py mode:=video
-
-# 工业相机模式
-ros2 launch tensorrt_detect detect_pipeline.launch.py mode:=camera
+ros2 launch radar27_bringup detect_pipeline.launch.py \
+  mode:=video video_path:=/path/to/input.mp4 model_dir:=/path/to/engines
 ```
 
-启动参数、节点/话题说明见 `src/tensorrt_detect/launch/detect_pipeline.launch.py`；
-RViz 调试画面含义见 `src/tensorrt_detect/RVIZ_USAGE.md` 与 `RVIZ_DEBUG.md`。
+上面的 `/path/to/...` 都是占位符，必须替换成实际路径。`model_dir` 中的模型文件名应与
+`src/radar27_bringup/config/default/model.yaml` 一致。启动入口会在启动节点前检查视频和模型文件是否存在、可读且非空；这不代表模型与当前 TensorRT/GPU 一定兼容。
+
+当前开发机已存在的文件可使用以下命令（其他机器请更换路径）：
+
+```sh
+ros2 launch radar27_bringup detect_pipeline.launch.py \
+  mode:=video \
+  video_path:=/home/delphine/rm/car_project/test/08.mp4 \
+  model_dir:=/home/delphine/rm/radar27/models
+```
+
+使用工业相机需构建 `radar27_input` 时传入 `-DBUILD_CAMERA=ON`，再设置 `mode:=camera`。
+无界面运行加 `enable_qt_display:=false enable_tools:=false`，结构化输出继续由 `radar27_decision` 提供。
+RViz 说明见 [RVIZ_DEBUG.md](src/radar27_visualization/RVIZ_DEBUG.md)。
 
 # 另说
 本仓库代码是针对`ultralytics`的，所以`engine`文件需要利用`ultralytics`仓库代码进行生成。其中，直接使用`ultralytics`仓库的`export`是会出现模型文件序列化失败的。
@@ -129,10 +140,9 @@ RViz 调试画面含义见 `src/tensorrt_detect/RVIZ_USAGE.md` 与 `RVIZ_DEBUG.m
 `pixel -> world(x,z)` 雅可比传播像素误差，得到每帧方向相关的二维测量协方差。
 远场视线方向会自动获得更低的 Kalman 增益；相邻射线命中沟底和高台等不同
 PLY 高度面时会进一步放大该帧不确定性。相关参数位于
-`src/tensorrt_detect/config/ros2_params.yaml` 的 `pose_node` 段。
+`src/radar27_localization/config/params.yaml` 的 `pose_node` 段。
 
-## 测试与离线工具
+## 测试与架构检查
 
-所有维护中的测试、回放、报告生成和离线模型构建入口统一见 [scripts/README.md](scripts/README.md)。`log/` 保存输出及复核材料。
-
-答辩使用的六份最终报告已纳入版本管理，入口见 [reports/README.md](reports/README.md)。仅提交报告和直接链接的小型证据文件，模型、录像、数据库及原始 bag 保留在本机。
+检查与测试命令见 [ARCHITECTURE.md](ARCHITECTURE.md#验证)。
+现有融合/先验回归测试保留，新增跨进程接口检查和包依赖边界检查。

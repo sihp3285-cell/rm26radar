@@ -50,3 +50,6 @@ tmp/
 # 离线网格生成过程中的诊断产物（运行时数据保留）
 generated/mesh_debug/
 generated/*_report.json
+
+# Local statistical model, installed when present; supply separately on a new checkout.
+src/radar27_bringup/assets/prior/

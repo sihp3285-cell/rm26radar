@@ -1,0 +1,41 @@
+map_node:
+  ros__parameters:
+    input_topic: /world_targets
+    output_image_topic: /map_image
+    output_map_topic: /radar_map
+    prior_topic: /prior_predictions
+    prior_display_timeout_s: 1.0
+qt_display_node:
+  ros__parameters:
+    video_topic: /detected_image
+    map_image_topic: /map_image
+rviz_debug_node:
+  ros__parameters:
+    rviz_debug_enabled: true
+    world_targets_topic: /world_targets
+    prior_predictions_topic: /prior_predictions
+    world_frame: world
+    static_topic: /radar/rviz/static
+    tracker_topic: /radar/rviz/tracker
+    guesser_topic: /radar/rviz/guesser
+    navgrid_role: hero
+    initial_flip_team: false
+    mesh: true
+    field_grid: true
+    tracks: true
+    trajectories: true
+    velocity: true
+    covariance: true
+    measurement_covariance: true
+    guess_candidates: true
+    blind_zones: true
+    nav_grid: true
+    trajectory_length: 50
+    velocity_scale_seconds: 1.0
+    camera: true
+    fov: true
+    rays: true
+    ray_hits: true
+    measurements: true
+    camera_frame: camera_link
+    pose_topic: /radar/rviz/pose

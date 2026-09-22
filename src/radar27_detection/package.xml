@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package format="3">
+<name>radar27_detection</name><version>0.1.0</version>
+<description>TensorRT image detection pipeline</description>
+<maintainer email="delphine@example.com">delphine</maintainer><license>MIT</license>
+<buildtool_depend>ament_cmake</buildtool_depend>
+<depend>rclcpp</depend>
+<depend>rclcpp_components</depend>
+<depend>radar27_interfaces</depend>
+<depend>rm_field</depend>
+<depend>sensor_msgs</depend>
+<depend>cv_bridge</depend>
+<depend>std_msgs</depend>
+<depend>std_srvs</depend>
+<depend>libopencv-dev</depend>
+<depend>yaml-cpp</depend>
+<export><build_type>ament_cmake</build_type></export>
+</package>

@@ -1,0 +1,16 @@
+cmake_minimum_required(VERSION 3.22)
+project(radar27_bringup LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+find_package(ament_cmake REQUIRED)
+
+install(DIRECTORY launch config assets DESTINATION share/${PROJECT_NAME})
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/include")
+ install(DIRECTORY include/ DESTINATION include)
+ ament_export_include_directories(include)
+endif()
+ament_export_dependencies()
+ament_package()

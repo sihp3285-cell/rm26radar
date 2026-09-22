@@ -2,7 +2,7 @@
  * @file robot_class.hpp
  * @brief RM 场地角色/队伍 ID 与 class_id→role key 的唯一契约。
  *
- * 全仓库（tensorrt_detect 的 robot_id.hpp、position_prior 的 role 查询、
+ * 全仓库（rm_field 的 robot_id.hpp、position_prior 的 role 查询、
  * model.yaml 的 classNames 下标、离线工具 role 字符串）都以此文件为准。
  * 这些值是与检测模型输出、ROS 消息和 NavGrid profile 对齐的整数契约，
  * 不是 track_id / slot_idx / grid_index。

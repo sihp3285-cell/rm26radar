@@ -9,7 +9,7 @@ position_prior_node:
 
     # Windows 离线工具生成的 v1 条件位置先验模型。
     # 文件采用 JSON 文法（兼容 YAML 1.2），运行时由 yaml-cpp 只读加载。
-    model_path: "/home/delphine/rm/tensorrt10_detect/position_prior_toolkit/run_v1/04_rmuc2026_position_prior_v1.yaml"
+    model_path: ""
 
     # 模型文件的预期 SHA-256。实际哈希不一致时安全禁用猜点，节点不崩溃。
     model_sha256: "b1a7384042939aca3fcfa3d45a5bbd3cd8b7e3bdeaa658aac24d17f36e2df53e"
@@ -63,7 +63,7 @@ position_prior_node:
     # generated 中由 RB2026_rmuc.ply 离线生成的逐兵种可通行网格。在线使用
     # Dijkstra 八邻域最短路径，并检查台阶高度与对角穿角，不再把隔墙直线距离
     # 当作可达距离。
-    navgrid_path: "/home/delphine/rm/tensorrt10_detect/generated/RB2026_navgrid_v1.json"
+    navgrid_path: ""
     mesh_snap_distance_m: 0.6
     mesh_prediction_snap_distance_m: 1.0
 
@@ -81,12 +81,12 @@ position_prior_node:
     # 坐标均采用红方 canonical。最后可靠观测位于或靠近这些多边形时，
     # 系统只从对应兵种可通行且最短路径可达的盲区网格中注入候选。
     common_blind_zone_paths:
-      - "/home/delphine/rm/tensorrt10_detect/generated/home.yaml"
-      - "/home/delphine/rm/tensorrt10_detect/generated/gully.yaml"
-    engineer_blind_zone_path: "/home/delphine/rm/tensorrt10_detect/generated/engineer.yaml"
+      - ""
+      - ""
+    engineer_blind_zone_path: ""
     # 最后可靠位置进入或靠近 home（沿用 blind_zone_trigger_distance_m）时：工程固定取矿点，其他兵种限定在回血区域内部。
-    engineer_home_path: "/home/delphine/rm/tensorrt10_detect/generated/engineer_home.yaml"
-    other_home_path: "/home/delphine/rm/tensorrt10_detect/generated/other_home.yaml"
+    engineer_home_path: ""
+    other_home_path: ""
     blind_zone_trigger_distance_m: 1.2
     blind_zone_probability_mass: 0.65
     blind_zone_candidates_per_zone: 4
@@ -109,7 +109,7 @@ position_prior_node:
 
     # Shadow-mode CSV 日志路径。记录 PREDICTION、REACQUIRED、置信度、
     # 回退层级和重识别误差；不影响实时决策输出。
-    shadow_log_path: "/home/delphine/rm/tensorrt10_detect/log/position_prior_shadow.csv"
+    shadow_log_path: ""
 
     # 同一目标连续处于猜点状态时的最小日志记录间隔，单位秒，避免日志逐帧膨胀。
     log_interval_s: 0.5

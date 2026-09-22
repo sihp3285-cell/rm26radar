@@ -1,0 +1,41 @@
+modelPath: robot_only.engine
+imgSize1: 1280
+iouThreshold1: 0.3
+scoreThreshold1: 0.3
+isNMS1: false
+modelType1: DETECT
+armorModelPath: newarmor.engine
+imgSize2: 192
+iouThreshold2: 0.3
+scoreThreshold2: 0.3
+isNMS2: false
+modelType2: DETECT
+classifyModelPath: classify_hku.engine
+imgSize3: 64
+iouThreshold3: 0.3
+scoreThreshold3: 0.3
+isNMS3: false
+modelType3: CLASSIFY
+airplaneModelPath: airplane640.engine
+imgSize4: 640
+iouThreshold4: 0.3
+scoreThreshold4: 0.3
+isNMS4: false
+modelType4: DETECT
+airplane_interval_ms: 200
+classNames:
+  0: car
+  1: armor
+  2: '1'
+  3: '2'
+  4: '3'
+  5: '4'
+  6: s
+  7: outpost
+  8: airplane
+minRoiSize: 30
+padRatio: 0.25
+classIdxBase: 2
+multi_car_recognition: false
+armor_canvas_padding: 2
+max_armor_rois: 4

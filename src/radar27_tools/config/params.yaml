@@ -1,0 +1,12 @@
+calibrate_node:
+  ros__parameters:
+    image_topic: /image_raw
+    reprojection_threshold: 10.0
+    reprojection_max_threshold: 0.0
+    auto_calibrate: true
+    auto_calibrate_delay_sec: 2
+roi_set_node:
+  ros__parameters:
+    image_topic: /image_raw
+    auto_set_roi: true
+    auto_set_delay_sec: 3
