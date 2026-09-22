@@ -20,15 +20,15 @@
 #include <sstream>
 #include <unordered_set>
 
-#include "tensorrt_detect_msgs/msg/world_target_array.hpp"
-#include "tensorrt_detect_msgs/msg/world_target.hpp"
-#include "tensorrt_detect_msgs/msg/radar_map.hpp"
+#include "radar27_interfaces/msg/world_target_array.hpp"
+#include "radar27_interfaces/msg/world_target.hpp"
+#include "radar27_interfaces/msg/radar_map.hpp"
 #include "ConfigManager.hpp"
 #include "radarmap.hpp"
 #include "robot_id.hpp"
 #include "map_analyzer.hpp"
-#include "tensorrt_detect_msgs/msg/map_tactics.hpp"
-#include "tensorrt_detect_msgs/msg/prior_prediction_array.hpp"
+#include "radar27_interfaces/msg/map_tactics.hpp"
+#include "radar27_interfaces/msg/prior_prediction_array.hpp"
 #include "tracker.hpp"
 
 class MapNode : public rclcpp::Node
@@ -90,8 +90,8 @@ public:
         // 调度抖动时下游继续收到状态。高频 world/prior 输入采用 BestEffort，避免
         // 可视化消费者反过来让感知主链堆积。
         image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(output_image_topic_, rclcpp::QoS(1));
-        radar_map_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::RadarMap>(output_map_topic_, 10);
-        tactics_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::MapTactics>(output_tactics_topic_, 10);
+        radar_map_pub_ = this->create_publisher<radar27_interfaces::msg::RadarMap>(output_map_topic_, 10);
+        tactics_pub_ = this->create_publisher<radar27_interfaces::msg::MapTactics>(output_tactics_topic_, 10);
 
         flip_team_sub_ = this->create_subscription<std_msgs::msg::Bool>(
             "/flip_team", rclcpp::QoS(1),
@@ -108,14 +108,14 @@ public:
                 RCLCPP_INFO(this->get_logger(), "阵营视角已切换为: %s", flip_team_ ? "红方" : "蓝方");
             });
 
-        target_sub_ = this->create_subscription<tensorrt_detect_msgs::msg::WorldTargetArray>(
+        target_sub_ = this->create_subscription<radar27_interfaces::msg::WorldTargetArray>(
             input_topic_, rclcpp::QoS(10).best_effort(),
             std::bind(&MapNode::target_callback, this, std::placeholders::_1));
         prior_sub_ = this->create_subscription<
-            tensorrt_detect_msgs::msg::PriorPredictionArray>(
+            radar27_interfaces::msg::PriorPredictionArray>(
                 prior_topic_, rclcpp::QoS(10).best_effort(),
                 // 只替换最新消息所有权；真正的候选遍历延迟到 WorldTarget 绘图回调。
-                [this](const tensorrt_detect_msgs::msg::PriorPredictionArray::ConstSharedPtr msg) {
+                [this](const radar27_interfaces::msg::PriorPredictionArray::ConstSharedPtr msg) {
                     std::lock_guard<std::mutex> lock(prior_mutex_);
                     // 保存 ConstSharedPtr 不复制候选数组；shared_ptr 延长整条消息的
                     // 生命周期。绘图回调先在锁内复制指针，随后在锁外遍历重数据。
@@ -129,9 +129,9 @@ private:
     /** 将仍在显示超时内的 PriorPrediction 候选与主猜点叠加到最终视角地图。 */
     void draw_prior_overlay(
         cv::Mat& frame,
-        const tensorrt_detect_msgs::msg::WorldTargetArray& targets)
+        const radar27_interfaces::msg::WorldTargetArray& targets)
     {
-        tensorrt_detect_msgs::msg::PriorPredictionArray::ConstSharedPtr prior;
+        radar27_interfaces::msg::PriorPredictionArray::ConstSharedPtr prior;
         {
             std::lock_guard<std::mutex> lock(prior_mutex_);
             prior = latest_prior_;
@@ -237,7 +237,7 @@ private:
                 100.0 * std::clamp(static_cast<double>(prediction.prior_confidence), 0.0, 1.0)))
                 << "% " << prediction.horizon_seconds << "s "
                 << (prediction.fallback_level ==
-                    tensorrt_detect_msgs::msg::PriorPrediction::FALLBACK_LOCAL_ZONE ? "L" : "G");
+                    radar27_interfaces::msg::PriorPrediction::FALLBACK_LOCAL_ZONE ? "L" : "G");
             const cv::Point text_point(center.x + 13, center.y - 12);
             cv::putText(frame, label.str(), text_point, cv::FONT_HERSHEY_SIMPLEX,
                         0.48, cv::Scalar(255, 255, 255), 4, cv::LINE_AA);
@@ -247,10 +247,10 @@ private:
     }
 
     /** 消费一帧 WorldTarget：投影/绘图、战术分析，并发布图像、RadarMap 和 MapTactics。 */
-    void target_callback(const tensorrt_detect_msgs::msg::WorldTargetArray::ConstSharedPtr msg)
+    void target_callback(const radar27_interfaces::msg::WorldTargetArray::ConstSharedPtr msg)
     {
         try {
-            auto radar_msg = std::make_unique<tensorrt_detect_msgs::msg::RadarMap>();
+            auto radar_msg = std::make_unique<radar27_interfaces::msg::RadarMap>();
 
             // 初始化数组为 0
             for (int i = 0; i < 6; ++i) {
@@ -336,7 +336,7 @@ private:
 
             analyzer_->evaluate(msg->targets);
 
-            auto tactics_msg = std::make_unique<tensorrt_detect_msgs::msg::MapTactics>();
+            auto tactics_msg = std::make_unique<radar27_interfaces::msg::MapTactics>();
             tactics_msg->header = msg->header;
             tactics_msg->engineer_on_island = analyzer_->engineer_on_island();
             tactics_msg->opponent_attack = analyzer_->opponent_attack();
@@ -442,14 +442,14 @@ private:
     std::string prior_topic_;
     double prior_display_timeout_s_ = 1.0;
 
-    rclcpp::Subscription<tensorrt_detect_msgs::msg::WorldTargetArray>::SharedPtr target_sub_;
-    rclcpp::Subscription<tensorrt_detect_msgs::msg::PriorPredictionArray>::SharedPtr prior_sub_;
+    rclcpp::Subscription<radar27_interfaces::msg::WorldTargetArray>::SharedPtr target_sub_;
+    rclcpp::Subscription<radar27_interfaces::msg::PriorPredictionArray>::SharedPtr prior_sub_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_pub_;
-    rclcpp::Publisher<tensorrt_detect_msgs::msg::RadarMap>::SharedPtr radar_map_pub_;
-    rclcpp::Publisher<tensorrt_detect_msgs::msg::MapTactics>::SharedPtr tactics_pub_;
+    rclcpp::Publisher<radar27_interfaces::msg::RadarMap>::SharedPtr radar_map_pub_;
+    rclcpp::Publisher<radar27_interfaces::msg::MapTactics>::SharedPtr tactics_pub_;
     std::unique_ptr<MapAnalyzer> analyzer_;
     std::mutex prior_mutex_;
-    tensorrt_detect_msgs::msg::PriorPredictionArray::ConstSharedPtr latest_prior_;
+    radar27_interfaces::msg::PriorPredictionArray::ConstSharedPtr latest_prior_;
 };
 
 #include <rclcpp_components/register_node_macro.hpp>

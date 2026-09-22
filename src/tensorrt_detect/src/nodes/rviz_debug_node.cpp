@@ -12,8 +12,8 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
 #include <std_msgs/msg/bool.hpp>
-#include <tensorrt_detect_msgs/msg/prior_prediction_array.hpp>
-#include <tensorrt_detect_msgs/msg/world_target_array.hpp>
+#include <radar27_interfaces/msg/prior_prediction_array.hpp>
+#include <radar27_interfaces/msg/world_target_array.hpp>
 
 #include <algorithm>
 #include <functional>
@@ -121,15 +121,15 @@ public:
         const std::string prior_predictions_topic =
             get_parameter("prior_predictions_topic").as_string();
         world_targets_sub_ = create_subscription<
-            tensorrt_detect_msgs::msg::WorldTargetArray>(
+            radar27_interfaces::msg::WorldTargetArray>(
             world_targets_topic, rclcpp::QoS(10).best_effort(),
-            [this](const tensorrt_detect_msgs::msg::WorldTargetArray::ConstSharedPtr message) {
+            [this](const radar27_interfaces::msg::WorldTargetArray::ConstSharedPtr message) {
                 visualizer_->publishWorldTargets(*message);
             });
         prior_predictions_sub_ = create_subscription<
-            tensorrt_detect_msgs::msg::PriorPredictionArray>(
+            radar27_interfaces::msg::PriorPredictionArray>(
             prior_predictions_topic, rclcpp::QoS(10).best_effort(),
-            [this](const tensorrt_detect_msgs::msg::PriorPredictionArray::ConstSharedPtr message) {
+            [this](const radar27_interfaces::msg::PriorPredictionArray::ConstSharedPtr message) {
                 visualizer_->publishPriorPredictions(*message);
             });
 
@@ -153,9 +153,9 @@ private:
     std::vector<std::string> blind_zone_paths_;
     bool flip_team_ = false;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr flip_team_sub_;   // /flip_team 控制信号
-    rclcpp::Subscription<tensorrt_detect_msgs::msg::WorldTargetArray>::SharedPtr
+    rclcpp::Subscription<radar27_interfaces::msg::WorldTargetArray>::SharedPtr
         world_targets_sub_;                                               // → publishWorldTargets
-    rclcpp::Subscription<tensorrt_detect_msgs::msg::PriorPredictionArray>::SharedPtr
+    rclcpp::Subscription<radar27_interfaces::msg::PriorPredictionArray>::SharedPtr
         prior_predictions_sub_;                                           // → publishPriorPredictions
 };
 

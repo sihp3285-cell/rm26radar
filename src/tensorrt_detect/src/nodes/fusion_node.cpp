@@ -35,9 +35,9 @@ public:
             prior_topic.c_str(), output_topic.c_str());
     }
 private:
-    using WorldArray = tensorrt_detect_msgs::msg::WorldTargetArray;
-    using PriorArray = tensorrt_detect_msgs::msg::PriorPredictionArray;
-    using FusedArray = tensorrt_detect_msgs::msg::FusedTargetArray;
+    using WorldArray = radar27_interfaces::msg::WorldTargetArray;
+    using PriorArray = radar27_interfaces::msg::PriorPredictionArray;
+    using FusedArray = radar27_interfaces::msg::FusedTargetArray;
     void publish() {
         publisher_->publish(target_fusion::fuse(*world_, prior_.get(), max_prior_age_s_));
     }

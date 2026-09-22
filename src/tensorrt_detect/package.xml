@@ -18,7 +18,7 @@
   <depend>visualization_msgs</depend>
   <depend>tf2</depend>
   <depend>tf2_ros</depend>
-  <depend>tensorrt_detect_msgs</depend>
+  <depend>radar27_interfaces</depend>
   <depend>rm_field</depend>
   <depend>rclcpp_components</depend>
   <exec_depend>position_prior</exec_depend>

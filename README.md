@@ -104,7 +104,7 @@ cd ../../targets/x86_64-linux-gnu/bin/
 ``` sh
 # 1) 编译四个 ROS2 包（rm_field 为坐标/角色契约，position_prior 与 launch 依赖）
 source /opt/ros/jazzy/setup.bash    # 按实际 ROS 发行版调整
-colcon build --packages-select rm_field tensorrt_detect_msgs position_prior tensorrt_detect
+colcon build --packages-select rm_field radar27_interfaces position_prior tensorrt_detect
 
 # 2) 加载工作空间并启动（默认视频回放模式）
 source install/setup.bash

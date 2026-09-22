@@ -13,7 +13,7 @@ find_package(ament_cmake REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(tensorrt_detect_msgs REQUIRED)
+find_package(radar27_interfaces REQUIRED)
 find_package(rm_field REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
@@ -42,7 +42,7 @@ target_link_libraries(position_prior_node position_prior_core)
 ament_target_dependencies(position_prior_node
   rclcpp
   std_msgs
-  tensorrt_detect_msgs
+  radar27_interfaces
 )
 
 install(DIRECTORY include/ DESTINATION include)

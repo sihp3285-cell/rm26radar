@@ -122,7 +122,7 @@ std::string robot_label(int team_id, int class_id) {
 
 /** Tracker 状态枚举 → RViz 文本标签。 */
 std::string tracking_state_name(std::uint8_t state) {
-    using Target = tensorrt_detect_msgs::msg::WorldTarget;
+    using Target = radar27_interfaces::msg::WorldTarget;
     switch (state) {
         case Target::TRACKING_ACTIVE: return "ACTIVE";
         case Target::TRACKING_PREDICTED: return "PREDICTED";
@@ -134,7 +134,7 @@ std::string tracking_state_name(std::uint8_t state) {
 
 /** Tracker 状态配色：ACTIVE 绿 / PREDICTED 青 / LOST 灰 / DEAD 深灰。 */
 std_msgs::msg::ColorRGBA tracking_color(std::uint8_t state) {
-    using Target = tensorrt_detect_msgs::msg::WorldTarget;
+    using Target = radar27_interfaces::msg::WorldTarget;
     switch (state) {
         case Target::TRACKING_ACTIVE: return color(0.10f, 0.95f, 0.30f, 0.95f);
         case Target::TRACKING_PREDICTED: return color(0.10f, 0.90f, 0.95f, 0.95f);
@@ -849,7 +849,7 @@ void RvizVisualizer::publishStaticScene(
 }
 
 void RvizVisualizer::publishWorldTargets(
-    const tensorrt_detect_msgs::msg::WorldTargetArray& message) {
+    const radar27_interfaces::msg::WorldTargetArray& message) {
     // 无 RViz 订阅时直接短路，不浪费任何 Marker 组装开销
     if (!tracker_pub_ || tracker_pub_->get_subscription_count() == 0 ||
         !options_.tracks) {
@@ -1016,7 +1016,7 @@ void RvizVisualizer::publishWorldTargets(
 }
 
 void RvizVisualizer::publishPriorPredictions(
-    const tensorrt_detect_msgs::msg::PriorPredictionArray& message) {
+    const radar27_interfaces::msg::PriorPredictionArray& message) {
     // 无 RViz 订阅时直接短路，不浪费任何 Marker 组装开销
     if (!guesser_pub_ || guesser_pub_->get_subscription_count() == 0 ||
         !options_.guess_candidates) {

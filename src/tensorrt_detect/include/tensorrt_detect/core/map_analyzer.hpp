@@ -9,7 +9,7 @@
 #include <rm_field/robot_class.hpp>
 
 #include <vector>
-#include "tensorrt_detect_msgs/msg/world_target.hpp"
+#include "radar27_interfaces/msg/world_target.hpp"
 #include "robot_id.hpp"
 
 class MapAnalyzer{
@@ -17,7 +17,7 @@ class MapAnalyzer{
         /** 初始化默认敌我队伍；后续通常由 setTeamByFlip() 按 UI 视角覆盖。 */
         explicit MapAnalyzer(int our_team_id = robot_id::BLUE);
         /** 清零并重算当前 WorldTarget 快照的四项战术标志。 */
-        void evaluate(const std::vector<tensorrt_detect_msgs::msg::WorldTarget>& targets);
+        void evaluate(const std::vector<radar27_interfaces::msg::WorldTarget>& targets);
         /** 指定 world_x 到 field_x 是否需要镜像，影响区域多边形判定。 */
         void setFieldXFlip(bool flip) { field_x_flip_ = flip; }
         /** 按显示视角同步 my_team/opponent_team；不修改目标消息本身。 */

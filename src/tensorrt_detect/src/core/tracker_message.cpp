@@ -29,7 +29,7 @@ namespace tracker_message {
 void fill_world_target(
     int slot_idx,
     const Tracker::SlotOutput& slot,
-    tensorrt_detect_msgs::msg::WorldTarget& target) {
+    radar27_interfaces::msg::WorldTarget& target) {
     target.idx = slot_idx;
     target.class_id = slot.class_id;
     target.team_id = slot.team_id;
@@ -65,16 +65,16 @@ void fill_world_target(
 }
 
 void mark_direct_measurement(
-    tensorrt_detect_msgs::msg::WorldTarget& target,
+    radar27_interfaces::msg::WorldTarget& target,
     bool observed,
     float detection_score) {
     target.track_id = -1;
     target.tracking_state = observed
-        ? tensorrt_detect_msgs::msg::WorldTarget::TRACKING_ACTIVE
-        : tensorrt_detect_msgs::msg::WorldTarget::TRACKING_INVALID;
+        ? radar27_interfaces::msg::WorldTarget::TRACKING_ACTIVE
+        : radar27_interfaces::msg::WorldTarget::TRACKING_INVALID;
     target.position_source = observed
-        ? tensorrt_detect_msgs::msg::WorldTarget::POSITION_MEASURED
-        : tensorrt_detect_msgs::msg::WorldTarget::POSITION_INVALID;
+        ? radar27_interfaces::msg::WorldTarget::POSITION_MEASURED
+        : radar27_interfaces::msg::WorldTarget::POSITION_INVALID;
     target.observed = observed;
     target.covariance_valid = false;
     // 直通项从未进入世界 Kalman，不存在"实际使用的测量 R"

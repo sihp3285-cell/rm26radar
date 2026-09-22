@@ -22,9 +22,9 @@
 #include <cstdint>
 #include <yaml-cpp/yaml.h>
 
-#include "tensorrt_detect_msgs/msg/detection_array.hpp"
-#include "tensorrt_detect_msgs/msg/detection_box.hpp"
-#include "tensorrt_detect_msgs/msg/pipeline_timing.hpp"
+#include "radar27_interfaces/msg/detection_array.hpp"
+#include "radar27_interfaces/msg/detection_box.hpp"
+#include "radar27_interfaces/msg/pipeline_timing.hpp"
 #include "ConfigManager.hpp"
 #include "pipeline.hpp"
 #include "draw.hpp"
@@ -74,8 +74,8 @@ public:
         // 且 BestEffort：允许实时链在订阅方来不及处理时丢旧样本，不为逐帧可靠性
         // 牺牲时延。PipelineTiming 同样是“最新状态”语义。
         image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(output_topic_, rclcpp::QoS(1));
-        armor_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::DetectionArray>("/armor_detections", rclcpp::QoS(10).best_effort());
-        timing_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::PipelineTiming>("/pipeline_timing", rclcpp::QoS(1));
+        armor_pub_ = this->create_publisher<radar27_interfaces::msg::DetectionArray>("/armor_detections", rclcpp::QoS(10).best_effort());
+        timing_pub_ = this->create_publisher<radar27_interfaces::msg::PipelineTiming>("/pipeline_timing", rclcpp::QoS(1));
 
         image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
             input_topic_, rclcpp::QoS(1),
@@ -155,7 +155,7 @@ private:
             double instant_fps = 1.0 / std::max(dt, 1e-6);
             fps_ = 0.9 * fps_ + 0.1 * instant_fps;
 
-            auto armor_msg = std::make_unique<tensorrt_detect_msgs::msg::DetectionArray>();
+            auto armor_msg = std::make_unique<radar27_interfaces::msg::DetectionArray>();
             armor_msg->header = msg->header;   // 复用图像时间戳，方便下游同步
             armor_msg->header.frame_id = "detection";
             armor_msg->detections.reserve(results.size());
@@ -171,7 +171,7 @@ private:
                     hasOutpost = true;
                 }
 
-                tensorrt_detect_msgs::msg::DetectionBox box;
+                radar27_interfaces::msg::DetectionBox box;
                 box.idx         = res.idx;
                 box.confidence  = res.confidence;
                 box.class_conf  = res.class_conf;
@@ -192,7 +192,7 @@ private:
 
             // 前哨站功能启用但未在 results 中出现时，推送状态消息（空框，仅传递存活/死亡状态）
             if (cfg_->model.outpostEnabled && !hasOutpost) {
-                tensorrt_detect_msgs::msg::DetectionBox statusBox;
+                radar27_interfaces::msg::DetectionBox statusBox;
                 statusBox.idx = robot_id::OUTPOST;
                 statusBox.is_dead = !pipeline_->isOutpostAlive();
                 statusBox.confidence = 0.0f;
@@ -207,7 +207,7 @@ private:
 
             {
                 auto timing = pipeline_->getLatestTiming();
-                auto timing_msg = std::make_unique<tensorrt_detect_msgs::msg::PipelineTiming>();
+                auto timing_msg = std::make_unique<radar27_interfaces::msg::PipelineTiming>();
                 timing_msg->header = msg->header;
                 timing_msg->car_ms = timing.car_ms;
                 timing_msg->armor_ms = timing.armor_ms;
@@ -354,8 +354,8 @@ private:
     bool frame_sampling_enabled_ = false;
     int frame_sampling_step_ = 1;
     int frame_sampling_period_ms_ = 50;
-    rclcpp::Publisher<tensorrt_detect_msgs::msg::DetectionArray>::SharedPtr armor_pub_;
-    rclcpp::Publisher<tensorrt_detect_msgs::msg::PipelineTiming>::SharedPtr timing_pub_;
+    rclcpp::Publisher<radar27_interfaces::msg::DetectionArray>::SharedPtr armor_pub_;
+    rclcpp::Publisher<radar27_interfaces::msg::PipelineTiming>::SharedPtr timing_pub_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reload_roi_service_;
     std::chrono::steady_clock::time_point last_time_ = std::chrono::steady_clock::now();
     double fps_ = 0.0;

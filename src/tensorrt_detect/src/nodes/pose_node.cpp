@@ -20,10 +20,10 @@
 #include <cmath>
 #include <limits>
 
-#include "tensorrt_detect_msgs/msg/world_target.hpp"
-#include "tensorrt_detect_msgs/msg/world_target_array.hpp"
-#include "tensorrt_detect_msgs/msg/detection_array.hpp"
-#include "tensorrt_detect_msgs/msg/detection_box.hpp"
+#include "radar27_interfaces/msg/world_target.hpp"
+#include "radar27_interfaces/msg/world_target_array.hpp"
+#include "radar27_interfaces/msg/detection_array.hpp"
+#include "radar27_interfaces/msg/detection_box.hpp"
 #include "ConfigManager.hpp"
 #include "posesolver.hpp"
 
@@ -300,9 +300,9 @@ public:
 
         // 检测/世界目标都是高频实时状态：depth=10 吸收短暂 executor 抖动，
         // BestEffort 允许过载时丢旧帧，避免 Tracker 对积压历史帧产生额外延迟。
-        world_pub_ = this->create_publisher<tensorrt_detect_msgs::msg::WorldTargetArray>(output_topic_, rclcpp::QoS(10).best_effort());
+        world_pub_ = this->create_publisher<radar27_interfaces::msg::WorldTargetArray>(output_topic_, rclcpp::QoS(10).best_effort());
 
-        armor_sub_ = this->create_subscription<tensorrt_detect_msgs::msg::DetectionArray>(
+        armor_sub_ = this->create_subscription<radar27_interfaces::msg::DetectionArray>(
             input_topic_, rclcpp::QoS(10).best_effort(),
             std::bind(&PoseNode::armor_callback, this, std::placeholders::_1));
 
@@ -507,7 +507,7 @@ private:
      * 它不会假装完成物理轨迹关联，临时误分类只会切到另一份缓存状态。
      */
     static std::uint64_t projectionStateKey(
-        const tensorrt_detect_msgs::msg::DetectionBox& detection)
+        const radar27_interfaces::msg::DetectionBox& detection)
     {
         return (static_cast<std::uint64_t>(
                     static_cast<std::uint32_t>(detection.armor_color)) << 32U) |
@@ -521,7 +521,7 @@ private:
      * V1 刻意不使用 Kalman prediction/NIS，避免改变 Tracker 生命周期。
      */
     WorldProjection selectProjection(
-        const tensorrt_detect_msgs::msg::DetectionBox& detection,
+        const radar27_interfaces::msg::DetectionBox& detection,
         const WorldProjection& car,
         const WorldProjection& armor)
     {
@@ -699,7 +699,7 @@ private:
     }
 
     /** 检测回调：批量射线投影、构造测量/负观测、更新 Tracker 并发布 WorldTargetArray。 */
-    void armor_callback(const tensorrt_detect_msgs::msg::DetectionArray::ConstSharedPtr msg)
+    void armor_callback(const radar27_interfaces::msg::DetectionArray::ConstSharedPtr msg)
     {
         if (!is_calibrated_) {
             RCLCPP_WARN_THROTTLE(
@@ -821,8 +821,8 @@ private:
             // 正常装甲板（R1~S）进入固定槽位跟踪
             std::vector<WorldMeasurement> meas;
             meas.reserve(msg->detections.size());
-            std::vector<tensorrt_detect_msgs::msg::WorldTarget> dead_targets;
-            tensorrt_detect_msgs::msg::WorldTarget outpost_target;
+            std::vector<radar27_interfaces::msg::WorldTarget> dead_targets;
+            radar27_interfaces::msg::WorldTarget outpost_target;
             bool has_outpost = false;
             std::size_t surface_discontinuity_count = 0;
             float maximum_projection_condition = 1.0f;
@@ -869,7 +869,7 @@ private:
 
                 // 死亡装甲板仍动态发布，同时作为负观测传入 Tracker。
                 if (det.idx == robot_id::ARMOR && det.is_dead) {
-                    tensorrt_detect_msgs::msg::WorldTarget t;
+                    radar27_interfaces::msg::WorldTarget t;
                     t.idx      = 11 + static_cast<int>(dead_targets.size());
                     t.class_id = robot_id::ARMOR;
                     t.team_id  = robot_id::UNKNOWN;
@@ -981,7 +981,7 @@ private:
             tracker_.update(meas, tracker_dt, stamp_ns);
 
             // ---- 3. 固定槽位 + Outpost + 动态死亡装甲板 发布 ----
-            auto world_msg = std::make_unique<tensorrt_detect_msgs::msg::WorldTargetArray>();
+            auto world_msg = std::make_unique<radar27_interfaces::msg::WorldTargetArray>();
             world_msg->header = msg->header;
             // 0-9: Tracker official slots（含 track→slot 映射 + 仲裁）；10: Outpost 透传
             world_msg->targets.resize(11);
@@ -1034,7 +1034,7 @@ private:
     Tracker tracker_; // 跨帧保存 PhysicalTrack、Kalman、BotIdentity 与 SlotOwner。
     bool is_calibrated_ = false; // false 时拒绝投影，避免发布看似有效的错误 world 点。
     int64_t last_detection_stamp_ns_ = 0; // 计算 Kalman dt 与检测时间倒退保护。
-    std::vector<tensorrt_detect_msgs::msg::WorldTarget> cached_dead_targets_;
+    std::vector<radar27_interfaces::msg::WorldTarget> cached_dead_targets_;
     int64_t last_dead_target_observed_ns_ = 0;
     float dead_target_hold_time_s_ = 0.10f;
     ProjectionUncertaintyConfig projection_config_; // 像素误差传播/数值截断配置。
@@ -1053,8 +1053,8 @@ private:
     int rviz_image_width_ = 5472;
     int rviz_image_height_ = 3648;
 
-    rclcpp::Subscription<tensorrt_detect_msgs::msg::DetectionArray>::SharedPtr armor_sub_;
-    rclcpp::Publisher<tensorrt_detect_msgs::msg::WorldTargetArray>::SharedPtr world_pub_;
+    rclcpp::Subscription<radar27_interfaces::msg::DetectionArray>::SharedPtr armor_sub_;
+    rclcpp::Publisher<radar27_interfaces::msg::WorldTargetArray>::SharedPtr world_pub_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reload_service_;
 };
 

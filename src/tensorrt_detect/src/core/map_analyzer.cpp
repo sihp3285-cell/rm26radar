@@ -24,7 +24,7 @@ std::pair<float, float> MapAnalyzer::toFieldCoord(float world_x, float world_z) 
     return {static_cast<float>(field_x), static_cast<float>(field_y)};
 }
 
-void MapAnalyzer::evaluate(const std::vector<tensorrt_detect_msgs::msg::WorldTarget>& targets)
+void MapAnalyzer::evaluate(const std::vector<radar27_interfaces::msg::WorldTarget>& targets)
 {
     engineer_on_island_ = 0;
     opponent_attack_ = 0;

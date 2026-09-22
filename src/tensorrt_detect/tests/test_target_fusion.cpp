@@ -2,7 +2,7 @@
 #include <iostream>
 #include <limits>
 #include <stdexcept>
-using namespace tensorrt_detect_msgs::msg;
+using namespace radar27_interfaces::msg;
 void check(bool ok, const char* text) { if (!ok) throw std::runtime_error(text); }
 int main() {
     WorldTargetArray w; w.header.stamp.sec=10; w.targets.resize(10);

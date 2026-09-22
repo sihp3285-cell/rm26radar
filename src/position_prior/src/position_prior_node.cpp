@@ -21,10 +21,10 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/bool.hpp>
-#include <tensorrt_detect_msgs/msg/prior_candidate.hpp>
-#include <tensorrt_detect_msgs/msg/prior_prediction.hpp>
-#include <tensorrt_detect_msgs/msg/prior_prediction_array.hpp>
-#include <tensorrt_detect_msgs/msg/world_target_array.hpp>
+#include <radar27_interfaces/msg/prior_candidate.hpp>
+#include <radar27_interfaces/msg/prior_prediction.hpp>
+#include <radar27_interfaces/msg/prior_prediction_array.hpp>
+#include <radar27_interfaces/msg/world_target_array.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -261,10 +261,10 @@ public:
         // WorldTarget/Prior 都是高频最新状态，depth=10 + BestEffort 允许慢消费者丢
         // 样本而不积压旧猜点；阵营切换属于低频控制事件，Reliable depth=1 确保
         // Map、Prior 对同一次 UI 操作最终收敛到相同视角。
-        publisher_ = create_publisher<tensorrt_detect_msgs::msg::PriorPredictionArray>(
+        publisher_ = create_publisher<radar27_interfaces::msg::PriorPredictionArray>(
             output_topic_, rclcpp::QoS(10).best_effort());
         target_subscription_ =
-            create_subscription<tensorrt_detect_msgs::msg::WorldTargetArray>(
+            create_subscription<radar27_interfaces::msg::WorldTargetArray>(
                 input_topic_, rclcpp::QoS(10).best_effort(),
                 std::bind(&PositionPriorNode::targets_callback, this, std::placeholders::_1));
         flip_subscription_ = create_subscription<std_msgs::msg::Bool>(
@@ -375,7 +375,7 @@ private:
     /** 用已确认真实观测刷新指定槽锚点、协方差与速度，并失效旧 Dijkstra/预测缓存。 */
     void handle_observation(
         int slot_idx,
-        const tensorrt_detect_msgs::msg::WorldTarget& target,
+        const radar27_interfaces::msg::WorldTarget& target,
         std::int64_t now_ns) {
         // 只有 targets_callback 判定 reliable_observation 后才进入这里；因此单帧
         // observed 跳点不会覆盖最后可靠位置。
@@ -427,12 +427,12 @@ private:
     }
 
     /** 对一个已失联缓存执行模型查询、盲区/NavGrid/Gate，并组装完整 PriorPrediction。 */
-    tensorrt_detect_msgs::msg::PriorPrediction make_prediction(
+    radar27_interfaces::msg::PriorPrediction make_prediction(
         int slot_idx,
-        const tensorrt_detect_msgs::msg::WorldTarget& current_target,
+        const radar27_interfaces::msg::WorldTarget& current_target,
         TargetCache& cache,
         std::int64_t now_ns) {
-        using Prediction = tensorrt_detect_msgs::msg::PriorPrediction;
+        using Prediction = radar27_interfaces::msg::PriorPrediction;
         Prediction message;
         message.slot_idx = slot_idx;
         message.track_id = cache.track_id;
@@ -464,7 +464,7 @@ private:
 
         if (current_target.track_id == cache.track_id &&
             current_target.position_source ==
-                tensorrt_detect_msgs::msg::WorldTarget::POSITION_PREDICTED) {
+                radar27_interfaces::msg::WorldTarget::POSITION_PREDICTED) {
             cache.tracker_world = Point2d{current_target.world_x, current_target.world_z};
         }
         message.tracker_world_x = cache.tracker_world.x;
@@ -527,7 +527,7 @@ private:
         // Step 6: Gate 返回的 candidates 已按 fused_probability 排序并应用
         // output_top_k。逐项补齐 canonical/field/world 三种坐标供诊断与 Map overlay。
         for (const auto& candidate : gated.candidates) {
-            tensorrt_detect_msgs::msg::PriorCandidate output;
+            radar27_interfaces::msg::PriorCandidate output;
             output.grid_index = static_cast<std::uint32_t>(candidate.prior.grid_index);
             output.prior_probability = candidate.prior.probability;
             output.fused_probability = candidate.fused_probability;
@@ -603,8 +603,8 @@ private:
 
     /** 主订阅回调：维护各槽生命周期与观测确认，对达到阈值的敌方槽发布预测数组。 */
     void targets_callback(
-        const tensorrt_detect_msgs::msg::WorldTargetArray::ConstSharedPtr input) {
-        auto output = std::make_unique<tensorrt_detect_msgs::msg::PriorPredictionArray>();
+        const radar27_interfaces::msg::WorldTargetArray::ConstSharedPtr input) {
+        auto output = std::make_unique<radar27_interfaces::msg::PriorPredictionArray>();
         output->header = input->header;
         output->model_enabled = model_enabled_;
         output->model_status = model_status_;
@@ -625,7 +625,7 @@ private:
             return;
         }
 
-        using Prediction = tensorrt_detect_msgs::msg::PriorPrediction;
+        using Prediction = radar27_interfaces::msg::PriorPrediction;
         // 即使上游异常地产生重复槽位，输出仍按“阵营 + 兵种”强制唯一。
         std::map<std::int64_t, Prediction> unique_predictions;
         const std::size_t slot_count = std::min<std::size_t>(10, input->targets.size());
@@ -643,7 +643,7 @@ private:
                 enabled_roles_.find(target_role) != enabled_roles_.end();
             const bool observation_candidate = target.observed &&
                 target.position_source ==
-                    tensorrt_detect_msgs::msg::WorldTarget::POSITION_TRACKED &&
+                    radar27_interfaces::msg::WorldTarget::POSITION_TRACKED &&
                 target.team_id != 0 && !target_role.empty() && role_enabled;
             bool reliable_observation = false;
             if (observation_candidate) {
@@ -664,9 +664,9 @@ private:
                     target.is_dead,
                     reliable_observation,
                     target.tracking_state ==
-                            tensorrt_detect_msgs::msg::WorldTarget::TRACKING_DEAD ||
+                            radar27_interfaces::msg::WorldTarget::TRACKING_DEAD ||
                         target.tracking_state ==
-                            tensorrt_detect_msgs::msg::WorldTarget::TRACKING_INVALID,
+                            radar27_interfaces::msg::WorldTarget::TRACKING_INVALID,
                     lost_duration_s});
 
             if (cache_action == PriorCacheAction::CLEAR_CONFIRMED_DEAD ||
@@ -739,10 +739,10 @@ private:
     std::unordered_set<std::string> enabled_roles_;
     std::ofstream log_stream_;
 
-    rclcpp::Subscription<tensorrt_detect_msgs::msg::WorldTargetArray>::SharedPtr
+    rclcpp::Subscription<radar27_interfaces::msg::WorldTargetArray>::SharedPtr
         target_subscription_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr flip_subscription_;
-    rclcpp::Publisher<tensorrt_detect_msgs::msg::PriorPredictionArray>::SharedPtr publisher_;
+    rclcpp::Publisher<radar27_interfaces::msg::PriorPredictionArray>::SharedPtr publisher_;
 };
 
 }  // namespace position_prior

@@ -9,8 +9,8 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/header.hpp>
-#include <tensorrt_detect_msgs/msg/prior_prediction_array.hpp>
-#include <tensorrt_detect_msgs/msg/world_target_array.hpp>
+#include <radar27_interfaces/msg/prior_prediction_array.hpp>
+#include <radar27_interfaces/msg/world_target_array.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
 #include <opencv2/core.hpp>
@@ -115,11 +115,11 @@ public:
 
     /** 直接可视化 /world_targets 的滤波状态、速度、轨迹、状态和协方差。 */
     void publishWorldTargets(
-        const tensorrt_detect_msgs::msg::WorldTargetArray& message);
+        const radar27_interfaces::msg::WorldTargetArray& message);
 
     /** 直接可视化 /prior_predictions 的 Top-K、Pfused、拒绝项和主猜点。 */
     void publishPriorPredictions(
-        const tensorrt_detect_msgs::msg::PriorPredictionArray& message);
+        const radar27_interfaces::msg::PriorPredictionArray& message);
 
 private:
     rclcpp::Node& node_;

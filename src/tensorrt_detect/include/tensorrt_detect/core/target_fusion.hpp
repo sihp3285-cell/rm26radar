@@ -1,8 +1,8 @@
 #pragma once
 
-#include <tensorrt_detect_msgs/msg/world_target_array.hpp>
-#include <tensorrt_detect_msgs/msg/prior_prediction_array.hpp>
-#include <tensorrt_detect_msgs/msg/fused_target_array.hpp>
+#include <radar27_interfaces/msg/world_target_array.hpp>
+#include <radar27_interfaces/msg/prior_prediction_array.hpp>
+#include <radar27_interfaces/msg/fused_target_array.hpp>
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -13,13 +13,13 @@ inline std::int64_t stamp_ns(const builtin_interfaces::msg::Time& t) {
 }
 
 // Source selection only: no coordinate averaging, extrapolation, or Kalman feedback.
-inline tensorrt_detect_msgs::msg::FusedTargetArray fuse(
-    const tensorrt_detect_msgs::msg::WorldTargetArray& world,
-    const tensorrt_detect_msgs::msg::PriorPredictionArray* prior,
+inline radar27_interfaces::msg::FusedTargetArray fuse(
+    const radar27_interfaces::msg::WorldTargetArray& world,
+    const radar27_interfaces::msg::PriorPredictionArray* prior,
     double max_prior_age_s) {
-    using World = tensorrt_detect_msgs::msg::WorldTarget;
-    using Fused = tensorrt_detect_msgs::msg::FusedTarget;
-    tensorrt_detect_msgs::msg::FusedTargetArray output;
+    using World = radar27_interfaces::msg::WorldTarget;
+    using Fused = radar27_interfaces::msg::FusedTarget;
+    radar27_interfaces::msg::FusedTargetArray output;
     output.header = world.header;
     output.targets.resize(10);
     const double prior_age = prior

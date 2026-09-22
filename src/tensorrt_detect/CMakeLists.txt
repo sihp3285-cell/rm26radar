@@ -41,7 +41,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
-find_package(tensorrt_detect_msgs REQUIRED)
+find_package(radar27_interfaces REQUIRED)
 find_package(rm_field REQUIRED)
 
 # --- 修正 Open3D 查找方式 ---
@@ -104,7 +104,7 @@ target_link_libraries(tensorrt_detect_core
     curl
     tensorrt_interface
     Open3D::Open3D
-    tensorrt_detect_msgs::tensorrt_detect_msgs__rosidl_generator_cpp
+    radar27_interfaces::radar27_interfaces__rosidl_generator_cpp
     pthread
     nvinfer
     nvinfer_plugin
@@ -126,7 +126,7 @@ ament_target_dependencies(tensorrt_detect_rviz
     visualization_msgs
     tf2
     tf2_ros
-    tensorrt_detect_msgs
+    radar27_interfaces
 )
 target_link_libraries(tensorrt_detect_rviz
     rm_field::rm_field
@@ -158,13 +158,13 @@ endif()
 
 # detect_node component
 add_library(detect_node_component SHARED src/nodes/detect_node.cpp)
-ament_target_dependencies(detect_node_component rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs std_srvs tensorrt_detect_msgs)
+ament_target_dependencies(detect_node_component rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs std_srvs radar27_interfaces)
 target_link_libraries(detect_node_component tensorrt_detect_core)
 rclcpp_components_register_nodes(detect_node_component "DetectNode")
 
 # pose_node component
 add_library(pose_node_component SHARED src/nodes/pose_node.cpp)
-ament_target_dependencies(pose_node_component rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs std_srvs tensorrt_detect_msgs)
+ament_target_dependencies(pose_node_component rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs std_srvs radar27_interfaces)
 target_link_libraries(pose_node_component tensorrt_detect_core)
 target_link_libraries(pose_node_component tensorrt_detect_rviz)
 rclcpp_components_register_nodes(pose_node_component "PoseNode")
@@ -172,23 +172,23 @@ rclcpp_components_register_nodes(pose_node_component "PoseNode")
 # rviz_debug_node component（只读订阅既有输出，不进入主链）
 add_library(rviz_debug_node_component SHARED src/nodes/rviz_debug_node.cpp)
 ament_target_dependencies(rviz_debug_node_component
-    rclcpp rclcpp_components std_msgs tensorrt_detect_msgs)
+    rclcpp rclcpp_components std_msgs radar27_interfaces)
 target_link_libraries(rviz_debug_node_component tensorrt_detect_rviz)
 rclcpp_components_register_nodes(rviz_debug_node_component "RvizDebugNode")
 
 # map_node component
 add_library(map_node_component SHARED src/nodes/map_node.cpp)
-ament_target_dependencies(map_node_component rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs tensorrt_detect_msgs)
+ament_target_dependencies(map_node_component rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs radar27_interfaces)
 target_link_libraries(map_node_component tensorrt_detect_core)
 rclcpp_components_register_nodes(map_node_component "MapNode")
 
 # Fusion only depends on ROS messages, not TensorRT/Open3D algorithms.
 add_library(fusion_node_component SHARED src/nodes/fusion_node.cpp)
-ament_target_dependencies(fusion_node_component rclcpp rclcpp_components tensorrt_detect_msgs)
+ament_target_dependencies(fusion_node_component rclcpp rclcpp_components radar27_interfaces)
 target_include_directories(fusion_node_component PRIVATE include)
 rclcpp_components_register_nodes(fusion_node_component "FusionNode")
 add_executable(fusion_node src/nodes/fusion_node.cpp)
-ament_target_dependencies(fusion_node rclcpp rclcpp_components tensorrt_detect_msgs)
+ament_target_dependencies(fusion_node rclcpp rclcpp_components radar27_interfaces)
 target_include_directories(fusion_node PRIVATE include)
 
 # Standalone executables（脚本化压测/旁路调试用，与 component 同源码）
@@ -208,21 +208,21 @@ if(BUILD_CAMERA)
 endif()
 
 add_executable(detect_node src/nodes/detect_node.cpp)
-ament_target_dependencies(detect_node rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs std_srvs tensorrt_detect_msgs)
+ament_target_dependencies(detect_node rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs std_srvs radar27_interfaces)
 target_link_libraries(detect_node tensorrt_detect_core)
 
 add_executable(pose_node src/nodes/pose_node.cpp)
-ament_target_dependencies(pose_node rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs std_srvs tensorrt_detect_msgs)
+ament_target_dependencies(pose_node rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs std_srvs radar27_interfaces)
 target_link_libraries(pose_node tensorrt_detect_core)
 target_link_libraries(pose_node tensorrt_detect_rviz)
 
 add_executable(rviz_debug_node src/nodes/rviz_debug_node.cpp)
 ament_target_dependencies(rviz_debug_node
-    rclcpp rclcpp_components std_msgs tensorrt_detect_msgs)
+    rclcpp rclcpp_components std_msgs radar27_interfaces)
 target_link_libraries(rviz_debug_node tensorrt_detect_rviz)
 
 add_executable(map_node src/nodes/map_node.cpp)
-ament_target_dependencies(map_node rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs tensorrt_detect_msgs)
+ament_target_dependencies(map_node rclcpp rclcpp_components sensor_msgs cv_bridge std_msgs radar27_interfaces)
 target_link_libraries(map_node tensorrt_detect_core)
 
 # ========== ROS2 节点：calibrate_node ==========
@@ -239,7 +239,7 @@ target_include_directories(roi_set_node PRIVATE ${COMMON_INCLUDE_DIRS})
 
 # ========== ROS2 节点：qt_display_node ==========
 add_executable(qt_display_node src/nodes/qt_display_node.cpp)
-ament_target_dependencies(qt_display_node rclcpp sensor_msgs cv_bridge std_msgs std_srvs tensorrt_detect_msgs)
+ament_target_dependencies(qt_display_node rclcpp sensor_msgs cv_bridge std_msgs std_srvs radar27_interfaces)
 target_link_libraries(qt_display_node tensorrt_detect_core Qt5::Core Qt5::Widgets)
 
 # ========== 安装 & ament 打包 ==========
@@ -293,7 +293,7 @@ install(FILES RVIZ_DEBUG.md
 if(BUILD_TESTING)
     enable_testing()
     add_executable(test_target_fusion tests/test_target_fusion.cpp)
-    ament_target_dependencies(test_target_fusion tensorrt_detect_msgs)
+    ament_target_dependencies(test_target_fusion radar27_interfaces)
     target_include_directories(test_target_fusion PRIVATE include)
     add_test(NAME target_fusion_selection COMMAND test_target_fusion)
 endif()

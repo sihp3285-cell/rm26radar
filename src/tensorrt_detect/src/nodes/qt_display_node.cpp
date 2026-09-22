@@ -41,9 +41,9 @@
 #include <atomic>
 #include <string>
 
-#include "tensorrt_detect_msgs/msg/detection_array.hpp"
-#include "tensorrt_detect_msgs/msg/map_tactics.hpp"
-#include "tensorrt_detect_msgs/msg/pipeline_timing.hpp"
+#include "radar27_interfaces/msg/detection_array.hpp"
+#include "radar27_interfaces/msg/map_tactics.hpp"
+#include "radar27_interfaces/msg/pipeline_timing.hpp"
 
 class QtDisplayNode;
 
@@ -406,7 +406,7 @@ public:
     }
 
     /** 格式化推理耗时、显示延迟、前哨站与四项战术状态到状态栏。 */
-    void updateStatus(const tensorrt_detect_msgs::msg::PipelineTiming& timing, bool outpost_alive,
+    void updateStatus(const radar27_interfaces::msg::PipelineTiming& timing, bool outpost_alive,
                        bool engineer_on_island, bool opponent_attack, bool our_attack, bool opponent_near_fortress,
                        double display_latency_ms)
     {
@@ -624,10 +624,10 @@ public:
             });
 
         // 订阅检测结果，提取前哨站状态
-        armor_sub_ = this->create_subscription<tensorrt_detect_msgs::msg::DetectionArray>(
+        armor_sub_ = this->create_subscription<radar27_interfaces::msg::DetectionArray>(
             armor_topic_, rclcpp::QoS(10).best_effort(),
             // 检测回调只提取前哨站生死状态，图像绘制由 DetectNode 已完成。
-            [this](const tensorrt_detect_msgs::msg::DetectionArray::SharedPtr msg) {
+            [this](const radar27_interfaces::msg::DetectionArray::SharedPtr msg) {
                 bool alive = false;
                 bool found = false;
                 for (const auto& det : msg->detections) {
@@ -643,10 +643,10 @@ public:
             });
 
         // 订阅战术分析消息
-        tactics_sub_ = this->create_subscription<tensorrt_detect_msgs::msg::MapTactics>(
+        tactics_sub_ = this->create_subscription<radar27_interfaces::msg::MapTactics>(
             "/map_tactics", rclcpp::QoS(10),
             // 战术回调在同一互斥锁下更新四个布尔量，供下一次 GUI 刷新成组读取。
-            [this](const tensorrt_detect_msgs::msg::MapTactics::SharedPtr msg) {
+            [this](const radar27_interfaces::msg::MapTactics::SharedPtr msg) {
                 QMutexLocker lock(&mutex_);
                 latest_engineer_on_island_ = msg->engineer_on_island;
                 latest_opponent_attack_ = msg->opponent_attack;
@@ -655,10 +655,10 @@ public:
             });
 
         // 订阅 pipeline 耗时统计
-        timing_sub_ = this->create_subscription<tensorrt_detect_msgs::msg::PipelineTiming>(
+        timing_sub_ = this->create_subscription<radar27_interfaces::msg::PipelineTiming>(
             "/pipeline_timing", rclcpp::QoS(1),
             // 耗时回调只替换 POD 快照，不在 ROS 线程执行字符串格式化或 UI 操作。
-            [this](const tensorrt_detect_msgs::msg::PipelineTiming::SharedPtr msg) {
+            [this](const radar27_interfaces::msg::PipelineTiming::SharedPtr msg) {
                 QMutexLocker lock(&mutex_);
                 latest_timing_ = *msg;
             });
@@ -779,7 +779,7 @@ public:
     // mutex 可尽快释放给 ROS 回调；代价是每次刷新复制两张图。
     /** 在单锁下深拷贝图像并复制状态快照，保证 GUI 看到同一读取时刻的数据。 */
     void fetchData(cv::Mat &frame, cv::Mat &map,
-                   tensorrt_detect_msgs::msg::PipelineTiming &timing,
+                   radar27_interfaces::msg::PipelineTiming &timing,
                    bool &outpost_alive,
                    bool &engineer_on_island, bool &opponent_attack, bool &our_attack, bool &opponent_near_fortress,
                    double &display_latency_ms)
@@ -806,14 +806,14 @@ private:
 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr video_sub_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr map_sub_;
-    rclcpp::Subscription<tensorrt_detect_msgs::msg::DetectionArray>::SharedPtr armor_sub_;
-    rclcpp::Subscription<tensorrt_detect_msgs::msg::MapTactics>::SharedPtr tactics_sub_;
-    rclcpp::Subscription<tensorrt_detect_msgs::msg::PipelineTiming>::SharedPtr timing_sub_;
+    rclcpp::Subscription<radar27_interfaces::msg::DetectionArray>::SharedPtr armor_sub_;
+    rclcpp::Subscription<radar27_interfaces::msg::MapTactics>::SharedPtr tactics_sub_;
+    rclcpp::Subscription<radar27_interfaces::msg::PipelineTiming>::SharedPtr timing_sub_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr team_flip_pub_;
 
     cv::Mat latest_frame_;
     cv::Mat latest_map_;
-    tensorrt_detect_msgs::msg::PipelineTiming latest_timing_;
+    radar27_interfaces::msg::PipelineTiming latest_timing_;
     std::atomic<double> latest_display_latency_ms_{0.0};
     bool latest_outpost_alive_ = false;
     bool latest_engineer_on_island_ = false;
@@ -830,7 +830,7 @@ void DisplayWindow::updateFromNode()
 {
     if (!node_) return;
     cv::Mat frame, map;
-    tensorrt_detect_msgs::msg::PipelineTiming timing;
+    radar27_interfaces::msg::PipelineTiming timing;
     bool outpost_alive = false;
     bool engineer_on_island = false, opponent_attack = false, our_attack = false, opponent_near_fortress = false;
     double display_latency_ms = 0.0;
