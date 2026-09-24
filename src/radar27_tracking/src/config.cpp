@@ -65,7 +65,7 @@ void TrackingConfig::loadTrackerConfig(const std::string& path) {
         tracker.botIdentity.purgeAfterLostTimeS = bi["purge_after_lost_time_s"] ? bi["purge_after_lost_time_s"].as<float>() : 1.0f;
         tracker.botIdentity.minHistoryForStable = bi["min_history_for_stable"] ? bi["min_history_for_stable"].as<int>() : 8;
         tracker.botIdentity.decay = bi["decay"] ? bi["decay"].as<float>() : 0.97f;
-        tracker.botIdentity.numClasses = bi["num_classes"] ? bi["num_classes"].as<int>() : 9;
+        tracker.botIdentity.numClasses = bi["num_classes"] ? bi["num_classes"].as<int>() : 8;
     }
 }
 void TrackingConfig::validateTrackerConfig(const TrackerConfig& cfg) {

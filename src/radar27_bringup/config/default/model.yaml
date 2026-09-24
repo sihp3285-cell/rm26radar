@@ -16,13 +16,6 @@ iouThreshold3: 0.3
 scoreThreshold3: 0.3
 isNMS3: false
 modelType3: CLASSIFY
-airplaneModelPath: airplane640.engine
-imgSize4: 640
-iouThreshold4: 0.3
-scoreThreshold4: 0.3
-isNMS4: false
-modelType4: DETECT
-airplane_interval_ms: 200
 classNames:
   0: car
   1: armor
@@ -32,7 +25,6 @@ classNames:
   5: '4'
   6: s
   7: outpost
-  8: airplane
 minRoiSize: 30
 padRatio: 0.25
 classIdxBase: 2

@@ -15,7 +15,6 @@ class_names:
 - '4'
 - s
 - outpost
-- airplane
 outpost_mappoints_red:
 - 439
 - 92

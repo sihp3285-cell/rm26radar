@@ -25,7 +25,6 @@ inline constexpr int kClassInfantry3 = 4;  // 3 号机器人
 inline constexpr int kClassInfantry4 = 5;  // 4 号机器人
 inline constexpr int kClassSentry = 6;     // 哨兵
 inline constexpr int kClassOutpost = 7;    // 前哨站
-inline constexpr int kClassAirplane = 8;   // 无人机
 
 /** 按地图视角返回我方 team_id：false=蓝方视角、true=红方视角。 */
 inline constexpr int own_team_for_view(bool flip_team) {

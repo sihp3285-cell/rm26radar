@@ -2,17 +2,14 @@
  * @file pipeline.hpp
  * @brief DetectNode 内部的多模型业务编排层。
  *
- * 它把车辆检测、车内装甲板检测、兵种分类、固定前哨站 ROI 和可选无人机检测
+ * 它把车辆检测、车内装甲板检测、兵种分类和固定前哨站 ROI 检测
  * 组织成一帧 Result 列表；TensorRT buffer 细节由 Model 管理，ROS 消息由 Node 转换。
  */
 #pragma once
 #include <radar27_detection/model.hpp>
 #include <opencv2/opencv.hpp>
 #include <vector>
-#include <memory>
-#include <thread>
 #include <mutex>
-#include <condition_variable>
 #include <atomic>
 #include <chrono>
 #include <radar27_detection/config.hpp>
@@ -23,7 +20,6 @@ struct PipelineTiming {
     double armor_ms = 0.0;
     double cls_ms = 0.0;
     double outpost_ms = 0.0;
-    double airplane_ms = 0.0;
     double total_ms = 0.0;
     double end_to_end_ms = 0.0;
     double fps = 0.0;
@@ -31,15 +27,14 @@ struct PipelineTiming {
 
 /**
  * 一条 DetectNode 独占的有状态检测管线。
- * DetectionConfig 由外部持有且必须覆盖本对象生命周期。前哨站 miss duration 和异步无人机
- * 缓存跨帧保存；析构会通知并 join 无人机线程。
+ * DetectionConfig 由外部持有且必须覆盖本对象生命周期。前哨站 miss duration 跨帧保存。
  */
 class DetectPipeline {
 public:
 
-    /** 按 DetectionConfig 构造各 TensorRT Model，并在启用无人机时启动后台线程。 */
+    /** 按 DetectionConfig 构造各 TensorRT Model。 */
     DetectPipeline(DetectionConfig& cfg);
-    /** 通知无人机线程退出并 join；各 Model 随后自动释放 GPU 资源。 */
+    /** 各 Model 自动释放 GPU 资源。 */
     ~DetectPipeline();
     /** 将 YAML 字符串映射为 ModelType；未知值记录错误并返回 UNKNOWN。 */
     Model::ModelType modelType(const std::string& modelType)
@@ -74,7 +69,6 @@ private:
     Model  detectModel_;          // 全图车辆检测。
     Model  armorDetector_;        // 每个车辆 ROI 内的装甲板检测。
     Model  classifyModel_;        // 装甲板/车辆 ROI 的兵种分类。
-    std::unique_ptr<Model> airplaneModel_;
     DetectionConfig& cfg_;
 
     float outpostMissDurationS_ = 0.0f; // 按消息时间累计，超时才改变存活状态。
@@ -90,25 +84,7 @@ private:
     std::vector<Result>   detectOutpost(const cv::Mat& frame, float elapsed_s);
     /** 对候选 ROI 运行兵种分类，原地补齐 idx、class_conf 和 class_margin。 */
     void runClassify(const cv::Mat& frame, std::vector<Result>& detections);
-    /** 在无人机半幅 ROI 执行检测并把框平移回整帧坐标。 */
-    std::vector<Result>   runAirplaneDetect(const cv::Mat& frame);
-
-    /** 等待最新帧快照，按最小间隔运行无人机检测并发布到线程安全缓存。 */
-    void airplaneThreadLoop();
-    std::thread airplaneThread_;
-    std::mutex frameMutex_;
-    std::condition_variable airplaneCv_;
-    cv::Mat latestFrame_;         // 必须 clone；后台线程不能借用调用者的帧 buffer。
-    int airplaneRoiX_ = 0;
-    bool newFrameAvailable_ = false;
-    std::atomic<bool> stopThread_{false};
-
-    std::mutex resultsMutex_;
-    std::vector<Result> cachedAirplaneResults_;
-    int airplaneIntervalMs_ = 33;
-
     // 耗时统计
-    std::atomic<double> lastAirplaneMs_{0.0};
     std::atomic<double> lastArmorDetectMs_{0.0};
     std::atomic<double> lastOutpostDetectMs_{0.0};
     double accCarMs_ = 0.0;

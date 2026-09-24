@@ -38,7 +38,7 @@ flowchart LR
 
 纯跟踪核心库不链接 ROS、TensorRT、Open3D、Qt。ROS 消息转换编译进跟踪节点。检测/定位各自保留算法核心与节点适配层。可视化只消费消息，GPU 射线查询的互斥量留在定位共享库，已移除对推理头文件的引用。当前没有新增跨库 GPU 调度器，也没有宣称 TensorRT/Open3D 并发安全；正式主链仍使用单线程组件容器。
 
-相机 SDK 在 `radar27_input/vendor/rb26SDK`；`BUILD_CAMERA` 默认关闭，视频回放不要求安装相机 SDK。已有 SDK 代码和许可文件随目录保留。
+相机 SDK 在 `radar27_detection/rb26SDK`（原 `radar27_input/vendor/rb26SDK`），检测包直接复用其 `sdk::HikCamera`，大恒仍由输入适配层直连 Galaxy SDK；`BUILD_CAMERA` 默认关闭，视频回放不要求安装相机 SDK。
 
 ## 数据契约
 
@@ -99,7 +99,7 @@ ros2 launch radar27_bringup detect_pipeline.launch.py \
   enable_qt_display:=false enable_tools:=false
 
 # 工业相机需先启用可选后端；SDK 驱动须已安装
-colcon build --packages-select radar27_input --cmake-args -DBUILD_CAMERA=ON
+colcon build --packages-select radar27_detection --cmake-args -DBUILD_CAMERA=ON
 ros2 launch radar27_bringup detect_pipeline.launch.py mode:=camera model_dir:=/path/to/engines
 ```
 

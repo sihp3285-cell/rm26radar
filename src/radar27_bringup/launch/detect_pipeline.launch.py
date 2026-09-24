@@ -9,7 +9,9 @@ from pathlib import Path
 import yaml
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, RegisterEventHandler, EmitEvent
+from launch.event_handlers import OnProcessExit
+from launch.events import Shutdown
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node, ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
@@ -50,11 +52,9 @@ def setup(context):
     assets = Path(value('assets_dir') or root / 'assets').resolve()
     model_dir = str(Path(value('model_dir')).expanduser().resolve()) if value('model_dir') else ''
     model_config = yaml.safe_load((config / 'model.yaml').read_text())
-    for key in ('modelPath', 'armorModelPath', 'classifyModelPath', 'airplaneModelPath'):
+    for key in ('modelPath', 'armorModelPath', 'classifyModelPath'):
         name = model_config.get(key, '')
         if not name:
-            if key == 'airplaneModelPath':
-                continue
             raise ValueError(f'model.yaml 中 {key} 不能为空')
         path = Path(model_dir) / Path(name).name if model_dir else config / name
         require_input_file(path, f'{key}（请检查 model_dir 或 model.yaml）')
@@ -76,13 +76,22 @@ def setup(context):
         raise ValueError('own_team must be red or blue')
     world_blue = flag('world_z_toward_blue')
     debug = flag('rviz_debug_enabled') or flag('enable_rviz')
-    source = (component('radar27_input', 'VideoNode', 'video_node', video_path=video_path)
-              if mode == 'video' else component('radar27_input', 'radar27_input::CameraNode', 'camera_node', record_path=str(runtime / 'recordings')))
+    playback = value('playback_mode')
+    if playback not in ('realtime', 'sequential'):
+        raise ValueError('playback_mode must be realtime or sequential')
+    # Detection owns input/worker threads. Keep TensorRT in its own process so
+    # it does not share a CUDA primary context with Open3D localization.
+    detector = Node(package='radar27_detection', executable='detect_node', name='detect_node',
+        parameters=params('radar27_detection', 'detect_node', config_dir=str(config),
+            model_dir=model_dir, roi_path=str(runtime / 'outpost_roi.yaml'),
+            publish_debug_image=flag('enable_qt_display'), **{
+                'input.mode': mode, 'video.path': video_path,
+                'video.playback_mode': playback, 'video.shutdown_on_eof': flag('shutdown_on_eof'),
+                'recording.enabled': flag('enable_recording'),
+                'recording.path': str(runtime / 'recordings')}), output='screen')
     map_config = yaml.safe_load((config / 'map.yaml').read_text())
     width, height = map_config['map_size']
-    nodes = [source,
-        component('radar27_detection', 'DetectNode', 'detect_node', config_dir=str(config),
-            model_dir=model_dir, roi_path=str(runtime / 'outpost_roi.yaml'), publish_debug_image=flag('enable_qt_display')),
+    nodes = [
         component('radar27_localization', 'PoseNode', 'pose_node', config_dir=str(config),
             calibration_path=str(runtime / 'calib_result.yaml'), rviz_debug_enabled=debug,
             gully_region_path=str(assets / 'generated' / 'gully.yaml'), gully_field_x_flip=not world_blue),
@@ -90,7 +99,9 @@ def setup(context):
         component('radar27_decision', 'DecisionNode', 'decision_node', own_team=1 if red else 2,
             world_z_toward_blue=world_blue, field_length=float(map_config['race_size'][0]),
             field_width=float(map_config['race_size'][1]), map_width=height, map_height=width)]
-    actions = [ComposableNodeContainer(name='radar27_pipeline', namespace='', package='rclcpp_components',
+    actions = [RegisterEventHandler(OnProcessExit(target_action=detector,
+        on_exit=[EmitEvent(event=Shutdown(reason='detect_node exited'))])),
+        ComposableNodeContainer(name='radar27_pipeline', namespace='', package='rclcpp_components',
         executable='component_container', composable_node_descriptions=nodes, output='screen'),
         Node(package='radar27_decision', executable='match_state_node', parameters=[{'own_team': 1 if red else 2}], output='screen'),
         Node(package='radar27_fusion', executable='fusion_node', parameters=params('radar27_fusion', 'fusion_node'), output='screen')]
@@ -123,6 +134,7 @@ def setup(context):
                 blind_zone_paths=[str(assets / 'generated' / f) for f in ('home.yaml','gully.yaml','engineer.yaml','engineer_home.yaml','other_home.yaml')])))
     if flag('enable_rviz'):
         actions.append(Node(package='rviz2', executable='rviz2', arguments=['-d',str(share('radar27_visualization') / 'config/radar_debug.rviz')],output='screen'))
+    actions.append(detector)
     return actions
 
 
@@ -130,5 +142,6 @@ def generate_launch_description():
     defaults = dict(mode='video', video_path='', model_dir=os.environ.get('RADAR27_MODEL_DIR',''),
         config_dir='', assets_dir='', runtime_dir=os.environ.get('RADAR27_RUNTIME_DIR',str(Path.home()/'.local/state/radar27')),
         own_team='blue', world_z_toward_blue='true', enable_qt_display='true', enable_tools='true',
-        rviz_debug_enabled='false', enable_rviz='false')
+        rviz_debug_enabled='false', enable_rviz='false', playback_mode='realtime',
+        shutdown_on_eof='true', enable_recording='false')
     return LaunchDescription([DeclareLaunchArgument(k,default_value=v) for k,v in defaults.items()] + [OpaqueFunction(function=setup)])

@@ -21,7 +21,7 @@ struct BotIdentityConfig {
     float purgeAfterLostTimeS = 1.0f;//连续丢失多久之后自动清空
     int minHistoryForStable = 8;//最少积累多少次观测才输出稳定身份
     float decay = 0.97f;//指数衰减因子
-    int numClasses = 9; // CAR=0, ARMOR=1, R1=2, R2=3, R3=4, R4=5, S=6, OUTPOST=7, AIRPLANE=8
+    int numClasses = 8; // CAR=0, ARMOR=1, R1=2, R2=3, R3=4, R4=5, S=6, OUTPOST=7
 };
 
 // ==========================================
@@ -85,7 +85,7 @@ private:
     float purgeAfterLostTimeS_ = 1.0f;
     int minHistoryForStable_ = 8;
     float decay_ = 0.97f;
-    int numClasses_ = 9;
+    int numClasses_ = 8;
 
     std::deque<Observation> history_; // 经过最低置信度门的长期稳定性证据。
     std::deque<std::pair<int, float>> recent_history_; // 近期接管仲裁用的轻量证据。

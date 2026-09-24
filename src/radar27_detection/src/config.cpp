@@ -51,7 +51,6 @@ loadModelConfig((dir/"model.yaml").string());
  if (!model.modelPath.empty() && fs::path(model.modelPath).is_relative()) model.modelPath=(dir/model.modelPath).lexically_normal().string();
 if (!model.armorModelPath.empty() && fs::path(model.armorModelPath).is_relative()) model.armorModelPath=(dir/model.armorModelPath).lexically_normal().string();
 if (!model.classifyModelPath.empty() && fs::path(model.classifyModelPath).is_relative()) model.classifyModelPath=(dir/model.classifyModelPath).lexically_normal().string();
-if (!model.airplaneModelPath.empty() && fs::path(model.airplaneModelPath).is_relative()) model.airplaneModelPath=(dir/model.airplaneModelPath).lexically_normal().string();
 validateModelConfig(model);
 
 }
@@ -79,13 +78,6 @@ void DetectionConfig::loadModelConfig(const std::string& path) {
     model.isNMS3                  = cfg["isNMS3"].as<bool>();
     model.modelType3      = cfg["modelType3"].as<std::string>();
 
-    model.airplaneModelPath = cfg["airplaneModelPath"] ? cfg["airplaneModelPath"].as<std::string>() : "";
-    model.imgSize4          = cfg["imgSize4"] ? cfg["imgSize4"].as<int>() : 0;
-    model.iouThreshold4     = cfg["iouThreshold4"] ? cfg["iouThreshold4"].as<float>() : 0.0f;
-    model.scoreThreshold4   = cfg["scoreThreshold4"] ? cfg["scoreThreshold4"].as<float>() : 0.0f;
-    model.isNMS4            = cfg["isNMS4"] ? cfg["isNMS4"].as<bool>() : false;
-    model.modelType4        = cfg["modelType4"] ? cfg["modelType4"].as<std::string>() : "";
-    model.airplaneIntervalMs = cfg["airplane_interval_ms"] ? cfg["airplane_interval_ms"].as<int>() : 33;
 
     model.minRoiSize  = cfg["minRoiSize"] ? cfg["minRoiSize"].as<int>() : 0;
     model.padRatio    = cfg["padRatio"] ? cfg["padRatio"].as<float>() : 0.0f;

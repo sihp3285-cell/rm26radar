@@ -9,7 +9,6 @@
 <exec_depend>ament_index_python</exec_depend>
 <exec_depend>python3-yaml</exec_depend>
 <exec_depend>rclcpp_components</exec_depend>
-<exec_depend>radar27_input</exec_depend>
 <exec_depend>radar27_detection</exec_depend>
 <exec_depend>radar27_localization</exec_depend>
 <exec_depend>radar27_tracking</exec_depend>

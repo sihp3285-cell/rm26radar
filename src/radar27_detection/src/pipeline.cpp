@@ -1,8 +1,7 @@
 /**
  * @file pipeline.cpp
  * @brief 多个 Model 的雷达站检测语义编排与跨帧特殊目标状态实现。
- * 车辆框限定装甲板搜索区域，分类结果回填兵种；前哨站使用固定 ROI/超时状态；
- * 无人机可选分支在后台仅处理最新 clone 帧，主线程复用最近结果。
+ * 车辆框限定装甲板搜索区域，分类结果回填兵种；前哨站使用固定 ROI/超时状态。
  */
 #include <radar27_detection/pipeline.hpp>
 #include <radar27_detection/config.hpp>
@@ -19,29 +18,9 @@ DetectPipeline::DetectPipeline(DetectionConfig& cfg)
       classifyModel_(cfg.model.classifyModelPath, cfg.model.imgSize3, cfg.model.scoreThreshold3, cfg.model.iouThreshold3, cfg.model.isNMS3, modelType(cfg.model.modelType3)),
       cfg_(cfg)
 {
-    // Model 构造函数内部已通过 cudaFree(0) 初始化 CUDA primary context
-    if (!cfg.model.airplaneModelPath.empty()) {
-        airplaneModel_ = std::make_unique<Model>(
-            cfg.model.airplaneModelPath,
-            cfg.model.imgSize4,
-            cfg.model.scoreThreshold4,
-            cfg.model.iouThreshold4,
-            cfg.model.isNMS4,
-            modelType(cfg.model.modelType4)
-        );
-        airplaneIntervalMs_ = std::max(1, cfg.model.airplaneIntervalMs);
-        airplaneThread_ = std::thread(&DetectPipeline::airplaneThreadLoop, this);
-    }
 }
 
-DetectPipeline::~DetectPipeline()
-{
-    stopThread_ = true;
-    airplaneCv_.notify_all();
-    if (airplaneThread_.joinable()) {
-        airplaneThread_.join();
-    }
-}
+DetectPipeline::~DetectPipeline() = default;
 
 void DetectPipeline::resetTimeState()
 {
@@ -274,22 +253,6 @@ void DetectPipeline::runClassify(const cv::Mat& frame, std::vector<Result>& dete
     }
 }
 
-std::vector<Result> DetectPipeline::runAirplaneDetect(const cv::Mat& frame) {
-    if (!airplaneModel_) {
-        return std::vector<Result>();
-    }
-    int xStart = frame.cols / 2;
-    int width = frame.cols - xStart;
-    cv::Rect rightRoi(xStart, 0, width, frame.rows);
-    airplaneModel_->Detect(frame(rightRoi));
-    std::vector<Result> results = airplaneModel_->detectResults;
-    for (auto& res : results) {
-        res.idx = robot_id::AIRPLANE;
-        res.box.x += xStart;
-    }
-    return results;
-}
-
 std::vector<Result> DetectPipeline::process(const cv::Mat& frame, float elapsed_s) {
     auto t0 = std::chrono::steady_clock::now();
     if (!std::isfinite(elapsed_s) || elapsed_s < 0.0f) {
@@ -297,17 +260,6 @@ std::vector<Result> DetectPipeline::process(const cv::Mat& frame, float elapsed_
             std::chrono::duration<double>(t0 - lastProcessTime_).count());
     }
     lastProcessTime_ = t0;
-
-    // Stage 0: 更新异步无人机缓存并通知后台线程（只存右半）。clone 是必要的深拷贝：
-    // process 返回后源 frame 可能随 ROS 消息释放，而后台线程仍会在稍后推理。
-    if (airplaneModel_) {
-        std::lock_guard<std::mutex> lock(frameMutex_);
-        airplaneRoiX_ = frame.cols / 2;
-        int width = frame.cols - airplaneRoiX_;
-        latestFrame_ = frame(cv::Rect(airplaneRoiX_, 0, width, frame.rows)).clone();
-        newFrameAvailable_ = true;
-    }
-    airplaneCv_.notify_one();
 
     // Stage 1: 全图车辆检测。
     auto t1 = std::chrono::steady_clock::now();
@@ -331,14 +283,6 @@ std::vector<Result> DetectPipeline::process(const cv::Mat& frame, float elapsed_
     all.insert(all.end(), std::make_move_iterator(armors.begin()), std::make_move_iterator(armors.end()));
     all.insert(all.end(), std::make_move_iterator(outposts.begin()), std::make_move_iterator(outposts.end()));
 
-    // 获取最新缓存的无人机结果（非阻塞）
-    {
-        std::lock_guard<std::mutex> lock(resultsMutex_);
-        all.insert(all.end(),
-                   std::make_move_iterator(cachedAirplaneResults_.begin()),
-                   std::make_move_iterator(cachedAirplaneResults_.end()));
-    }
-
     auto t6 = std::chrono::steady_clock::now();
     double car_ms   = elapsedMs(t1, t2);
     double armor_ms = lastArmorDetectMs_.load();
@@ -352,7 +296,6 @@ std::vector<Result> DetectPipeline::process(const cv::Mat& frame, float elapsed_
         latestTiming_.armor_ms = armor_ms;
         latestTiming_.cls_ms   = cls_ms;
         latestTiming_.outpost_ms = outpost_ms;
-        latestTiming_.airplane_ms = lastAirplaneMs_.load();
         latestTiming_.total_ms = total_ms;
         latestTiming_.end_to_end_ms = 0.0;
     }
@@ -385,43 +328,4 @@ PipelineTiming DetectPipeline::getLatestTiming() const
 {
     std::lock_guard<std::mutex> lock(timingMutex_);
     return latestTiming_;
-}
-
-void DetectPipeline::airplaneThreadLoop()
-{
-    while (!stopThread_) {
-        cv::Mat frame;
-        bool hasNewFrame = false;
-        int xOffset = 0;
-        {
-            std::unique_lock<std::mutex> lock(frameMutex_);
-            airplaneCv_.wait_for(lock, std::chrono::milliseconds(100),
-                [this] { return newFrameAvailable_ || stopThread_.load(); });
-            if (stopThread_) break;
-            if (newFrameAvailable_) {
-                frame = latestFrame_;          // 浅拷贝 O(1)，数据已在 process() 里 clone 过
-                xOffset = airplaneRoiX_;       // 同步读取原图偏移
-                newFrameAvailable_ = false;
-                hasNewFrame = true;
-            }
-        }
-
-        if (hasNewFrame && airplaneModel_) {
-            auto ta0 = std::chrono::steady_clock::now();
-            airplaneModel_->Detect(frame);
-            auto ta1 = std::chrono::steady_clock::now();
-            lastAirplaneMs_ = elapsedMs(ta0, ta1);
-
-            std::vector<Result> results = airplaneModel_->detectResults;
-            for (auto& res : results) {
-                res.idx = robot_id::AIRPLANE;
-                res.box.x += xOffset;
-            }
-            std::lock_guard<std::mutex> lock(resultsMutex_);
-            cachedAirplaneResults_ = std::move(results);
-        }
-
-        // 低频控制，避免占用过多 GPU/CPU
-        std::this_thread::sleep_for(std::chrono::milliseconds(airplaneIntervalMs_));
-    }
 }

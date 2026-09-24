@@ -236,7 +236,7 @@ public:
         auto *top_bar_layout = new QHBoxLayout();
         top_bar_layout->setSpacing(8);
 
-        status_label_ = new QLabel("car=-- armor=-- cls=-- output=-- airplane=-- total=-- e2e=-- disp=-- fps=--", this);
+        status_label_ = new QLabel("car=-- armor=-- cls=-- output=-- total=-- e2e=-- disp=-- fps=--", this);
         status_label_->setStyleSheet(
             "color: #00ff88; background-color: #0d0d0d; font-size: 20px; "
             "font-family: 'Microsoft YaHei', 'Consolas', monospace; "
@@ -411,12 +411,11 @@ public:
                        double display_latency_ms)
     {
         // 更新基础状态栏（time 日志各阶段耗时）
-        QString text = QString("car=%1 armor=%2 cls=%3 output=%4 airplane=%5 total=%6 e2e=%7 disp=%8 fps=%9")
+        QString text = QString("car=%1 armor=%2 cls=%3 output=%4 total=%5 e2e=%6 disp=%7 fps=%8")
                            .arg(timing.car_ms, 0, 'f', 1)
                            .arg(timing.armor_ms, 0, 'f', 1)
                            .arg(timing.cls_ms, 0, 'f', 1)
                            .arg(timing.outpost_ms, 0, 'f', 1)
-                           .arg(timing.airplane_ms, 0, 'f', 1)
                            .arg(timing.total_ms, 0, 'f', 1)
                            .arg(timing.end_to_end_ms, 0, 'f', 1)
                            .arg(display_latency_ms, 0, 'f', 1)

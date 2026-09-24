@@ -1,9 +1,31 @@
 detect_node:
   ros__parameters:
-    input_topic: /image_raw
+    input.mode: video
+    input.frame_id: camera_frame
+    input.sampling_step: 1
+    video.path: ''
+    video.fps: 20.0
+    video.playback_mode: realtime
+    video.synthetic_stamp: false
+    video.shutdown_on_eof: true
+    camera.brand: hik
+    camera.sn: DA7831910
+    camera.auto_white_balance: true
+    camera.exposure_time: 6000
+    camera.gain: 0.7
+    camera.gamma: 0.3
+    camera.timeout_ms: 1000
+    camera.flip: false
+    camera.mirror: false
+    recording.enabled: false
+    recording.path: recordings
+    recording.fps: 20.0
+    recording.queue_size: 8
+    recording.codec: mp4v
+    raw_output.enabled: true
+    raw_output.topic: /image_raw
+    raw_output.only_with_subscribers: true
+    raw_output.max_fps: 5.0
     output_topic: /detected_image
     publish_debug_image: true
-    frame_sampling_enabled: false
-    frame_sampling_step: 1
-    frame_sampling_period_ms: 50
     debug_output_max_width: 1280

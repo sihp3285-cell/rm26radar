@@ -124,7 +124,7 @@ ros2 launch radar27_bringup detect_pipeline.launch.py \
   model_dir:=/home/delphine/rm/radar27/models
 ```
 
-使用工业相机需构建 `radar27_input` 时传入 `-DBUILD_CAMERA=ON`，再设置 `mode:=camera`。
+使用工业相机需构建 `radar27_detection` 时传入 `-DBUILD_CAMERA=ON`，再设置 `mode:=camera`。
 无界面运行加 `enable_qt_display:=false enable_tools:=false`，结构化输出继续由 `radar27_decision` 提供。
 RViz 说明见 [RVIZ_DEBUG.md](src/radar27_visualization/RVIZ_DEBUG.md)。
 
