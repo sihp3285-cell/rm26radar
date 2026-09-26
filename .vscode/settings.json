@@ -1,3 +1,21 @@
 {
-    "cmake.sourceDirectory": "/home/delphine/rm/tensorrt10_detect/rb26SDK",
+    "cmake.sourceDirectory": "${workspaceFolder}/src/radar27_detection/rb26SDK",
+    "cmake.buildDirectory": "${workspaceFolder}/build/.cmake-tools-rb26sdk",
+    "cmake.configureOnOpen": false,
+
+    "C_Cpp.exclusionPolicy": "checkFilesAndFolders",
+    "C_Cpp.files.exclude": {
+        "**/.vscode": true,
+        "**/.vs": true,
+        "**/*.cu": true
+    },
+
+    "python.analysis.extraPaths": [
+        "/opt/ros/jazzy/lib/python3.12/site-packages",
+        "${workspaceFolder}/install/radar27_interfaces/lib/python3.12/site-packages"
+    ],
+    "python.autoComplete.extraPaths": [
+        "/opt/ros/jazzy/lib/python3.12/site-packages",
+        "${workspaceFolder}/install/radar27_interfaces/lib/python3.12/site-packages"
+    ]
 }

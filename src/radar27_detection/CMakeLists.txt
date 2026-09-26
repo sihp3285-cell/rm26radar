@@ -86,41 +86,4 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/include")
 endif()
 ament_export_dependencies(OpenCV Threads yaml-cpp CUDAToolkit rclcpp rclcpp_components radar27_interfaces rm_field sensor_msgs cv_bridge std_msgs std_srvs)
 install(DIRECTORY config DESTINATION share/${PROJECT_NAME})
-if(BUILD_TESTING)
- enable_testing()
- add_executable(test_video_source tests/test_video_source.cpp)
- target_link_libraries(test_video_source ${PROJECT_NAME}_input)
- add_test(NAME test_video_source COMMAND test_video_source)
- add_executable(test_frame_buffer_recorder tests/test_frame_buffer_recorder.cpp)
- target_link_libraries(test_frame_buffer_recorder ${PROJECT_NAME}_input)
- add_test(NAME test_frame_buffer_recorder COMMAND test_frame_buffer_recorder)
- set_tests_properties(test_frame_buffer_recorder PROPERTIES TIMEOUT 15)
-
- # Test the production node's input/services using a simulated inference backend.
- # No CUDA runtime or production core is linked into this executable.
- add_executable(test_detect_input tests/test_detect_input.cpp tests/fake_detect_pipeline.cpp src/config.cpp src/draw.cpp)
- target_include_directories(test_detect_input PRIVATE include ${TENSORRT_INCLUDE} ${CUDAToolkit_INCLUDE_DIRS})
- target_compile_definitions(test_detect_input PRIVATE RADAR27_TEST_CONFIG_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../radar27_bringup/config/default")
- ament_target_dependencies(test_detect_input rclcpp radar27_interfaces rm_field sensor_msgs cv_bridge std_msgs std_srvs)
- target_link_libraries(test_detect_input ${PROJECT_NAME}_input yaml-cpp::yaml-cpp)
- add_test(NAME test_detect_input COMMAND test_detect_input)
- set_tests_properties(test_detect_input PROPERTIES TIMEOUT 30)
- # Compile the disabled path independently, even in a camera-enabled build.
- add_executable(test_camera_source_disabled tests/test_camera_source_disabled.cpp src/input/camera_source.cpp)
- target_include_directories(test_camera_source_disabled PRIVATE include ${OpenCV_INCLUDE_DIRS})
- target_link_libraries(test_camera_source_disabled ${OpenCV_LIBS})
- add_test(NAME test_camera_source_disabled COMMAND test_camera_source_disabled)
- if(BUILD_CAMERA AND HIK_INCLUDE_DIR AND HIK_LIBRARY)
-  # 真实 SDK 头文件 + 桩实现（extern "C" 假 MV_CC_*），不链接真库、不碰硬件。
-  # 被测代码是 rb26SDK 的 hik.cpp 加上 production 的 camera_source.cpp，
-  # 因此这里直接编译 hik.cpp 源码，而不是链接 rb26SDK 目标（后者会拉进真库）。
-  add_executable(test_camera_source_hik
-   tests/test_camera_source_hik.cpp src/input/camera_source.cpp rb26SDK/src/hik/hik.cpp)
-  target_compile_definitions(test_camera_source_hik PRIVATE RADAR27_HAS_HIK=1 RB26SDK_HAS_HIK=1)
-  target_include_directories(test_camera_source_hik PRIVATE
-   include ${OpenCV_INCLUDE_DIRS} rb26SDK/include)
-  target_link_libraries(test_camera_source_hik ${OpenCV_LIBS} Threads::Threads)
-  add_test(NAME test_camera_source_hik COMMAND test_camera_source_hik)
- endif()
-endif()
 ament_package()

@@ -5,31 +5,67 @@
             "includePath": [
                 "${workspaceFolder}/**",
 
-                "/usr/include/opencv4",
+                "${workspaceFolder}/install/radar27_interfaces/include/radar27_interfaces",
 
-                "/home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/include",
+                "/usr/include/opencv4",
 
                 "/usr/include/eigen3",
 
-                "/opt/ros/jazzy/include/**"
+                "/usr/include/python3.12",
+
+                "/home/delphine/.local/lib/python3.12/site-packages/numpy/_core/include",
+
+                "/home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/include",
+
+                "/home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/include/open3d/3rdparty",
+
+                "/opt/ros/jazzy/include/**",
+
+                "/opt/TensorRT/TensorRT-10.2.0.19/include",
+
+                "/usr/local/cuda/include",
+
+                "/usr/include/x86_64-linux-gnu/qt5",
+
+                "/usr/include/x86_64-linux-gnu/qt5/QtCore",
+
+                "/usr/include/x86_64-linux-gnu/qt5/QtGui",
+
+                "/usr/include/x86_64-linux-gnu/qt5/QtWidgets",
+
+                "/usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++"
+            ],
+            "defines": [
+                "DEFAULT_RMW_IMPLEMENTATION=rmw_fastrtps_cpp",
+                "FASTCDR_DYN_LINK",
+                "RB26SDK_HAS_HIK=1",
+                "RB26SDK_HAS_DAHENG=1"
             ],
             "browse": {
                 "path": [
                     "${workspaceFolder}",
 
-                    "/usr/include/opencv4",
+                    "${workspaceFolder}/install",
 
-                    "/home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/include",
+                    "/usr/include/opencv4",
 
                     "/usr/include/eigen3",
 
-                    "/opt/ros/jazzy/include"
+                    "/home/delphine/open3d-devel-linux-x86_64-cxx11-abi-cuda-0.19.0/include",
+
+                    "/opt/ros/jazzy/include",
+
+                    "/opt/TensorRT/TensorRT-10.2.0.19/include",
+
+                    "/usr/local/cuda/include",
+
+                    "/usr/include/x86_64-linux-gnu/qt5"
                 ],
                 "limitSymbolsToIncludedHeaders": true
             },
             "compilerPath": "/usr/bin/g++",
-            "cStandard": "c17",
-            "cppStandard": "c++17",
+            "cStandard": "gnu17",
+            "cppStandard": "gnu++17",
             "intelliSenseMode": "linux-gcc-x64"
         }
     ],

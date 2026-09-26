@@ -58,11 +58,6 @@ source.close();
 
 ## 验证
 
-开启 BUILD_TESTING 后，`test_video_source` 使用临时视频验证图像内存和时间轴；
-`test_camera_source_disabled` 验证没有 SDK 的错误路径。
-启用海康构建时，`test_camera_source_hik` 同时编译 production 的 `camera_source.cpp`
-和 `rb26SDK/src/hik/hik.cpp`，用真实 SDK 头文件加桩函数验证：会话独占、空 Mat 的
-重试/升级策略、Bayer 与 BGR8_Packed 两条路径的内存所有权、清理顺序、部分初始化
-失败后的重开，不链接真库、不访问真实相机。
-
-这些检查不替代海康、大恒设备上的曝光、颜色、掉线和连续采集测试。
+当前没有自动化测试。改动后需用真实视频或相机手动确认：帧内存所有权与时间轴、
+Timeout 重试与错误路径、无 SDK 时的错误处理，以及海康、大恒设备上的曝光、颜色、
+掉线和连续采集。

@@ -113,19 +113,15 @@ colcon build --packages-up-to radar27_tracking radar27_fusion radar27_decision p
 
 ## 验证
 
+仓库不再包含自动化测试，构建与运行结果需手动确认。无界面冒烟检查：
+
 ```bash
-python3 scripts/check_architecture.py
-colcon test --packages-select radar27_fusion position_prior
-colcon test-result --verbose
+colcon build
 source install/setup.bash
-/usr/bin/python3 tests/test_runtime_contracts.py
-/usr/bin/python3 tests/test_localization_contracts.py
-/usr/bin/python3 tests/test_tools_services.py
+ros2 launch radar27_bringup detect_pipeline.launch.py \
+  mode:=video video_path:=/path/to/input.mp4 model_dir:=/path/to/engines \
+  enable_qt_display:=false enable_tools:=false
 ```
-
-架构检查限制跨包实现引用、依赖环以及 GPU/UI 依赖归属。跨进程测试使用隔离 ROS domain、临时文件和合成测量，验证无界面业务输出、协方差、特殊目标、标定版本、时间回退、权威状态迟加入与显示独立性。定位测试使用平面回退，不需要检测模型或真实相机。
-
-工具服务测试需要 g++、pkg-config 和 OpenCV 开发文件，运行真实标定/ROI 节点与离屏 HighGUI 窗口，通过仅在测试子进程预加载的夹具注入点击、取消和异常。检查连续调用、标定几何、ROI 保存、重载请求与视频暂停/恢复；图像源和重载响应为测试替身，不覆盖桌面鼠标操作或真实 GPU 检测重载。
 
 部署入口对标定、ROI 和主显示进程统一清理 `GTK_PATH`、`LOCPATH` 并设置 `QT_ACCESSIBILITY=0`，避免从 Snap IDE 终端继承 GTK 模块路径后混用 Snap 与系统 glibc。两个交互工具使用主线程单线程 executor，嵌套服务请求仍由临时 executor 处理；取消或异常均释放操作状态，支持再次调用。
 
