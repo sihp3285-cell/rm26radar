@@ -21,7 +21,8 @@ detect_node:
     recording.path: recordings
     recording.fps: 20.0
     recording.queue_size: 8
-    recording.codec: mp4v
+    recording.codec: mp4v  # 仅视频模式
+    recording.encoder: 'x264enc tune=zerolatency speed-preset=ultrafast bitrate=8000'  # 相机模式 GStreamer H.264 编码器
     raw_output.enabled: true
     raw_output.topic: /image_raw
     raw_output.only_with_subscribers: true

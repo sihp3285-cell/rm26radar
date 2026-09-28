@@ -1,7 +1,10 @@
 #include "radar27_detection/recorder.hpp"
 #include <opencv2/videoio.hpp>
+#include <opencv2/videoio/registry.hpp>
 #include <cmath>
 #include <filesystem>
+#include <iomanip>
+#include <sstream>
 #include <stdexcept>
 #include <utility>
 
@@ -11,9 +14,11 @@ namespace radar27_detection
 Recorder::Recorder(RecorderConfig config) : config_(std::move(config))
 {
     if (config_.path.empty() || !std::isfinite(config_.fps) || config_.fps <= 0.0 ||
-        config_.queue_size == 0 || config_.codec.size() != 4) {
-        throw std::invalid_argument("Invalid recording path/FPS/queue size/codec");
+        config_.queue_size == 0 || (config_.use_gstreamer ? config_.encoder.empty() : config_.codec.size() != 4)) {
+        throw std::invalid_argument("Invalid recording path/FPS/queue size/encoder/codec");
     }
+    if (config_.use_gstreamer && !cv::videoio_registry::hasBackend(cv::CAP_GSTREAMER))
+        throw std::runtime_error("Camera recording requires OpenCV built with GStreamer support (WITH_GSTREAMER=ON)");
     const auto parent = std::filesystem::path(config_.path).parent_path();
     if (!parent.empty()) std::filesystem::create_directories(parent);
     worker_ = std::thread(&Recorder::run, this);
@@ -67,10 +72,20 @@ void Recorder::run()
             if (frame.type() != CV_8UC3) throw std::runtime_error("Recorder requires BGR8 frames");
             if (!writer.isOpened()) {
                 size = frame.size();
-                const auto& codec = config_.codec;
-                if (!writer.open(config_.path, cv::VideoWriter::fourcc(codec[0], codec[1], codec[2], codec[3]),
-                                 config_.fps, size)) {
-                    throw std::runtime_error("Cannot open recording: " + config_.path);
+                if (config_.use_gstreamer) {
+                    std::ostringstream pipeline;
+                    // OpenCV supplies BGR caps/timestamps and sends EOS on release().
+                    // Backpressure stays on this worker; submit() retains its bounded queue.
+                    pipeline << "appsrc ! videoconvert ! video/x-raw,format=I420 ! "
+                             << config_.encoder << " ! h264parse ! mp4mux ! filesink location="
+                             << std::quoted(config_.path) << " sync=false";
+                    if (!writer.open(pipeline.str(), cv::CAP_GSTREAMER, 0, config_.fps, size))
+                        throw std::runtime_error("Cannot open GStreamer recording; check encoder/plugins and output path: " + config_.path);
+                } else {
+                    const auto& codec = config_.codec;
+                    if (!writer.open(config_.path, cv::VideoWriter::fourcc(codec[0], codec[1], codec[2], codec[3]),
+                                     config_.fps, size))
+                        throw std::runtime_error("Cannot open recording: " + config_.path);
                 }
             }
             if (frame.size() != size) throw std::runtime_error("Recording frame size changed");

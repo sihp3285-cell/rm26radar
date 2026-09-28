@@ -36,6 +36,10 @@
 #include <radar27_detection/recorder.hpp>
 #include <rm_field/robot_id.hpp>
 
+// 丢帧速率的平滑时间常数：覆盖事件是离散计数，按检测帧间隔直接求商抖动很大
+// （10 FPS 量级下逐帧估计的标准差可达十几 FPS），用时间加权的 EMA 平滑后再显示。
+constexpr double kDropRateTimeConstantS = 3.0;
+
 class DetectNode : public rclcpp::Node
 {
     using Clock = std::chrono::steady_clock;
@@ -93,6 +97,8 @@ public:
         recording.fps = declare_parameter<double>("recording.fps", 20.0);
         recording.queue_size = positiveInt("recording.queue_size", 8);
         recording.codec = declare_parameter<std::string>("recording.codec", "mp4v");
+        recording.use_gstreamer = mode_ == "camera";
+        recording.encoder = declare_parameter<std::string>("recording.encoder", recording.encoder);
 
         cfg_ = std::make_unique<DetectionConfig>(config_dir, roi_path);
         if (!model_dir.empty()) {
@@ -119,6 +125,8 @@ public:
             recording.path = (std::filesystem::path(record_dir) /
                 (mode_ + "_" + std::to_string(suffix) + ".mp4")).string();
             recorder_ = std::make_unique<radar27_detection::Recorder>(recording);
+            RCLCPP_INFO(get_logger(), "内录输出: %s (%s)", recording.path.c_str(),
+                        recording.use_gstreamer ? "GStreamer / H.264" : recording.codec.c_str());
         }
 
         image_pub_ = create_publisher<sensor_msgs::msg::Image>(output_topic, rclcpp::QoS(1));
@@ -273,6 +281,20 @@ private:
                 }
                 if (read.status == ReadStatus::End) { eof_ = true; break; }
                 if (read.status != ReadStatus::Ok) throw std::runtime_error(read.message);
+                // 采集频率：只统计成功读到的帧，用帧自带的取帧时刻做 EMA。
+                // Timeout/End 不计入，否则等待相机超时会把速率拉低。
+                {
+                    const auto received_at = read.frame.received_at;
+                    if (received_at != Clock::time_point{} && last_capture_at_ != Clock::time_point{}) {
+                        const double dt = std::chrono::duration<double>(received_at - last_capture_at_).count();
+                        if (dt > 0.0) {
+                            const double instant_fps = 1.0 / dt;
+                            camera_fps_.store(0.9 * camera_fps_.load(std::memory_order_relaxed)
+                                + 0.1 * instant_fps, std::memory_order_relaxed);
+                        }
+                    }
+                    if (received_at != Clock::time_point{}) last_capture_at_ = received_at;
+                }
                 Packet packet;
                 packet.frame = std::move(read.frame);
                 packet.header.frame_id = frame_id_;
@@ -365,6 +387,23 @@ private:
         double instant_fps = 1.0 / std::max(dt, 1e-6);
         fps_ = 0.9 * fps_ + 0.1 * instant_fps;
 
+        // FrameBuffer 的覆盖计数是丢帧的真值：单位时间内因 single-slot 缓冲已有
+        // 未消费帧而被新帧覆盖掉的旧帧数量。检测线程是这段状态的唯一读者/写者，
+        // frames_.overwritten() 自带锁。
+        const std::uint64_t dropped_total = frames_.overwritten();
+        if (drop_sample_valid_ && dropped_total >= last_dropped_total_) {
+            const double drop_dt = std::chrono::duration<double>(now - last_drop_time_).count();
+            if (drop_dt > 0.0) {
+                const double instant_drop =
+                    static_cast<double>(dropped_total - last_dropped_total_) / drop_dt;
+                const double alpha = 1.0 - std::exp(-drop_dt / kDropRateTimeConstantS);
+                dropped_fps_ += alpha * (instant_drop - dropped_fps_);
+            }
+        }
+        last_dropped_total_ = dropped_total;
+        last_drop_time_ = now;
+        drop_sample_valid_ = true;
+
         auto armor_msg = std::make_unique<radar27_interfaces::msg::DetectionArray>();
         armor_msg->header = packet.header;   // 复用图像时间戳，方便下游同步
 
@@ -426,6 +465,9 @@ private:
             timing_msg->total_ms = timing.total_ms;
             timing_msg->end_to_end_ms = std::chrono::duration<double, std::milli>(Clock::now() - packet.frame.received_at).count();
             timing_msg->fps = static_cast<double>(fps_);
+            timing_msg->camera_fps = camera_fps_.load(std::memory_order_relaxed);
+            timing_msg->dropped_fps = dropped_fps_;
+            timing_msg->dropped_count = dropped_total;
             timing_pub_->publish(std::move(timing_msg));
         }
 
@@ -459,8 +501,8 @@ private:
             this->get_logger(),
             *this->get_clock(),
             10000,
-            "检测到 %zu 个目标，fps: %.1f，input_delay: %.2f ms",
-            results.size(), fps_, input_delay_ms);
+            "检测到 %zu 个目标，fps: %.1f（camera: %.1f，dropped: %.1f），input_delay: %.2f ms",
+            results.size(), fps_, camera_fps_.load(std::memory_order_relaxed), dropped_fps_, input_delay_ms);
     }
     void debugWorkerLoop()
     {
@@ -529,7 +571,13 @@ private:
     bool raw_enabled_ = true, raw_only_subscribers_ = true;
     bool publish_debug_image_ = true;
     int sampling_step_ = 1, debug_output_max_width_ = 1280, cuda_device_ = 0;
-    double source_fps_ = 0.0, fps_ = 0.0;
+    double source_fps_ = 0.0, fps_ = 0.0, dropped_fps_ = 0.0;
+    std::uint64_t last_dropped_total_ = 0;
+    Clock::time_point last_drop_time_{};
+    bool drop_sample_valid_ = false;
+    // 采集线程写、检测线程读；只允许采集线程更新。
+    std::atomic<double> camera_fps_{0.0};
+    Clock::time_point last_capture_at_{};
     Clock::duration video_period_{}, raw_period_{};
     Clock::time_point last_time_ = Clock::now();
     std::optional<std::int64_t> last_source_stamp_;

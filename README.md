@@ -11,13 +11,21 @@
 - yaml-cpp 0.8.0
 
 ## OPENCV
+相机内录使用 OpenCV 的 GStreamer 后端，编译 OpenCV 前安装开发库与录像插件：
+
+```sh
+sudo apt install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+  gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+  gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly
+```
+
 ``` sh
 mkdir opencv_build && cd opencv_build
 git clone https://github.com/opencv/opencv.git
 git clone https://github.com/opencv/opencv_contrib.git
 
 mkdir build && cd build
-cmake -DCMAKE_BUILD_TYPE=Release -DOPENCV_GENERATE_PKGCONFIG=ON -DBUILD_opencv_legacy=OFF -DCMAKE_INSTALL_PREFIX=/usr/local -DOPENCV_EXTRA_MODULES_PATH= ../opencv_contrib/modules/ ../opencv
+cmake -DCMAKE_BUILD_TYPE=Release -DWITH_GSTREAMER=ON -DOPENCV_GENERATE_PKGCONFIG=ON -DBUILD_opencv_legacy=OFF -DCMAKE_INSTALL_PREFIX=/usr/local -DOPENCV_EXTRA_MODULES_PATH=../opencv_contrib/modules ../opencv
 
 make -j8
 sudo make install
@@ -101,30 +109,159 @@ cd ../../targets/x86_64-linux-gnu/bin/
 
 # 部署（ROS2 主链）
 
-总入口为 `radar27_bringup`，旧 `tensorrt_detect` 包及启动入口已移除。
+总入口为 `radar27_bringup`。以下命令使用已确认存在的本机路径：
 
-```sh
+- 工作区：`/home/delphine/rm/radar27`
+- 模型目录：`/home/delphine/rm/radar27/models`（`robot_only.engine`、`newarmor.engine`、`classify_hku.engine`）
+- 回放视频：`/home/delphine/rm/car_project/test/08.mp4`
+- 运行目录：`/home/delphine/.local/state/radar27`
+
+## 每个新终端先加载环境
+
+```bash
+cd /home/delphine/rm/radar27
 source /opt/ros/jazzy/setup.bash
-# 第一次构建请按 ARCHITECTURE.md 指定本机 TensorRT/Open3D 路径
-colcon build --base-paths src
-source install/setup.bash
-ros2 launch radar27_bringup detect_pipeline.launch.py \
-  mode:=video video_path:=/path/to/input.mp4 model_dir:=/path/to/engines
+source /home/delphine/rm/radar27/install/setup.bash
 ```
 
-上面的 `/path/to/...` 都是占位符，必须替换成实际路径。`model_dir` 中的模型文件名应与
-`src/radar27_bringup/config/default/model.yaml` 一致。启动入口会在启动节点前检查视频和模型文件是否存在、可读且非空；这不代表模型与当前 TensorRT/GPU 一定兼容。
+修改代码后先重新构建再启动；本机已有构建目录可使用：
 
-当前开发机已存在的文件可使用以下命令（其他机器请更换路径）：
+```bash
+cd /home/delphine/rm/radar27
+colcon build --base-paths /home/delphine/rm/radar27/src --cmake-args -DBUILD_CAMERA=ON
+source /home/delphine/rm/radar27/install/setup.bash
+```
 
-```sh
+本机 MVS SDK 位于 `/opt/MVS`，现有构建已启用 `BUILD_CAMERA=ON`。
+相机默认使用海康、序列号 `DA7831910`，配置位于
+`/home/delphine/rm/radar27/src/radar27_detection/config/params.yaml`。
+首次安装的完整依赖与构建说明见 [ARCHITECTURE.md](ARCHITECTURE.md#构建与启动)。
+
+以下各模式任选一个启动。默认开启 Qt 显示和标定/ROI 工具，默认己方蓝色；
+切换己方红色可在命令末尾加 `own_team:=red`。退出使用 Ctrl+C。
+
+## 视频实时回放
+
+按视频帧率播放，检测跟不上时允许覆盖待处理帧；播放结束自动退出。
+
+```bash
 ros2 launch radar27_bringup detect_pipeline.launch.py \
   mode:=video \
   video_path:=/home/delphine/rm/car_project/test/08.mp4 \
-  model_dir:=/home/delphine/rm/radar27/models
+  model_dir:=/home/delphine/rm/radar27/models \
+  runtime_dir:=/home/delphine/.local/state/radar27 \
+  playback_mode:=realtime \
+  enable_recording:=false
 ```
 
-使用工业相机需构建 `radar27_detection` 时传入 `-DBUILD_CAMERA=ON`，再设置 `mode:=camera`。
+## 视频逐帧回放
+
+等待检测消费后再提交下一帧，适合逐帧分析；运行速度由处理能力决定，播放结束自动退出。
+
+```bash
+ros2 launch radar27_bringup detect_pipeline.launch.py \
+  mode:=video \
+  video_path:=/home/delphine/rm/car_project/test/08.mp4 \
+  model_dir:=/home/delphine/rm/radar27/models \
+  runtime_dir:=/home/delphine/.local/state/radar27 \
+  playback_mode:=sequential \
+  enable_recording:=false
+```
+
+## 视频回放并录制
+
+录制输入原图，沿用 `recording.codec`，默认 MP4V。录像队列独立于检测，队列满时仍会丢帧；逐帧回放也不保证录像无丢帧。
+
+```bash
+ros2 launch radar27_bringup detect_pipeline.launch.py \
+  mode:=video \
+  video_path:=/home/delphine/rm/car_project/test/08.mp4 \
+  model_dir:=/home/delphine/rm/radar27/models \
+  runtime_dir:=/home/delphine/.local/state/radar27 \
+  playback_mode:=realtime \
+  enable_recording:=true
+```
+
+## 相机实时检测
+
+读取工业相机，不保存录像。
+
+```bash
+ros2 launch radar27_bringup detect_pipeline.launch.py \
+  mode:=camera \
+  model_dir:=/home/delphine/rm/radar27/models \
+  runtime_dir:=/home/delphine/.local/state/radar27 \
+  enable_recording:=false
+```
+
+## 相机实时检测并内录（GStreamer）
+
+通过 GStreamer 将相机原图编码为 H.264/MP4，需要上文列出的 GStreamer 依赖与 OpenCV 后端支持。
+
+```bash
+ros2 launch radar27_bringup detect_pipeline.launch.py \
+  mode:=camera \
+  model_dir:=/home/delphine/rm/radar27/models \
+  runtime_dir:=/home/delphine/.local/state/radar27 \
+  enable_recording:=true
+```
+
+## 无界面视频回放
+
+关闭 Qt 显示、标定/ROI 工具和 RViz，继续输出检测、定位与决策话题。
+
+```bash
+ros2 launch radar27_bringup detect_pipeline.launch.py \
+  mode:=video \
+  video_path:=/home/delphine/rm/car_project/test/08.mp4 \
+  model_dir:=/home/delphine/rm/radar27/models \
+  runtime_dir:=/home/delphine/.local/state/radar27 \
+  playback_mode:=realtime \
+  enable_recording:=false \
+  enable_qt_display:=false enable_tools:=false enable_rviz:=false
+```
+
+## 无界面相机检测并内录
+
+相机持续采集并保存原图录像，不启动可视化和交互工具。
+
+```bash
+ros2 launch radar27_bringup detect_pipeline.launch.py \
+  mode:=camera \
+  model_dir:=/home/delphine/rm/radar27/models \
+  runtime_dir:=/home/delphine/.local/state/radar27 \
+  enable_recording:=true \
+  enable_qt_display:=false enable_tools:=false enable_rviz:=false
+```
+
+## RViz 调试
+
+回放本机视频并开启 RViz 调试显示；相机调试时将 `mode:=video` 改为 `mode:=camera` 并删除 `video_path` 和 `playback_mode` 两项。
+
+```bash
+ros2 launch radar27_bringup detect_pipeline.launch.py \
+  mode:=video \
+  video_path:=/home/delphine/rm/car_project/test/08.mp4 \
+  model_dir:=/home/delphine/rm/radar27/models \
+  runtime_dir:=/home/delphine/.local/state/radar27 \
+  playback_mode:=realtime \
+  enable_recording:=false \
+  rviz_debug_enabled:=true enable_rviz:=true
+```
+
+## 内录参数与输出
+
+相机录像保存至 `/home/delphine/.local/state/radar27/recordings/camera_<时间戳>.mp4`，
+视频模式录像保存至同目录下的 `video_<时间戳>.mp4`。采集帧在检测抽帧前进入独立录像队列，相机模式的 GStreamer 使用
+`appsrc → videoconvert → x264enc → h264parse → mp4mux → filesink` 编码 H.264/MP4。
+队列满时丢弃最旧待录帧；正常退出排空队列并封装文件，请用 Ctrl+C 停止。
+`radar27_detection/config/params.yaml` 中的 `recording.encoder` 可指定接受 I420 输入的
+GStreamer H.264 编码器及其参数，`recording.queue_size` 控制队列上限；
+`recording.fps` 为文件播放帧率，不控制相机采集频率，应与采集帧率匹配，丢帧时录像时长会缩短。
+视频模式仍使用 `recording.codec`。OpenCV 未启用 GStreamer 时开启相机内录会明确报错。
+管线组件参考 [x264enc](https://gstreamer.freedesktop.org/documentation/x264/index.html)
+与 [mp4mux](https://gstreamer.freedesktop.org/documentation/isomp4/mp4mux.html)。
+
 无界面运行加 `enable_qt_display:=false enable_tools:=false`，结构化输出继续由 `radar27_decision` 提供。
 RViz 说明见 [RVIZ_DEBUG.md](src/radar27_visualization/RVIZ_DEBUG.md)。
 

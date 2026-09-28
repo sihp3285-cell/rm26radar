@@ -19,6 +19,8 @@ struct RecorderConfig
     double fps = 20.0;
     std::size_t queue_size = 8;
     std::string codec = "mp4v";
+    bool use_gstreamer = false;
+    std::string encoder = "x264enc tune=zerolatency speed-preset=ultrafast bitrate=8000";
 };
 
 // Shares immutable owned images, writes only on its worker. Full queues discard

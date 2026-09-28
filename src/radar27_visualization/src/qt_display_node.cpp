@@ -236,7 +236,7 @@ public:
         auto *top_bar_layout = new QHBoxLayout();
         top_bar_layout->setSpacing(8);
 
-        status_label_ = new QLabel("car=-- armor=-- cls=-- output=-- total=-- e2e=-- disp=-- fps=--", this);
+        status_label_ = new QLabel("Camera: -- FPS Detection: -- FPS Dropped: -- FPS", this);
         status_label_->setStyleSheet(
             "color: #00ff88; background-color: #0d0d0d; font-size: 20px; "
             "font-family: 'Microsoft YaHei', 'Consolas', monospace; "
@@ -405,22 +405,28 @@ public:
             map_label_->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
     }
 
-    /** 格式化推理耗时、显示延迟、前哨站与四项战术状态到状态栏。 */
+    /** 格式化采集/检测/丢帧 FPS 与前哨站、四项战术状态到状态栏（耗时明细进 tooltip）。 */
     void updateStatus(const radar27_interfaces::msg::PipelineTiming& timing, bool outpost_alive,
                        bool engineer_on_island, bool opponent_attack, bool our_attack, bool opponent_near_fortress,
                        double display_latency_ms)
     {
-        // 更新基础状态栏（time 日志各阶段耗时）
-        QString text = QString("car=%1 armor=%2 cls=%3 output=%4 total=%5 e2e=%6 disp=%7 fps=%8")
-                           .arg(timing.car_ms, 0, 'f', 1)
-                           .arg(timing.armor_ms, 0, 'f', 1)
-                           .arg(timing.cls_ms, 0, 'f', 1)
-                           .arg(timing.outpost_ms, 0, 'f', 1)
-                           .arg(timing.total_ms, 0, 'f', 1)
-                           .arg(timing.end_to_end_ms, 0, 'f', 1)
-                           .arg(display_latency_ms, 0, 'f', 1)
-                           .arg(timing.fps, 0, 'f', 1);
+        // 状态栏只保留吞吐概览：采集 FPS / 检测 FPS / 被 FrameBuffer 覆盖丢弃的 FPS。
+        QString text = QString("Camera: %1 FPS | Detection: %2 FPS | Dropped: %3 FPS")
+                           .arg(timing.camera_fps, 0, 'f', 2)
+                           .arg(timing.fps, 0, 'f', 2)
+                           .arg(timing.dropped_fps, 0, 'f', 2);
         status_label_->setText(text);
+        // 各阶段耗时与累计丢帧数不再占行，收进 tooltip 保留可查性。
+        status_label_->setToolTip(
+            QString("car=%1 armor=%2 cls=%3 output=%4 total=%5 e2e=%6 disp=%7\n累计丢帧=%8")
+                .arg(timing.car_ms, 0, 'f', 1)
+                .arg(timing.armor_ms, 0, 'f', 1)
+                .arg(timing.cls_ms, 0, 'f', 1)
+                .arg(timing.outpost_ms, 0, 'f', 1)
+                .arg(timing.total_ms, 0, 'f', 1)
+                .arg(timing.end_to_end_ms, 0, 'f', 1)
+                .arg(display_latency_ms, 0, 'f', 1)
+                .arg(static_cast<qulonglong>(timing.dropped_count)));
 
         // 更新前哨站状态
         QString outpost_text = outpost_alive

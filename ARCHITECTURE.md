@@ -77,6 +77,8 @@ flowchart LR
 
 ## 构建与启动
 
+本机各模式的完整启动命令见 [README：部署（ROS2 主链）](README.md#部署ros2-主链)，包括实时/逐帧回放、相机、内录、无界面与 RViz。
+
 先使用系统 ROS/Python 环境；避免将 Conda 的 yaml-cpp/curl 混入系统 OpenCV。TensorRT/Open3D 路径通过 CMake 参数传入，不再写死在源码中。
 
 ```bash
@@ -91,16 +93,16 @@ source install/setup.bash
 
 # 视频回放（模型文件名在 config/default/model.yaml）
 ros2 launch radar27_bringup detect_pipeline.launch.py \
-  mode:=video video_path:=/path/to/input.mp4 model_dir:=/path/to/engines
+  mode:=video video_path:=/home/delphine/rm/car_project/test/08.mp4 model_dir:=/home/delphine/rm/radar27/models
 
 # 无界面：决策/地图结构化输出仍正常运行
 ros2 launch radar27_bringup detect_pipeline.launch.py \
-  mode:=video video_path:=/path/to/input.mp4 model_dir:=/path/to/engines \
+  mode:=video video_path:=/home/delphine/rm/car_project/test/08.mp4 model_dir:=/home/delphine/rm/radar27/models \
   enable_qt_display:=false enable_tools:=false
 
 # 工业相机需先启用可选后端；SDK 驱动须已安装
 colcon build --packages-select radar27_detection --cmake-args -DBUILD_CAMERA=ON
-ros2 launch radar27_bringup detect_pipeline.launch.py mode:=camera model_dir:=/path/to/engines
+ros2 launch radar27_bringup detect_pipeline.launch.py mode:=camera model_dir:=/home/delphine/rm/radar27/models
 ```
 
 仅构建无 GPU 的业务部分：
@@ -119,7 +121,7 @@ colcon build --packages-up-to radar27_tracking radar27_fusion radar27_decision p
 colcon build
 source install/setup.bash
 ros2 launch radar27_bringup detect_pipeline.launch.py \
-  mode:=video video_path:=/path/to/input.mp4 model_dir:=/path/to/engines \
+  mode:=video video_path:=/home/delphine/rm/car_project/test/08.mp4 model_dir:=/home/delphine/rm/radar27/models \
   enable_qt_display:=false enable_tools:=false
 ```
 
