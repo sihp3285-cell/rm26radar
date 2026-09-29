@@ -3,6 +3,10 @@
 
 包边界、消息契约、资源迁移与完整构建说明见 [ARCHITECTURE.md](ARCHITECTURE.md)。
 
+独立 Web 诊断面板见 [radar27_dashboard](src/radar27_dashboard/README.md)：
+复用 Qt 真实赛场底图，显示测量、跟踪、先验、融合与性能统计；在单独终端启动，
+关闭或 kill Dashboard 不会主动停止雷达主链。
+
 # 环境配置
 - opencv 4.11
 - cuda 12.5

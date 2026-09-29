@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Radar27 · 实时雷达诊断</title>
+  <link rel="stylesheet" href="/styles.css"><script src="/app.js" defer></script>
+</head>
+<body>
+  <header><div class="brand">Radar27 <span>实时雷达诊断</span></div>
+    <div class="connection"><span id="team-context">阵营未配置</span><i id="connection-dot"></i><span id="connection">连接中</span><span class="muted">只读旁路</span></div></header>
+  <section class="panel systems" aria-label="系统模块"><div id="modules"></div></section>
+  <section class="panel performance" aria-label="性能统计"><div id="metrics"></div><span id="performance-status" class="muted">等待性能数据 PipelineTiming</span></section>
+  <main class="workspace">
+    <section class="panel field-panel">
+      <div class="section-title"><h2>战场地图 <small>Qt 真实底图</small></h2><button id="flip" type="button" aria-pressed="false">旋转 180°</button></div>
+      <div id="layers" class="layers">
+        <label><input type="checkbox" data-layer="measurement" checked>● 测量 <small>Measurement</small></label>
+        <label><input type="checkbox" data-layer="tracking" checked>□ 跟踪 <small>Tracking</small></label>
+        <label><input type="checkbox" data-layer="prior" checked>◇ 猜点 <small>Prior</small></label>
+        <label><input type="checkbox" data-layer="fusion" checked>◎ 融合 <small>Fused</small></label>
+      </div>
+      <div class="team-legend"><span class="team-red">● 红方 R</span><span class="team-blue">● 蓝方 B</span><span>编号 · 兵种 · 世界坐标 (x, z) / m</span></div>
+      <div class="map-wrap"><svg id="map" viewBox="-170 0 728 722" role="img" aria-label="赛场底图与目标图层"></svg><p id="map-empty">等待 ROS2 数据</p></div>
+      <div class="map-caption">＋最后真实测量　× 最后可靠观测锚点　小圆：Prior 候选</div>
+      <p id="map-note" class="hint"></p>
+    </section>
+    <div class="middle-column">
+      <section class="panel target-panel">
+        <div class="section-title"><h2>目标列表 <small>Targets</small></h2><span id="target-count" class="muted">0 个目标</span></div>
+        <div class="table-scroll"><table><thead><tr><th>编号 / 兵种</th><th>轨迹 ID</th><th>跟踪状态</th><th>失联/s</th><th>融合来源</th></tr></thead><tbody id="targets"></tbody></table></div>
+        <div class="pagination"><button id="targets-prev" aria-label="目标上一页">‹</button><span id="targets-page">1 / 1</span><button id="targets-next" aria-label="目标下一页">›</button></div>
+      </section>
+      <section class="panel prior-panel"><div class="section-title"><h2>猜点调试 <small>Position Prior</small></h2><span id="prior-model" class="muted"></span></div><dl id="prior-details"></dl><p id="rejection" class="rejection"></p><p class="hint">锚点为可靠观测时的跟踪输出，不等于原始测量。</p></section>
+    </div>
+    <aside class="panel inspector">
+      <div class="section-title"><h2>目标详情</h2><span id="selection-name">未选择目标</span></div>
+      <p id="selection-hint" class="hint">点击地图点或列表，查看位置来源。</p>
+      <dl id="identity"></dl>
+      <section class="position-section"><h3>位置解释 <small>world (x, z) · m</small></h3><div id="pipeline"></div></section>
+      <section class="candidate-section"><div class="section-title"><h3>猜点候选 <small>Candidates</small></h3><div class="pagination"><button id="candidates-prev" aria-label="候选上一页">‹</button><span id="candidates-page">1 / 1</span><button id="candidates-next" aria-label="候选下一页">›</button></div></div><div id="candidates"></div></section>
+    </aside>
+  </main>
+  <footer class="panel diagnostics"><div id="source-status"></div><p id="decision"></p><span class="hint" title="话题为独立最新快照；标定版本不同不叠加，融合仅显示与跟踪同帧的数据。悬停状态可查看话题、时间戳及标定版本。">ⓘ 数据源独立快照</span></footer>
+</body>
+</html>
