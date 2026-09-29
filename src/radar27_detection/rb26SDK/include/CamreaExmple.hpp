@@ -28,9 +28,7 @@ namespace sdk{
         );
         cv::Mat frame;
 
-        ~CameraExmple(){
-            CamreaType::~CamreaType();
-        }
+        ~CameraExmple() override = default;
 
 
         void putResolution(){

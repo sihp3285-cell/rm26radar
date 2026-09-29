@@ -58,9 +58,8 @@ namespace sdk
                             double gainFactor = 1.0, 
                             double dGammaParam = 1.0);
         ~HikCamera(){
-            if (cap_init) {
+            if (camera_handle_ != nullptr) {
                 capture_stop();
-                nRet = MV_CC_CloseDevice(camera_handle_);
             }
             MV_CC_Finalize();
         }

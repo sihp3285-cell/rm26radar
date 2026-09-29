@@ -10,14 +10,16 @@ namespace sdk{
         frameData.pImgBuf = nullptr;
         free(pRaw8Buffer);
         pRaw8Buffer = nullptr;
+        free(pMirrorBuffer);
+        pMirrorBuffer = nullptr;
         free(pRGBframeData);
         pRGBframeData = nullptr;
         if (pGammaLut!= NULL)
         {
-            free(pGammaLut);
+            delete[] static_cast<int *>(pGammaLut);
             pGammaLut= NULL;
         }
-        if (cap_init) {
+        if (hDevice != nullptr) {
             GXCloseDevice(hDevice);
         }
         GXCloseLib();
@@ -32,12 +34,11 @@ namespace sdk{
         camera_breand =  Daheng;
         cap_sn = sn;
         // if(!CameraSDKInit()) return false;
-        //给相机设备接口结构体创建动态内存
-        auto *openParam = new GX_OPEN_PARAM;
-        openParam->openMode = GX_OPEN_SN;//通过序列号打开设备
-        openParam->accessMode = GX_ACCESS_EXCLUSIVE;//以独占方式打开设备 
-        openParam->pszContent = sn;//标准C字符串，由openMode决定，可能是一个IP地址或者是相机序列号等等
-        status = GXOpenDevice(openParam, &hDevice);//通过指定唯一标识打开设备，例如指定SN、IP、MAC、Index等,hDevice是接口返回的设备句柄 
+        GX_OPEN_PARAM openParam{};
+        openParam.openMode = GX_OPEN_SN;//通过序列号打开设备
+        openParam.accessMode = GX_ACCESS_EXCLUSIVE;//以独占方式打开设备 
+        openParam.pszContent = sn;//标准C字符串，由openMode决定，可能是一个IP地址或者是相机序列号等等
+        status = GXOpenDevice(&openParam, &hDevice);//通过指定唯一标识打开设备，例如指定SN、IP、MAC、Index等,hDevice是接口返回的设备句柄 
         if (status != GX_STATUS_SUCCESS) {//操作成功，没有发生错误 
             std::cout<<"不存在daheng相机"<<sn<<std::endl;
             return false;
@@ -131,7 +132,7 @@ namespace sdk{
             {
                 if (pGammaLut!= nullptr)//新加的
                 {
-                    free(pGammaLut);
+                    delete[] static_cast<int *>(pGammaLut);
                     pGammaLut= nullptr;
                 }
                 break;

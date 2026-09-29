@@ -11,6 +11,8 @@ namespace sdk
 {
     class Camera{
     public:
+        virtual ~Camera() = default;
+
         typedef enum{
             NullClass,
             Daheng,

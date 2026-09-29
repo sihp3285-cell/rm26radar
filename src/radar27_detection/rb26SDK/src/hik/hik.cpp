@@ -100,6 +100,10 @@ namespace sdk{
 
     bool HikCamera::capture_stop()
     {
+        if (camera_handle_ == nullptr) {
+            return true;
+        }
+        bool success = true;
         // capture_quit_ = true;
         // if (capture_thread_.joinable()) capture_thread_.join();
 
@@ -108,13 +112,13 @@ namespace sdk{
         nRet = MV_CC_StopGrabbing(camera_handle_);
         if (nRet != MV_OK) {
             printf("MV_CC_StopGrabbing fail! nRet = [0x%x]\n", nRet);
-            return false;
+            success = false;
         }
 
         nRet = MV_CC_CloseDevice(camera_handle_);
         if (nRet != MV_OK) {
             printf("MV_CC_CloseDevice fail! nRet = [0x%x]\n", nRet);
-            return false;
+            success = false;
         }
 
         nRet = MV_CC_DestroyHandle(camera_handle_);
@@ -123,7 +127,9 @@ namespace sdk{
             printf("MV_CC_DestroyHandle fail! nRet = [0x%x]\n", nRet);
             return false;
         }
-        return true;
+        camera_handle_ = nullptr;
+        cap_init = false;
+        return success;
             
     
     }
