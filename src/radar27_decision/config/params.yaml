@@ -1,4 +1,12 @@
 decision_node:
-  ros__parameters: {}
+  ros__parameters:
+    # Passed by bringup; shared source of geometry for all battlefield consumers.
+    regions_dir: ""
+    boundary_margin_m: 0.5  # Allowed range [0.5, 1.0] metres.
+    max_prediction_age_s: 1.0
+    input_timeout_s: 1.0
+    # 重叠归属，"优先区域>被覆盖区域"，按区域文件基名匹配（含对称实例）。
+    # 中央区（中心岛）与沟区的重合处计入沟区，避免同一目标被两区同时统计。
+    region_overlap_priority: ["gully>middle"]
 match_state_node:
   ros__parameters: {}

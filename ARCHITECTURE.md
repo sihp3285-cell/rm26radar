@@ -67,7 +67,7 @@ flowchart LR
 
 - 每个功能包的 `config/params.yaml` 保存自己的 ROS 参数；prior 保留 `config/position_prior.yaml`。
 - 实战参数实例在 `radar27_bringup/config/default`：模型描述、相机、跟踪、显示参数、默认标定与 ROI，以及当前底图/mesh。
-- 场地网格与盲区在 `radar27_bringup/assets/generated`，先验模型在本机 `assets/prior/run_v1`。先验模型仍是 Git 忽略的外部数据，安装时若存在会一并安装；新环境需单独提供它，缺失时先验节点安全禁用。
+- 场地导航网格在 `radar27_bringup/assets/generated`，共享区域标注在 `radar27_bringup/assets/regions`（格式与用途见该目录 README）。先验、定位和可视化共同引用区域文件；decision 已接入区域占用统计（排除 engineer_home、other_home），见 `src/radar27_decision/README.md`。先验模型在本机 `assets/prior/run_v1`。先验模型仍是 Git 忽略的外部数据，安装时若存在会一并安装；新环境需单独提供它，缺失时先验节点安全禁用。
 - TensorRT engines 和视频不纳入源码或自动下载。`model_dir` 指定 engine 目录，`video_path` 指定视频。
 - `runtime_dir` 默认 `~/.local/state/radar27`。首次启动复制默认标定/ROI，此后不覆盖已有文件；日志/录像也写入该目录。工具仅修改此目录，不写安装空间。
 - ROI 文件只保存图像检测参数；前哨站地图坐标和标签移到 `map.yaml`。
@@ -115,7 +115,7 @@ colcon build --packages-up-to radar27_tracking radar27_fusion radar27_decision p
 
 ## 验证
 
-仓库不再包含自动化测试，构建与运行结果需手动确认。无界面冒烟检查：
+decision 包包含区域几何和统计回归测试，可运行 `colcon test --packages-select radar27_decision`；其他构建与运行结果需手动确认。无界面冒烟检查：
 
 ```bash
 colcon build

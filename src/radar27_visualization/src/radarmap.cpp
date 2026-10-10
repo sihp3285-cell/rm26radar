@@ -57,11 +57,40 @@ cv::Point2f RadarMap::worldtomapDisplay(const cv::Point2f& worldPoint)const
     return mapPoint;
 }
 
-cv::Mat RadarMap::drawMap(const std::vector<Mappoint>& mappoints,const std::vector<std::string>& classNames)const
+cv::Mat RadarMap::drawMap(const std::vector<Mappoint>& mappoints,const std::vector<std::string>& classNames,
+                          const radar27_interfaces::msg::MapTactics* tactics)const
 {
     cv::Mat frame = map.clone();
     if (flip_team_) {
         cv::rotate(frame, frame, cv::ROTATE_180);
+    }
+    if (tactics) {
+        const cv::Scalar palette[] = {{220,160,50},{80,180,220},{180,90,200},{70,190,110}};
+        size_t index = 0;
+        for (const auto& r : tactics->regions) {
+            if (r.world_x.size() < 3 || r.world_x.size() != r.world_z.size()) continue;
+            std::vector<cv::Point> points;
+            for (size_t i=0; i<r.world_x.size(); ++i)
+                points.push_back(worldtomapDisplay({static_cast<float>(r.world_x[i]), static_cast<float>(r.world_z[i])}));
+            const std::vector<std::vector<cv::Point>> polygons{points};
+            const auto color = palette[index++ % 4];
+            cv::Mat shade = frame.clone();
+            cv::fillPoly(shade, polygons, color);
+            // A faint boundary band makes the generous membership rule visible.
+            const int thickness = std::max(1, static_cast<int>(std::round(
+                2*tactics->boundary_margin_m*(scale_x+scale_y)/2)));
+            cv::polylines(shade, polygons, true, color, thickness, cv::LINE_AA);
+            cv::addWeighted(shade, 0.14, frame, 0.86, 0, frame);
+            cv::polylines(frame, polygons, true, color, 1, cv::LINE_AA);
+            cv::Point center;
+            for (const auto& point : points) center += point;
+            center.x /= points.size(); center.y /= points.size();
+            const std::string label = r.id + ":" + (tactics->input_fresh ? std::to_string(r.enemy_count) : "?");
+            center.x = std::clamp(center.x, 2, std::max(2,frame.cols-static_cast<int>(label.size()*5)));
+            center.y = std::clamp(center.y, 12, frame.rows-3);
+            cv::putText(frame,label,center,cv::FONT_HERSHEY_SIMPLEX,0.28,cv::Scalar(255,255,255),3,cv::LINE_AA);
+            cv::putText(frame,label,center,cv::FONT_HERSHEY_SIMPLEX,0.28,color,1,cv::LINE_AA);
+        }
     }
     for (const auto& mappoint : mappoints)
     {

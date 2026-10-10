@@ -1,0 +1,19 @@
+regions:
+  - name: flying_slope
+    mirror_centrally: false
+    same_elevation_as_last: true
+    max_height_delta_from_last_m: 0.08
+    # 顶点已按显示地图翻转：x -> 28 - x（上下）、y -> 15 - y（左右）。
+    polygon:
+      - - 9.9603
+        - 1.0559
+      - - 9.9603
+        - 0.0918
+      - - 13.8013
+        - 0.0969
+      - - 13.8013
+        - 0.9896
+      - - 12.6124
+        - 0.9800
+      - - 12.6013
+        - 1.0522

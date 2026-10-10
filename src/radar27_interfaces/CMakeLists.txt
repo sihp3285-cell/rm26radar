@@ -14,6 +14,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   msg/WorldTarget.msg
   msg/WorldTargetArray.msg
   msg/RadarMap.msg
+  msg/RegionOccupancy.msg
   msg/MapTactics.msg
   msg/PipelineTiming.msg
   msg/PriorCandidate.msg

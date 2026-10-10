@@ -94,10 +94,10 @@ def setup(context):
     nodes = [
         component('radar27_localization', 'PoseNode', 'pose_node', config_dir=str(config),
             calibration_path=str(runtime / 'calib_result.yaml'), rviz_debug_enabled=debug,
-            gully_region_path=str(assets / 'generated' / 'gully.yaml'), gully_field_x_flip=not world_blue),
+            gully_region_path=str(assets / 'regions' / 'gully.yaml'), gully_field_x_flip=not world_blue),
         component('radar27_tracking', 'TrackingNode', 'tracking_node', config_dir=str(config)),
         component('radar27_decision', 'DecisionNode', 'decision_node', own_team=1 if red else 2,
-            world_z_toward_blue=world_blue, field_length=float(map_config['race_size'][0]),
+            regions_dir=str(assets / 'regions'), world_z_toward_blue=world_blue, field_length=float(map_config['race_size'][0]),
             field_width=float(map_config['race_size'][1]), map_width=height, map_height=width)]
     actions = [RegisterEventHandler(OnProcessExit(target_action=detector,
         on_exit=[EmitEvent(event=Shutdown(reason='detect_node exited'))])),
@@ -108,10 +108,10 @@ def setup(context):
     prior = yaml.safe_load((share('position_prior') / 'config' / 'position_prior.yaml').read_text())['position_prior_node']['ros__parameters']
     prior.update(model_path=str(assets / 'prior/run_v1/04_rmuc2026_position_prior_v1.yaml'),
         navgrid_path=str(assets / 'generated/RB2026_navgrid_v1.json'),
-        common_blind_zone_paths=[str(assets / 'generated' / f) for f in ('home.yaml', 'gully.yaml')],
-        engineer_blind_zone_path=str(assets / 'generated/engineer.yaml'),
-        engineer_home_path=str(assets / 'generated/engineer_home.yaml'),
-        other_home_path=str(assets / 'generated/other_home.yaml'),
+        common_blind_zone_paths=[str(assets / 'regions' / f) for f in ('home.yaml', 'gully.yaml')],
+        engineer_blind_zone_path=str(assets / 'regions/engineer.yaml'),
+        engineer_home_path=str(assets / 'regions/engineer_home.yaml'),
+        other_home_path=str(assets / 'regions/other_home.yaml'),
         shadow_log_path=str(runtime / 'position_prior_shadow.csv'),
         initial_flip_team=red, world_z_toward_blue=world_blue)
     actions.append(Node(package='position_prior', executable='position_prior_node', parameters=[prior], output='screen'))
@@ -131,7 +131,7 @@ def setup(context):
             parameters=params('radar27_visualization','rviz_debug_node', initial_flip_team=red,
                 world_z_toward_blue=world_blue, mesh_path=str(config / 'RB2026_rmuc.ply'),
                 navgrid_path=str(assets / 'generated/RB2026_navgrid_v1.json'),
-                blind_zone_paths=[str(assets / 'generated' / f) for f in ('home.yaml','gully.yaml','engineer.yaml','engineer_home.yaml','other_home.yaml')])))
+                blind_zone_paths=[str(assets / 'regions' / f) for f in ('home.yaml','gully.yaml','engineer.yaml','engineer_home.yaml','other_home.yaml')])))
     if flag('enable_rviz'):
         actions.append(Node(package='rviz2', executable='rviz2', arguments=['-d',str(share('radar27_visualization') / 'config/radar_debug.rviz')],output='screen'))
     actions.append(detector)

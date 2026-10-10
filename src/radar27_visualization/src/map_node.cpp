@@ -10,6 +10,7 @@
 #include <opencv2/opencv.hpp>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <mutex>
 #include <sstream>
@@ -91,6 +92,12 @@ public:
             });
 
         match_sub_=create_subscription<radar27_interfaces::msg::MatchState>("/match_state",rclcpp::QoS(1).reliable().transient_local(),[this](radar27_interfaces::msg::MatchState::ConstSharedPtr m){own_team_red_=m->own_team==robot_id::RED;});
+        tactics_sub_ = create_subscription<radar27_interfaces::msg::MapTactics>(
+            output_tactics_topic_, rclcpp::QoS(1).reliable().transient_local(),
+            [this](radar27_interfaces::msg::MapTactics::ConstSharedPtr msg) {
+                latest_tactics_ = *msg;
+                tactics_received_ = std::chrono::steady_clock::now();
+            });
         target_sub_ = this->create_subscription<radar27_interfaces::msg::WorldTargetArray>(
             input_topic_, rclcpp::QoS(10).best_effort(),
             std::bind(&MapNode::target_callback, this, std::placeholders::_1));
@@ -288,7 +295,10 @@ private:
 
             }
 
-            cv::Mat map_frame = radar_map_->drawMap(mappoints, cfg_->class_names);
+            auto tactics = latest_tactics_;
+            if (std::chrono::duration<double>(std::chrono::steady_clock::now()-tactics_received_).count()>2.0)
+                tactics.input_fresh = false;
+            cv::Mat map_frame = radar_map_->drawMap(mappoints, cfg_->class_names, &tactics);
 
             // ========== 前哨站叠加绘制（在 drawMap 之后） ==========
             const auto& outpostPts = cfg_->map.getOutpostMapPoints(own_team_red_);
@@ -356,6 +366,9 @@ private:
         }
     }
 
+    radar27_interfaces::msg::MapTactics latest_tactics_;
+    std::chrono::steady_clock::time_point tactics_received_;
+    rclcpp::Subscription<radar27_interfaces::msg::MapTactics>::SharedPtr tactics_sub_;
     bool own_team_red_=false;
     rclcpp::Subscription<radar27_interfaces::msg::MatchState>::SharedPtr match_sub_;
     bool flip_team_ = false;

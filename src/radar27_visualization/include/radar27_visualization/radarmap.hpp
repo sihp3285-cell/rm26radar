@@ -7,6 +7,7 @@
 #define RADARMAP_HPP
 
 #include <opencv2/opencv.hpp>
+#include <radar27_interfaces/msg/map_tactics.hpp>
 #include <string>
 #include <vector>
 
@@ -49,7 +50,8 @@ class RadarMap
     /** 将 world 点投到 drawMap 最终显示视角；翻转时额外做图像中心对称。 */
     cv::Point2f worldtomapDisplay(const cv::Point2f& worldPoint)const;
     /** 复制底图、绘制所有目标标签/状态并按 flip_team_ 生成最终帧。 */
-    cv::Mat drawMap(const std::vector<Mappoint>& mappoints,const std::vector<std::string>& classNames)const;
+    cv::Mat drawMap(const std::vector<Mappoint>& mappoints,const std::vector<std::string>& classNames,
+                    const radar27_interfaces::msg::MapTactics* tactics = nullptr)const;
     /** 切换后续 drawMap/worldtomapDisplay 的显示方向，不改变 world 数据。 */
     void setFlipTeam(bool flip) { flip_team_ = flip; }
     /** 返回当前地图显示方向标志。 */

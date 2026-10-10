@@ -1,3 +1,5 @@
+#include <chrono>
+#include <algorithm>
 /**
  * @file qt_display_node.cpp
  * @brief 雷达站最终桌面 UI：汇集检测图、地图图、战术状态与推理耗时。
@@ -405,9 +407,9 @@ public:
             map_label_->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
     }
 
-    /** 格式化采集/检测/丢帧 FPS 与前哨站、四项战术状态到状态栏（耗时明细进 tooltip）。 */
+    /** 格式化采集/检测/丢帧 FPS 与前哨站、区域战况到状态栏（耗时明细进 tooltip）。 */
     void updateStatus(const radar27_interfaces::msg::PipelineTiming& timing, bool outpost_alive,
-                       bool engineer_on_island, bool opponent_attack, bool our_attack, bool opponent_near_fortress,
+                       const radar27_interfaces::msg::MapTactics& battlefield,
                        double display_latency_ms)
     {
         // 状态栏只保留吞吐概览：采集 FPS / 检测 FPS / 被 FrameBuffer 覆盖丢弃的 FPS。
@@ -446,34 +448,26 @@ public:
                 "padding: 8px 16px; border-radius: 4px; font-weight: bold;");
         }
 
-        // 更新战术状态
-        QStringList tactics;
-        if (engineer_on_island==1) tactics << "我方工程上岛";
-        if (engineer_on_island==2) tactics << "敌方工程上岛";
-        if (opponent_attack)    tactics << "敌方大攻";
-        if (our_attack)         tactics << "我方大攻";
-        if (opponent_near_fortress == 1) tactics << "敌方接近堡垒!";
-
-        QString tactics_text = tactics.isEmpty() ? QStringLiteral("战术: 正常") : tactics.join(" | ");
-        tactics_label_->setText(tactics_text);
-
-        // 根据威胁程度改变战术栏背景色
-        if (opponent_attack || engineer_on_island == 2 || opponent_near_fortress == 1) {
-            tactics_label_->setStyleSheet(
-                "color: #ff4444; background-color: #1a0505; font-size: 20px; "
-                "font-family: 'Microsoft YaHei', 'Consolas', monospace; "
-                "padding: 8px 16px; border-radius: 4px; font-weight: bold;");
-        } else if (our_attack || engineer_on_island == 1) {
-            tactics_label_->setStyleSheet(
-                "color: #44ff44; background-color: #051a05; font-size: 20px; "
-                "font-family: 'Microsoft YaHei', 'Consolas', monospace; "
-                "padding: 8px 16px; border-radius: 4px; font-weight: bold;");
+        QStringList parts;
+        if (!battlefield.input_fresh) {
+            parts << "战况：等待新鲜坐标";
         } else {
-            tactics_label_->setStyleSheet(
-                "color: #00ff88; background-color: #0d0d0d; font-size: 20px; "
-                "font-family: 'Microsoft YaHei', 'Consolas', monospace; "
-                "padding: 8px 16px; border-radius: 4px; font-weight: bold;");
+            QStringList busiest;
+            for (const auto& r : battlefield.regions) {
+                if (std::find(battlefield.busiest_region_ids.begin(), battlefield.busiest_region_ids.end(), r.id)
+                    != battlefield.busiest_region_ids.end())
+                    busiest << QString::fromStdString(r.name) + QString(" %1辆").arg(r.enemy_count);
+            }
+            parts << (busiest.isEmpty() ? QString("战况：各区域内无已确认敌车")
+                                       : QString("敌方最多：") + busiest.join(" / "));
+            if (battlefield.our_engineer_on_island) parts << "己方工程上岛";
+            if (battlefield.enemy_engineer_on_island) parts << "敌方工程上岛";
         }
+        tactics_label_->setText(parts.join(" | "));
+        tactics_label_->setWordWrap(true);
+        tactics_label_->setStyleSheet(
+            "color: #ffd166; background-color: #17130b; font-size: 17px; "
+            "padding: 6px 10px; border-radius: 4px; font-weight: bold;");
     }
 
     /**
@@ -650,13 +644,10 @@ public:
         // 订阅战术分析消息
         tactics_sub_ = this->create_subscription<radar27_interfaces::msg::MapTactics>(
             "/map_tactics", rclcpp::QoS(10),
-            // 战术回调在同一互斥锁下更新四个布尔量，供下一次 GUI 刷新成组读取。
             [this](const radar27_interfaces::msg::MapTactics::SharedPtr msg) {
                 QMutexLocker lock(&mutex_);
-                latest_engineer_on_island_ = msg->engineer_on_island;
-                latest_opponent_attack_ = msg->opponent_attack;
-                latest_our_attack_ = msg->our_attack;
-                latest_opponent_near_fortress_ = msg->opponent_near_fortress;
+                latest_battlefield_ = *msg;
+                latest_battlefield_time_ = std::chrono::steady_clock::now();
             });
 
         // 订阅 pipeline 耗时统计
@@ -788,7 +779,7 @@ public:
     void fetchData(cv::Mat &frame, cv::Mat &map,
                    radar27_interfaces::msg::PipelineTiming &timing,
                    bool &outpost_alive,
-                   bool &engineer_on_island, bool &opponent_attack, bool &our_attack, bool &opponent_near_fortress,
+                   radar27_interfaces::msg::MapTactics &battlefield,
                    double &display_latency_ms)
     {
         QMutexLocker lock(&mutex_);
@@ -796,10 +787,9 @@ public:
         map = latest_map_.clone();
         timing = latest_timing_;
         outpost_alive = latest_outpost_alive_;
-        engineer_on_island = latest_engineer_on_island_;
-        opponent_attack = latest_opponent_attack_;
-        our_attack = latest_our_attack_;
-        opponent_near_fortress = latest_opponent_near_fortress_;
+        battlefield = latest_battlefield_;
+        if (std::chrono::duration<double>(std::chrono::steady_clock::now() - latest_battlefield_time_).count() > 2.0)
+            battlefield.input_fresh = false;
         display_latency_ms = latest_display_latency_ms_.load();
     }
 
@@ -824,10 +814,8 @@ private:
     radar27_interfaces::msg::PipelineTiming latest_timing_;
     std::atomic<double> latest_display_latency_ms_{0.0};
     bool latest_outpost_alive_ = false;
-    bool latest_engineer_on_island_ = false;
-    bool latest_opponent_attack_ = false;
-    bool latest_our_attack_ = false;
-    bool latest_opponent_near_fortress_ = false;
+    radar27_interfaces::msg::MapTactics latest_battlefield_;
+    std::chrono::steady_clock::time_point latest_battlefield_time_;
 
     std::atomic<bool> is_operation_running_{false};
 };
@@ -840,14 +828,14 @@ void DisplayWindow::updateFromNode()
     cv::Mat frame, map;
     radar27_interfaces::msg::PipelineTiming timing;
     bool outpost_alive = false;
-    bool engineer_on_island = false, opponent_attack = false, our_attack = false, opponent_near_fortress = false;
+    radar27_interfaces::msg::MapTactics battlefield;
     double display_latency_ms = 0.0;
     node_->fetchData(frame, map, timing, outpost_alive,
-                     engineer_on_island, opponent_attack, our_attack, opponent_near_fortress,
+                     battlefield,
                      display_latency_ms);
     updateVideo(frame);
     updateMap(map);
-    updateStatus(timing, outpost_alive, engineer_on_island, opponent_attack, our_attack, opponent_near_fortress,
+    updateStatus(timing, outpost_alive, battlefield,
                  display_latency_ms);
 }
 

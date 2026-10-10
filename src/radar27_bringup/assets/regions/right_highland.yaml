@@ -1,0 +1,21 @@
+regions:
+  - name: right_highland
+    mirror_centrally: false
+    same_elevation_as_last: true
+    max_height_delta_from_last_m: 0.08
+    # 顶点已按显示地图翻转：x -> 28 - x（上下）、y -> 15 - y（左右）。
+    polygon:
+      - - 13.5763
+        - 14.9800
+      - - 13.5795
+        - 14.9800
+      - - 13.5743
+        - 13.8375
+      - - 10.3560
+        - 13.8375
+      - - 7.7480
+        - 10.1287
+      - - 2.7785
+        - 10.1287
+      - - 2.8079
+        - 14.9800

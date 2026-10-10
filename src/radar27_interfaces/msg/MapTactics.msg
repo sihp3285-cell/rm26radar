@@ -1,8 +1,11 @@
-# MapAnalyzer 从 /world_targets 派生的轻量战术量，供 Qt 状态栏/外部决策使用。
-# 这些值不参与 Tracker 或 Position Prior 的反向更新。
+# Battlefield v1: current occupancy (not cumulative entries).
 std_msgs/Header header
-
-bool engineer_on_island
-bool opponent_attack
-bool our_attack
-bool opponent_near_fortress
+uint64 calibration_version
+int32 own_team
+bool input_fresh
+float64 boundary_margin_m
+RegionOccupancy[] regions
+# All tied maxima; empty if all counts are zero or input is stale.
+string[] busiest_region_ids
+bool our_engineer_on_island
+bool enemy_engineer_on_island
