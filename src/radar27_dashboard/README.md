@@ -58,7 +58,17 @@ ros2 run radar27_dashboard dashboard_node --ros-args \
 | `/fused_targets` | FusedTargetArray | 最终坐标、真实 source 与 source_stamp |
 | `/map_tactics` | MapTactics | Decision 新鲜度与战术状态 |
 
-全部订阅 `BEST_EFFORT / KEEP_LAST(1) / VOLATILE`，兼容主链已有可靠/尽力发布者，
+Dashboard 自动识别当前安装的 `MapTactics` 结构：旧版展示四个战术状态；
+新版展示决策阵营、双方工程师上岛状态、各区域敌方数量和全部并列最多区域，
+悬停可查看完整摘要、边界容差与目标 track_id。新版 `input_fresh=false` 时，
+即使决策节点仍在发布消息，Decision 也显示 STALE，不展示过期战术结论。
+
+这里的兼容指同一份 dashboard 代码可使用任一版本的接口包；ROS2 发布端与
+订阅端仍必须安装同一版本的 `radar27_interfaces`。切换 decision 版本后应重新构建
+接口包及相关节点，并在新终端 source 同一套 install，不能混用不同的消息定义。
+`/match_state` 另以 RELIABLE / TRANSIENT_LOCAL 订阅，用于接收持久阵营配置。
+
+遥测话题全部订阅 `BEST_EFFORT / KEEP_LAST(1) / VOLATILE`，兼容主链已有可靠/尽力发布者，
 不会让慢 HTTP 消费者回压主链。当前 Camera 无独立健康消息，不能区分相机硬件与视频
 回放；不通过订阅高分辨率图像判断健康。LiDAR / Radio / Referee 显示 `NOT IMPLEMENTED`。
 `LIVE` 仅代表收到新鲜消息，不代表算法正确、有目标或标定准确。

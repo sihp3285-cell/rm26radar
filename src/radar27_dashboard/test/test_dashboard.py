@@ -141,3 +141,40 @@ def test_http_snapshot_stream_disconnect_and_static_map(tmp_path):
     finally:
         server.close()
         worker.join(timeout=2)
+
+
+def test_legacy_decision_contract():
+    from types import SimpleNamespace
+    message = SimpleNamespace(engineer_on_island=True, opponent_attack=False,
+                              our_attack=True, opponent_near_fortress=False)
+    assert vision.decision(message) == vars(message)
+
+
+def test_region_decision_contract_and_upstream_staleness():
+    # Mirror clean/decision's contract without requiring that branch's generated
+    # interfaces to be installed alongside the incompatible legacy ROS type.
+    from types import SimpleNamespace
+    region = SimpleNamespace(id='middle', name='中央', enemy_count=2,
+        enemy_class_ids=[2, 4], enemy_track_ids=[17, 19],
+        field_x=[1.0, 2.0], field_y=[3.0, 4.0],
+        world_x=[float('nan'), 1.0], world_z=[0.0, 2.0])
+    message = SimpleNamespace(header=WorldTargetArray().header,
+        calibration_version=18446744073709551610, own_team=2, input_fresh=True,
+        boundary_margin_m=0.75, our_engineer_on_island=False,
+        enemy_engineer_on_island=True, busiest_region_ids=['middle'], regions=[region])
+    state = DashboardState()
+    state.update('decision', message)
+    snapshot = state.snapshot()
+    source = snapshot['sources']['decision']
+    assert source['status'] == 'LIVE'
+    assert source['calibration_version'] == '18446744073709551610'
+    assert source['data']['regions'][0]['enemy_track_ids'] == [17, 19]
+    assert source['data']['regions'][0]['world_x'] == [None, 1.0]
+    assert source['data']['busiest_region_ids'] == ['middle']
+    assert source['data']['enemy_engineer_on_island'] is True
+    json.dumps(snapshot, allow_nan=False)
+    message.input_fresh = False
+    state.update('decision', message)
+    snapshot = state.snapshot()
+    assert snapshot['sources']['decision']['status'] == 'STALE'
+    assert snapshot['modules']['Decision']['status'] == 'STALE'

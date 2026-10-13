@@ -64,10 +64,31 @@ function render() {
   const sourceLabels={detection:'检测',timing:'性能',measurement:'定位',tracking:'跟踪',prior:'猜点',fusion:'融合',decision:'决策'};
   $('source-status').innerHTML=Object.entries(state.sources).map(([k,s])=>`<span class="source ${s.status.toLowerCase()}" title="${esc(s.topic)} · ${statusNames[s.status]} ${s.status} · ${fmt(s.age_s,1)}s · 时间戳(ns) ${esc(s.stamp_ns)} · 标定版本 ${esc(s.calibration_version)}">● ${sourceLabels[k] || k}</span>`).join('');
   const d=state.sources.decision;
-  const tactics={engineer_on_island:'工程上岛',opponent_attack:'敌方进攻',our_attack:'己方进攻',opponent_near_fortress:'敌近堡垒'};
-  $('decision').textContent=d.status==='LIVE'?Object.entries(d.data).map(([k,v])=>`${tactics[k]}：${yes(v)}`).join(' · '):'决策：等待新鲜战术数据';
-  $('decision').title=d.status==='LIVE'?Object.entries(d.data).map(([k,v])=>`${tactics[k]} (${k})=${v}`).join('\n'):'';
+  renderDecision(d);
   drawMap();inspector();
+}
+function renderDecision(d) {
+  const panel=$('decision');
+  panel.title='';
+  if (d.status!=='LIVE' || !d.data || d.data.input_fresh===false) {
+    panel.textContent='决策：等待新鲜战术数据';
+    return;
+  }
+  const data=d.data;
+  if (Array.isArray(data.regions)) {
+    const team=({1:'红方',2:'蓝方'})[data.own_team] || '未知';
+    const names=new Map(data.regions.map(r=>[r.id,r.name || r.id]));
+    const busiest=data.busiest_region_ids.map(id=>names.get(id) || id).join('、') || '无';
+    panel.textContent=[`决策己方：${team}`,`己方工程上岛：${yes(data.our_engineer_on_island)}`,
+      `敌方工程上岛：${yes(data.enemy_engineer_on_island)}`,
+      ...data.regions.map(r=>`${r.name || r.id}：敌方 ${r.enemy_count}`),
+      `敌方最多区域：${busiest}`].join(' · ');
+    panel.title=panel.textContent+`\n边界容差：${fmt(data.boundary_margin_m)} m\n`+
+      data.regions.map(r=>`${r.name || r.id}：track_id ${r.enemy_track_ids.join(', ') || '无'}`).join('\n');
+  } else {
+    const tactics={engineer_on_island:'工程上岛',opponent_attack:'敌方进攻',our_attack:'己方进攻',opponent_near_fortress:'敌近堡垒'};
+    panel.textContent=Object.entries(tactics).map(([k,label])=>`${label}：${yes(data[k])}`).join(' · ');
+  }
 }
 function renderTargets() {
   $('target-count').textContent=`${rows.length} 个目标`;

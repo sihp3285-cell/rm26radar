@@ -151,7 +151,7 @@ source /home/delphine/rm/radar27/install/setup.bash
 ```bash
 ros2 launch radar27_bringup detect_pipeline.launch.py \
   mode:=video \
-  video_path:=/home/delphine/rm/car_project/test/08.mp4 \
+  video_path:=/home/delphine/rm/car_project/test/06.mp4 \
   model_dir:=/home/delphine/rm/radar27/models \
   runtime_dir:=/home/delphine/.local/state/radar27 \
   playback_mode:=realtime \
@@ -165,7 +165,7 @@ ros2 launch radar27_bringup detect_pipeline.launch.py \
 ```bash
 ros2 launch radar27_bringup detect_pipeline.launch.py \
   mode:=video \
-  video_path:=/home/delphine/rm/car_project/test/08.mp4 \
+  video_path:=/home/delphine/rm/car_project/test/06.mp4 \
   model_dir:=/home/delphine/rm/radar27/models \
   runtime_dir:=/home/delphine/.local/state/radar27 \
   playback_mode:=sequential \

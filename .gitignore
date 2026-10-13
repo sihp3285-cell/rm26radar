@@ -53,3 +53,8 @@ generated/*_report.json
 
 # Local statistical model, installed when present; supply separately on a new checkout.
 src/radar27_bringup/assets/prior/
+
+# Local branch verification artifacts
+build_clean_*/
+install_clean_*/
+log_clean_*/

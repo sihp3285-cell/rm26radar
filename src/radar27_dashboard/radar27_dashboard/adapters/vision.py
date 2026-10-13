@@ -118,6 +118,21 @@ def performance(message):
 
 
 def decision(message):
+    if hasattr(message, 'regions'):
+        return dict(
+            own_team=message.own_team, input_fresh=message.input_fresh,
+            boundary_margin_m=number(message.boundary_margin_m),
+            our_engineer_on_island=message.our_engineer_on_island,
+            enemy_engineer_on_island=message.enemy_engineer_on_island,
+            busiest_region_ids=list(message.busiest_region_ids),
+            regions=[dict(id=r.id, name=r.name, enemy_count=r.enemy_count,
+                          enemy_class_ids=list(r.enemy_class_ids),
+                          enemy_track_ids=list(r.enemy_track_ids),
+                          field_x=[number(v) for v in r.field_x],
+                          field_y=[number(v) for v in r.field_y],
+                          world_x=[number(v) for v in r.world_x],
+                          world_z=[number(v) for v in r.world_z])
+                     for r in message.regions])
     return {key: getattr(message, key) for key in (
         'engineer_on_island', 'opponent_attack', 'our_attack', 'opponent_near_fortress')}
 
@@ -140,6 +155,11 @@ class VisionAdapter:
                 calibration_version=str(message.calibration_version)
                 if message and hasattr(message, 'calibration_version') else None,
                 data=self.converters[name](message) if message else None)
+        # The region decision node keeps publishing even after tracking stops.
+        decision_source = sources['decision']
+        if (decision_source['status'] == 'LIVE' and
+                decision_source['data'].get('input_fresh') is False):
+            decision_source['status'] = 'STALE'
         prior = samples.get('prior')
         if prior:
             sources['prior'].update(model_enabled=prior[0].model_enabled,
