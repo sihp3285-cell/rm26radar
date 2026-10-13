@@ -10,3 +10,23 @@ dl{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:5px 8px
 @media(max-height:720px) and (min-width:1000px){body{grid-template-rows:30px 43px 70px minmax(0,1fr) 28px;gap:6px;padding:7px}.panel{padding:8px}.systems{padding:4px 8px}.performance{padding:5px 6px 12px}.metric-value{font-size:20px}.section-title{margin-bottom:5px}.layers{margin-bottom:5px}.team-legend{font-size:9px}#identity{gap:3px}.position-section,.candidate-section{margin-top:6px;padding-top:6px}.step{padding-top:3px;padding-bottom:3px}.candidate{padding:2px 0}#prior-details{gap:3px}.diagnostics{padding:4px 7px}}
 @media(max-width:1100px){.brand span{font-size:12px}.workspace{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) minmax(0,1fr)}.module-name small{display:none}.layers small{display:none}.diagnostics>.hint{display:none}#identity dt small{display:none}.metric-label{font-size:10px}.metric-label small{font-size:8px}#prior-details{gap:4px}.relationship{margin-left:2px}}
 @media(max-width:850px){body{min-width:780px} .brand{font-size:21px}.brand span{font-size:11px}.connection{font-size:10px}.panel{padding:7px}small{font-size:8px}.workspace{gap:5px}.layers{gap:5px;font-size:9px}.team-legend{font-size:9px}.metric-label small{font-size:7px}.source{font-size:8px}#source-status{gap:4px}.diagnostics{gap:6px}}
+
+/* Battlefield shares the central column; each dense table scrolls independently. */
+.middle-column{grid-template-rows:minmax(210px,1.15fr) minmax(140px,1fr) minmax(100px,.7fr)}
+.battlefield-panel{display:flex;flex-direction:column;min-height:0}
+.battlefield-panel .table-scroll{flex:1;overflow:auto;margin:6px 0}
+.battlefield-panel td{white-space:normal;font-size:11px}
+.region-busiest{background:#fff5dd}
+.battlefield-region{pointer-events:none}
+@media(max-width:900px){.middle-column{grid-template-rows:auto auto auto}.battlefield-panel .table-scroll{max-height:300px}}
+.battlefield-panel th:first-child{width:32%}.battlefield-panel th:nth-child(2){width:13%}.battlefield-panel th:last-child{width:55%}
+.prior-panel{overflow:auto}
+@media(max-width:700px){
+ body{min-width:0;height:auto;overflow:auto;display:flex;flex-direction:column;padding:8px}
+ header{flex-wrap:wrap;height:auto}.brand span{font-size:11px}.connection{flex-wrap:wrap}
+ #modules{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.systems{height:auto}
+ #metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.performance{padding-bottom:20px}
+ .workspace{display:flex;flex-direction:column}.map-wrap{flex:none;height:510px}
+ .middle-column{display:flex;flex-direction:column}.battlefield-panel .table-scroll{max-height:330px}
+ .target-panel .table-scroll{max-height:250px}.diagnostics{flex-wrap:wrap;height:auto}
+}

@@ -7,6 +7,14 @@
 复用 Qt 真实赛场底图，显示测量、跟踪、先验、融合与性能统计；在单独终端启动，
 关闭或 kill Dashboard 不会主动停止雷达主链。
 
+## 当前 decision 分支
+
+`clean/decision` 已合入 `clean/web` 的兼容 Dashboard。切分支后不要复用原来的
+`install/setup.bash`：旧消息和旧包会残留。请优先按
+[decision 构建与隔离说明](src/radar27_decision/README.md#验证)使用
+`build/decision`、`install/decision` 构建，并在新终端加载 `install/decision/setup.bash`。
+下文原有默认构建命令适用于未混用分支的工作区；本分支请使用上述独立目录。
+
 # 环境配置
 - opencv 4.11
 - cuda 12.5

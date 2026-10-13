@@ -14,6 +14,7 @@
     <section class="panel field-panel">
       <div class="section-title"><h2>战场地图 <small>Qt 真实底图</small></h2><button id="flip" type="button" aria-pressed="false">旋转 180°</button></div>
       <div id="layers" class="layers">
+        <label><input type="checkbox" data-layer="regions" checked>区域与容差</label>
         <label><input type="checkbox" data-layer="measurement" checked>● 测量 <small>Measurement</small></label>
         <label><input type="checkbox" data-layer="tracking" checked>□ 跟踪 <small>Tracking</small></label>
         <label><input type="checkbox" data-layer="prior" checked>◇ 猜点 <small>Prior</small></label>
@@ -25,6 +26,12 @@
       <p id="map-note" class="hint"></p>
     </section>
     <div class="middle-column">
+      <section class="panel battlefield-panel">
+        <div class="section-title"><h2>全局战况 1.0</h2><span id="battlefield-status" class="muted"></span></div>
+        <p id="engineer-status" class="hint"></p>
+        <div class="table-scroll"><table><thead><tr><th>区域</th><th>敌车</th><th>兵种 / 轨迹</th></tr></thead><tbody id="regions-table"></tbody></table></div>
+        <p id="regions-note" class="hint"></p>
+      </section>
       <section class="panel target-panel">
         <div class="section-title"><h2>目标列表 <small>Targets</small></h2><span id="target-count" class="muted">0 个目标</span></div>
         <div class="table-scroll"><table><thead><tr><th>编号 / 兵种</th><th>轨迹 ID</th><th>跟踪状态</th><th>失联/s</th><th>融合来源</th></tr></thead><tbody id="targets"></tbody></table></div>

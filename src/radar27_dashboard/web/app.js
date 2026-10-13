@@ -11,7 +11,7 @@ const sourceNames = {TRACKED:'真实跟踪',PREDICTED:'预测',PRIOR:'位置猜�
 const rejectionNames = {0:'通过门控',1:'尚未到预测窗口',2:'超出预测窗口',3:'无可靠观测',4:'不支持的兵种',5:'超出场地',6:'无猜点分布',7:'候选不可达',8:'置信度不足',9:'模型未启用'};
 const layerNames = {measurement:'测量',tracking:'跟踪',prior:'猜点',fusion:'融合',last:'最后测量',anchor:'观测锚点',candidate:'候选'};
 const metrics = Object.keys(metricNames);
-const enabled = {measurement:true,tracking:true,prior:true,fusion:true};
+const enabled = {regions:true,measurement:true,tracking:true,prior:true,fusion:true};
 let state = null, selected = null, flipped = false, streams = [], rows = [], linked = {}, lastRadar = 0;
 let mapSignature = '', targetPage = 0, candidatePage = 0, targetPageSize = 8, rowHeight = 0;
 let labels = [];
@@ -65,6 +65,7 @@ function render() {
   $('source-status').innerHTML=Object.entries(state.sources).map(([k,s])=>`<span class="source ${s.status.toLowerCase()}" title="${esc(s.topic)} · ${statusNames[s.status]} ${s.status} · ${fmt(s.age_s,1)}s · 时间戳(ns) ${esc(s.stamp_ns)} · 标定版本 ${esc(s.calibration_version)}">● ${sourceLabels[k] || k}</span>`).join('');
   const d=state.sources.decision;
   renderDecision(d);
+  renderBattlefield();
   drawMap();inspector();
 }
 function renderDecision(d) {
@@ -89,6 +90,40 @@ function renderDecision(d) {
     const tactics={engineer_on_island:'工程上岛',opponent_attack:'敌方进攻',our_attack:'己方进攻',opponent_near_fortress:'敌近堡垒'};
     panel.textContent=Object.entries(tactics).map(([k,label])=>`${label}：${yes(data[k])}`).join(' · ');
   }
+}
+function renderBattlefield() {
+  const source=state.sources.decision, data=source?.data;
+  const fresh=source?.status==='LIVE' && data?.input_fresh===true;
+  const legacy=data && !Array.isArray(data.regions);
+  $('battlefield-status').textContent=legacy?'旧版战术接口':fresh?'实时统计':'等待新鲜坐标';
+  $('engineer-status').textContent=fresh?`工程上岛 · 己方：${yes(data.our_engineer_on_island)} · 敌方：${yes(data.enemy_engineer_on_island)}`:'工程上岛：未知';
+  const busiest=new Set(fresh?data.busiest_region_ids:[]);
+  $('regions-table').innerHTML=(data?.regions || []).map((r,i)=>{
+    const members=r.enemy_class_ids.map((c,n)=>`${roles[c]?.[0] || '?'} ${roles[c]?.[1] || '未知'} / #${r.enemy_track_ids[n]}`).join('、');
+    return `<tr class="${busiest.has(r.id)?'region-busiest':''}" data-region-id="${esc(r.id)}"><td><span style="color:${regionColors[i%regionColors.length]}">●</span> ${esc(r.name)}${busiest.has(r.id)?' ★':''}</td><td>${fresh?r.enemy_count:'—'}</td><td>${fresh?esc(members || '无'):'未知'}</td></tr>`;
+  }).join('') || `<tr><td colspan="3">${legacy?'旧版接口不提供区域统计，请查看下方战术摘要':'等待 /map_tactics 区域配置'}</td></tr>`;
+  $('regions-note').textContent=`边界容差 ${fmt(data?.boundary_margin_m)} m · 重叠归属由 decision 决定，各区计数不能直接相加为敌方总数。★ 数量最多（含并列）`;
+}
+const regionColors=['#156b9c','#ab620d','#8650a4','#258057','#ba3b62','#4c5e9e','#857020','#337c7c'];
+function drawRegions(w,h) {
+  const data=state.sources.decision?.data;
+  if(!enabled.regions || !Array.isArray(data?.regions))return '';
+  const tracking=state.sources.tracking;
+  if(tracking?.status==='LIVE' && tracking.calibration_version!==null &&
+     state.sources.decision.calibration_version!==tracking.calibration_version)return '';
+  const fresh=state.sources.decision.status==='LIVE' && data.input_fresh;
+  const sx=w/state.field.width, sy=h/state.field.length;
+  return data.regions.map((r,i)=>{
+    if(r.world_x.length!==r.world_z.length)return '';
+    const polygon=r.world_x.map((x,n)=>[x,r.world_z[n]]);
+    if(polygon.length<3 || !polygon.every(valid))return '';
+    // Transform in world metres: the wide round stroke is the exact tolerance band.
+    const transform=flipped?`translate(${w/2-1},${h/2-1}) scale(${-sx},${-sy})`:`translate(${w/2},${h/2}) scale(${sx},${sy})`;
+    const pts=polygon.map(p=>p.join(',')).join(' '),color=regionColors[i%regionColors.length];
+    const x=polygon.reduce((a,p)=>a+p[0],0)/polygon.length,y=polygon.reduce((a,p)=>a+p[1],0)/polygon.length;
+    const px=flipped?w/2-1-x*sx:w/2+x*sx,py=flipped?h/2-1-y*sy:h/2+y*sy;
+    return `<g class="battlefield-region" data-region="${esc(r.id)}"><title>${esc(r.name)} · ${fresh?r.enemy_count:'未知'} 辆 · 容差 ${data.boundary_margin_m}m</title><g transform="${transform}"><polygon points="${pts}" fill="${color}" fill-opacity=".08" stroke="${color}" stroke-opacity=".10" stroke-width="${2*(Number.isFinite(data.boundary_margin_m)?data.boundary_margin_m:0)}" stroke-linejoin="round"/><polygon points="${pts}" fill="none" stroke="${color}" stroke-width=".05"/></g><text x="${px}" y="${py}" text-anchor="middle" font-size="10" fill="${color}" stroke="white" stroke-width="2.5" paint-order="stroke">${esc(r.name)} ${fresh?r.enemy_count:'?'}</text></g>`;
+  }).join('');
 }
 function renderTargets() {
   $('target-count').textContent=`${rows.length} 个目标`;
@@ -151,9 +186,10 @@ function drawMap() {
   const rotate=map.clockwise?`translate(${w},0) rotate(90)`:`translate(0,${h}) rotate(-90)`;
   const signature=JSON.stringify(map);
   if(signature!==mapSignature){
-    $('map').innerHTML=`<g id="map-base"><image href="/map.png" width="${h}" height="${w}" transform="${rotate}"/></g><g id="map-overlay"></g><g id="map-labels"></g>`;mapSignature=signature;
+    $('map').innerHTML=`<g id="map-base"><image href="/map.png" width="${h}" height="${w}" transform="${rotate}"/></g><defs><clipPath id="field-clip"><rect width="${w}" height="${h}"/></clipPath></defs><g id="map-regions" clip-path="url(#field-clip)"></g><g id="map-overlay"></g><g id="map-labels"></g>`;mapSignature=signature;
   }
   $('map-base').setAttribute('transform',flipped?`translate(${w},${h}) rotate(180)`:'');
+  $('map-regions').innerHTML=drawRegions(w,h);
   labels=[];let svg='';
   if(enabled.measurement)svg+=active('measurement').filter(m=>!m.negative).map(m=>marker(m.position,'measurement',null,`${robot(m)} 原始测量（未关联轨迹）`,'measurement',false,m)).join('');
   for(const layer of ['tracking','prior','fusion'])if(enabled[layer])svg+=active(layer).map(t=>marker(t.position,layer,t.key,`${robot(t)} ${layerNames[layer]} #${t.track_id}`,layer,false,t)).join('');
@@ -218,7 +254,7 @@ for(const prefix of ['targets','candidates'])for(const direction of ['prev','nex
   if(prefix==='targets'){targetPage+=delta;renderTargets();}else{candidatePage+=delta;inspector();}
 });
 function fitTargetPage(){
-  const view=document.querySelector('.table-scroll');
+  const view=document.querySelector('.target-panel .table-scroll');
   if(!view)return;
   const sample=$('targets').querySelector('tr[data-key]');
   if(sample)rowHeight=sample.getBoundingClientRect().height;
@@ -228,7 +264,7 @@ function fitTargetPage(){
     : 8;
   if(size!==targetPageSize){targetPageSize=size;if(state)renderTargets();}
 }
-new ResizeObserver(fitTargetPage).observe(document.querySelector('.table-scroll'));
+new ResizeObserver(fitTargetPage).observe(document.querySelector('.target-panel .table-scroll'));
 function connection(live,label){$('connection').textContent=label;$('connection-dot').classList.toggle('live',live);}
 function stop(){streams.forEach(s=>s.close());streams=[];}
 function connect(){

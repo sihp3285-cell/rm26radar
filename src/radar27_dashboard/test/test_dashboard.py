@@ -178,3 +178,29 @@ def test_region_decision_contract_and_upstream_staleness():
     snapshot = state.snapshot()
     assert snapshot['sources']['decision']['status'] == 'STALE'
     assert snapshot['modules']['Decision']['status'] == 'STALE'
+
+
+def test_installed_decision_message_contract():
+    from radar27_interfaces.msg import MapTactics
+    message = MapTactics()
+    if hasattr(message, 'regions'):
+        from radar27_interfaces.msg import RegionOccupancy
+        message.input_fresh = True
+        message.own_team = 2
+        message.regions = [RegionOccupancy(id='middle', name='中央', enemy_count=1,
+            enemy_class_ids=[2], enemy_track_ids=[17])]
+        message.busiest_region_ids = ['middle']
+        expected = {'regions': True}
+    else:
+        message.engineer_on_island = True
+        expected = {'regions': False}
+    state = DashboardState()
+    state.update('decision', message)
+    source = state.snapshot()['sources']['decision']
+    assert source['status'] == 'LIVE'
+    assert ('regions' in source['data']) == expected['regions']
+    if expected['regions']:
+        assert source['data']['regions'][0]['enemy_track_ids'] == [17]
+    else:
+        assert source['data']['engineer_on_island'] is True
+    json.dumps(source, allow_nan=False)

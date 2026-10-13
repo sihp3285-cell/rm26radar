@@ -37,18 +37,40 @@
 保留输入 header 和 calibration_version，发布前尚无输入时仍提供区域几何。
 
 Qt 状态栏显示敌车最多区域及工程上岛信息，地图显示全部区域、计数和浅色容差带。
-Web 表格显示所有区域（含零计数）、兵种/轨迹、并列最多标记及两个工程标志；
-地图图层可关闭，旋转与目标保持一致。Web 容差带按米制宽度绘制，Qt 按平均像素
-比例近似绘制；精确判定均以 decision 为准。
+本分支已合入 `clean/web` 的兼容 Dashboard，使用新版区域消息统一构建。Web 展示
+区域表格（含零计数）、兵种/轨迹、并列最多区域及双方工程上岛状态，地图提供
+可开关的区域与米制容差带，随地图旋转。过期时保留区域几何，计数与状态显示未知。Qt 容差带按平均像素
+比例近似绘制；精确判定以 decision 为准。
 
 ## 验证
 
 ```bash
+# 在仓库根目录、新终端执行，勿先 source 其他分支的 install。
 source /opt/ros/jazzy/setup.bash
-colcon build --packages-up-to radar27_decision radar27_visualization radar27_dashboard radar27_bringup --cmake-args -DBUILD_TESTING=ON
-source install/setup.bash
-colcon test --packages-select radar27_decision --event-handlers console_direct+
+colcon --log-base log/decision build --build-base build/decision \
+  --install-base install/decision \
+  --packages-select rm_field radar27_interfaces radar27_decision radar27_visualization radar27_dashboard \
+  --cmake-args -DBUILD_TESTING=ON
+# 本机 Open3D 安装于自定义目录时，构建参数需追加：
+# -DOpen3D_DIR=/实际安装路径/lib/cmake/Open3D
+source install/decision/setup.bash
+colcon --log-base log/decision test --build-base build/decision --install-base install/decision \
+  --packages-select radar27_decision radar27_dashboard --event-handlers console_direct+
+colcon test-result --test-result-base build/decision --verbose
 ```
 
 独立测试包含排除文件、边界内外、拐角距离、重叠与并列、重叠优先级归属、
 双工程、阵营切换、世界轴反转、重复目标、过期/死亡/NaN 过滤。几何代码不修改共享 YAML 顶点。
+
+## 分支与构建隔离
+
+`clean/decision` 跟踪 `origin/clean/decision`，`clean/web` 跟踪 `origin/clean/web`，
+decision 已合入 web 的兼容修复；web 仍保留独立开发分支。`backup/*` 只是旧历史备份，不作为开发或构建入口。
+Git 切换分支不会清理 `build/`、`install/`，也不会重置当前终端已加载的 ROS 环境。
+因此源码已经切换而 `ros2` 仍使用旧消息/旧节点，甚至找到当前分支不存在的包，都是可能的。
+
+以上命令只验证 decision、Dashboard 与 Qt，不包含完整感知链。运行完整主链前，
+在干净终端使用同样的 `--build-base build/decision --install-base install/decision`
+执行全工作区 `colcon build`，重编译所有消息消费者，随后仅加载该安装目录。
+Web 分支对应使用 `build/web`、`install/web`、`log/web`。
+不同分支同时开发建议使用独立 Git worktree，并分别构建；不要叠加两套接口环境。

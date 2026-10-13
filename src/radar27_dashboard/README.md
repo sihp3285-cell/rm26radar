@@ -6,6 +6,21 @@
 [shark-radar-system](https://github.com/JNU-SHARK/shark-radar-system)、
 [shark-radar-radio](https://github.com/JNU-SHARK/shark-radar-radio)。
 
+## decision 集成分支
+
+在 `clean/decision` 上请先按 [decision 构建说明](../radar27_decision/README.md#验证)
+统一构建新版接口及 Dashboard，然后在新终端执行：
+
+```bash
+source /opt/ros/jazzy/setup.bash
+source /home/delphine/rm/radar27/install/decision/setup.bash
+ros2 launch radar27_dashboard dashboard.launch.py \
+  map_config:=/home/delphine/rm/radar27/src/radar27_bringup/config/default/map.yaml
+```
+
+以下默认 `install` 命令用于独立 web 工作区；集成分支使用 `install/decision`，
+不要叠加加载旧 `install/setup.bash`。
+
 ## 构建与启动
 
 ```bash
@@ -59,7 +74,10 @@ ros2 run radar27_dashboard dashboard_node --ros-args \
 | `/map_tactics` | MapTactics | Decision 新鲜度与战术状态 |
 
 Dashboard 自动识别当前安装的 `MapTactics` 结构：旧版展示四个战术状态；
-新版展示决策阵营、双方工程师上岛状态、各区域敌方数量和全部并列最多区域，
+新版在全局战况面板展示双方工程师上岛状态、各区域敌方数量（含零计数）、
+兵种/轨迹和全部并列最多区域，地图叠加区域与米制容差带，可切换图层并随视角旋转。
+过期时区域几何保留，计数、轨迹和工程状态显示未知；标定版本与新鲜 Tracking
+不一致时不叠加区域。页脚提供决策阵营与摘要，
 悬停可查看完整摘要、边界容差与目标 track_id。新版 `input_fresh=false` 时，
 即使决策节点仍在发布消息，Decision 也显示 STALE，不展示过期战术结论。
 
