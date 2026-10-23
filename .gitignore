@@ -58,3 +58,5 @@ src/radar27_bringup/assets/prior/
 build_clean_*/
 install_clean_*/
 log_clean_*/
+
+.dsh-verify/

@@ -240,7 +240,9 @@ private:
 
         RCLCPP_INFO(this->get_logger(), "成功捕获图像，分辨率: %dx%d",
                     captured_frame.cols, captured_frame.rows);
-        RCLCPP_INFO(this->get_logger(), "操作提示: 左键选点, 空格=撤销上一点, Q=取消标定");
+        RCLCPP_INFO(this->get_logger(),
+            "操作提示: 左键放大该处, 再左键在放大图上落点, 右键=退出放大/撤销上一点, "
+            "+/-=放大倍数, Q=取消标定");
 
         // 获取图像后暂停视频，标定结束（无论成败）自动恢复
         struct VideoPauseGuard {

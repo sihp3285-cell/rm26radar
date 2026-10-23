@@ -205,7 +205,9 @@ private:
 
         RCLCPP_INFO(this->get_logger(), "成功捕获图像，分辨率: %dx%d",
                     captured_frame.cols, captured_frame.rows);
-        RCLCPP_INFO(this->get_logger(), "操作提示: 左键选点, 空格=撤销上一点, Q=取消框定");
+        RCLCPP_INFO(this->get_logger(),
+            "操作提示: 左键放大该处, 再左键在放大图上落点, 右键=退出放大/撤销上一点, "
+            "+/-=放大倍数, Q=取消框定");
 
         // ========== 3. 暂停视频 ==========
         struct VideoPauseGuard {
@@ -231,10 +233,11 @@ private:
             return {false, "ROI 框定被取消（点数不足）"};
         }
 
-        int x1 = static_cast<int>(points[0].x);
-        int y1 = static_cast<int>(points[0].y);
-        int x2 = static_cast<int>(points[1].x);
-        int y2 = static_cast<int>(points[1].y);
+        // 放大视图给的是亚像素落点，取整用四舍五入而不是截断。
+        int x1 = cvRound(points[0].x);
+        int y1 = cvRound(points[0].y);
+        int x2 = cvRound(points[1].x);
+        int y2 = cvRound(points[1].y);
         int x = std::min(x1, x2);
         int y = std::min(y1, y2);
         int w = std::abs(x1 - x2);
